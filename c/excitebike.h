@@ -80,3 +80,8 @@ Regs AiTrackPieceOpen(Regs r);       /* $CF8B */
 void AiLaneChangeUp(Regs r);         /* $CF47 */
 void AiLaneChangeDown(Regs r);       /* $CF6A */
 void AiConsiderLaneChange(Regs r);   /* $CF0C */
+
+void RiderState1Gate(Regs r);        /* $D933 */
+void RiderState2MoveToLane(Regs r);  /* $D953 */
+void RiderState3Wait(Regs r);        /* $D983 */
+void RiderState5Finish(Regs r);      /* $D9F6 */

@@ -481,3 +481,59 @@ void AiConsiderLaneChange(Regs r) {           /* $CF0C */
     if (to64 && RAM(0xC0 + x) == 0xE6) { lane_up(x); return; }
     lane_down(x);
 }
+
+/* ---- batch 4: rider start-sequence states (gate, move to lane, wait, finish) ---- */
+void RiderState1Gate(Regs r) {                /* $D933: riders creep up to the gate */
+    uint8_t x = r.x;
+    if (RAM(0x0370 + x) != 0) {
+        if (RAM(0x3F) & 1) return;
+        RAM(0x0390 + x)++;
+        uint8_t y = RAM(0x03E4 + x);
+        uint8_t a = (uint8_t)(RAM(0x80 + x) + ROMB(0xD90E + y));
+        if (a >= RAM(0x0390 + x)) return;
+    }
+    if (++RAM(0x9C + x) == 0) return;
+    RAM(0x2A + x) = 8;
+}
+
+void RiderState2MoveToLane(Regs r) {          /* $D953 */
+    uint8_t x = r.x, y = x;
+    if (x != 0 && RAM(0xBC + x) != 0) y = 4;
+    uint8_t a = RAM(0xB8 + x), t = ROMB(0xD8C4 + y);
+    if (a != t) { RAM(0xDC + x) = a < t ? 1 : 0xFF; return; }
+    RAM(0x0398 + x) = 0; RAM(0xDC + x) = 0;
+    RAM(0x9C + x)++;
+    if (x == 0) RAM(0xFD) = 2;
+    RAM(0x2A + x) = 8;
+}
+
+void RiderState3Wait(Regs r) {                /* $D983 */
+    uint8_t x = r.x, a;
+    if (RAM(0x0370 + x) != 0) {
+        if (RAM(0x2A + x) != 0) return;
+        int dec = 0;
+        a = 0;
+        int frame = 1;
+        if ((uint8_t)(x | RAM(0x03F7)) == 0) {
+            uint8_t y = RAM(0x49);
+            a = RAM(0x14) & 0xC0;
+            if (a != 0 && y == 0) { RAM(0x49) = a; dec = 1; frame = 0; a = 0; }
+            else RAM(0x49) = (a != 0) ? y : 0;      /* $D99F stores A, which is the old latch after TYA */
+        }
+        if (frame) { a = RAM(0x3F) & 0x0F; if (a == 0) dec = 1; }
+        if (dec) RAM(0x0390 + x)--;
+        if ((a & 7) == 0) RAM(0x0398 + x) ^= 1;
+        if ((uint8_t)(RAM(0x0390 + x) - 8) >= RAM(0x80 + x)) return;
+    }
+    RAM(0x36 + x) = 3;                         /* $D9C0 */
+    RAM(0x9C + x)++;
+    if (x == 3) { RAM(0x03A8) = 0; RAM(0x0373) = 0; }
+}
+
+void RiderState5Finish(Regs r) {              /* $D9F6 */
+    uint8_t x = r.x;
+    if ((RAM(0x94 + x) | RAM(0xDC + x)) == 0 && RAM(0xB8 + x) == ROMB(0xD8C4 + x)) return;
+    RAM(0xDC + x) = 1;
+    if (x != 0 && RAM(0xB8 + x) < 8) return;
+    RAM(0x9C + x) = 0;
+}
