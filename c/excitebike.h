@@ -134,7 +134,7 @@ void UpdateRiderGroundDistance(void);/* $E836 */
 void UpdateRiderY(void);             /* $E96C */
 void RiderStateDispatch(Regs r);     /* $D924 */
 void UpdateRiderStates(void);        /* $D918 */
-void MenuHandleInput(Regs r);        /* $C7DE */
+Regs MenuHandleInput(Regs r);        /* $C7DE */
 
 void GameStateClearSteps(void);      /* $C3B1 */
 void GameStateAdvance(void);         /* $C3AF */
@@ -152,3 +152,12 @@ Regs ResultsDrawRank(Regs r);        /* $CC15 */
 void ResultsStepFinish(void);        /* $CC6B */
 void ResultsStepWait(void);          /* $CBA4 */
 void StateSubStepDispatch(void);     /* $CB2C */
+
+void LoadBestTime(void);             /* $C522 */
+void LoadSavedTimeForIndex(void);    /* $C53E */
+void LoadSavedTime(void);            /* $C53A */
+void WriteTimeTextSaved(Regs r);     /* $C92C */
+void SetMenuCursorSprite(Regs r);    /* $C409 */
+void StateMenuChoice6(void);         /* $C3BD */
+void StateMenuChoice5(void);         /* $C395 */
+void ComputeRaceResult(void);        /* $C485 */

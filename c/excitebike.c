@@ -1493,19 +1493,19 @@ void UpdateRiderStates(void) {                /* $D918 */
     }
 }
 
-void MenuHandleInput(Regs r) {                /* $C7DE: A = number of items; moves $42 with the d-pad, A/B/etc. via $30/$31 */
-    uint8_t y = RAM(0x42), a;
+Regs MenuHandleInput(Regs r) {                /* $C7DE: A = number of items; moves $42 with the d-pad. Returns X = 4 for a button press, Y = cursor */
+    uint8_t y = RAM(0x42), a, xo = 0, y0 = y;
     RAM(0x00) = r.a;
     a = RAM(0x15) & 0x3C;
-    if (a == 0) { RAM(0x49) = 0; return; }
+    if (a == 0) { RAM(0x49) = 0; return (Regs){ 0, 0, y0, r.c }; }
     RAM(0x31) = 0x5D;
-    if (RAM(0x49) != 0) return;
+    if (RAM(0x49) != 0) return (Regs){ 0, 0, y0, r.c };
     a = RAM(0x15);
     int step = 0;                                /* 1 = down, 2 = up */
     if (a & ROMB(0xC0CE)) step = 1;
     else if ((a >> 2) & 1) step = 1;
     else if ((a >> 3) & 1) step = 2;
-    else { RAM(0x30) = 4; goto store; }
+    else { RAM(0x30) = 4; xo = 4; goto store; }
     if (step == 1) { y++; if (y >= RAM(0x00)) y = 1; else goto beep; }
     y--;
     if (y & 0x80) y = (uint8_t)(RAM(0x00) - 1);
@@ -1514,6 +1514,7 @@ beep:
 store:
     RAM(0x42) = y;
     RAM(0x49)++;
+    return (Regs){ 0, xo, y, r.c };
 }
 
 /* ---- batch 13: overheating, race end, game-state advance ---- */
@@ -1720,4 +1721,95 @@ void StateSubStepDispatch(void) {             /* $CB2C: results sub-steps 0-3 */
     case 3: ResultsStepFinish(); break;
     default: break;
     }
+}
+
+/* ---- batch 15: menus, best-time tables, race result ---- */
+void LoadBestTime(void) {                     /* $C522: built-in record for the current track -> $05-$07 */
+    RAM(0x02) = RAM(0x43);
+    uint8_t y = TimeTableIndexForTrack((Regs){ 0, 0, 0, 0 }).a;
+    RAM(0x05) = ROMB(0xC091 + y); RAM(0x06) = ROMB(0xC092 + y); RAM(0x07) = ROMB(0xC093 + y);
+}
+void LoadSavedTimeForIndex(void) {            /* $C53E: saved best time for track $02 -> $05-$07 */
+    uint8_t y = TimeTableIndexForSelection((Regs){ 0, 0, 0, 0 }).y;
+    RAM(0x05) = RAM(0x0580 + y); RAM(0x06) = RAM(0x0581 + y); RAM(0x07) = RAM(0x0582 + y);
+}
+void LoadSavedTime(void) { RAM(0x02) = RAM(0x43); LoadSavedTimeForIndex(); }   /* $C53A */
+void WriteTimeTextSaved(Regs r) {             /* $C92C: A = text type; writes the saved time of the current track to the PPU buffer */
+    RAM(0x02) = RAM(0x43); RAM(0x03) = r.a;
+    LoadSavedTimeForIndex();
+    WriteTimeDigitsToBuffer();
+}
+
+static void menu_cursor_tail(uint8_t a) { RAM(0x0203) = a; RAM(0x0202) = 0; RAM(0x46) = 0; }   /* $C411 */
+void SetMenuCursorSprite(Regs r) { RAM(0x0201) = 0xFA; menu_cursor_tail(ROMB(0xC088 + r.y)); }  /* $C409 */
+
+void StateMenuChoice6(void) {                 /* $C3BD */
+    Regs q = MenuHandleInput((Regs){ 6, 0, 0, 0 });
+    if (q.x == 0) { RAM(0x0200) = ROMB(0xC08B + RAM(0x42)); return; }
+    uint8_t a = RAM(0x42);
+    if (a == 2) { GameStateAdvance(); return; }
+    if (a > 2) {
+        if (a == 5) { RAM(0x42) = a >> 1; ResetGameRam(); return; }
+        RAM(0x41) = (uint8_t)(a + 9); RAM(0x42) = 0; GameStateClearSteps(); return;
+    }
+    RAM(0x03F2) = a; RAM(0x41)++; GameStateAdvance();
+}
+void StateMenuChoice5(void) {                 /* $C395 */
+    uint8_t t = RAM(0x15) & 0xF3;
+    t |= (uint8_t)((t & 3) << 2);
+    RAM(0x15) = t;
+    Regs q = MenuHandleInput((Regs){ 5, 0, 0, 0 });
+    if (q.x == 0) {
+        uint8_t a = ROMB(0xC083 + q.y);
+        if (a != 0) { menu_cursor_tail(a); return; }
+        StateMenuChoice6(); return;
+    }
+    RAM(0x43) = RAM(0x42);
+    GameStateAdvance();
+}
+
+void ComputeRaceResult(void) {                /* $C485: place/record from the finish time $68-$6A; stores $53 and queues the result screen */
+    uint8_t a, y, c, i, k;
+    LoadSavedTime();
+    for (i = 0; i < 3; i++) if (RAM(0x05 + i) != RAM(0x68 + i)) break;
+    if (i == 3) { a = 1; goto done; }
+    if (RAM(0x05 + i) >= RAM(0x68 + i)) {
+        y = TimeTableIndexForSelection((Regs){ 0, 0, 0, 0 }).y;      /* LoadSavedTime left Y = table slot */
+        for (k = 0; k < 3; k++) RAM(0x0580 + y++) = RAM(0x68 + k);
+        a = 1; goto done;
+    }
+    if (RAM(0x41) < 8) {
+        LoadBestTime();
+        for (i = 0; i < 3; i++) if (RAM(0x05 + i) != RAM(0x68 + i)) break;
+        if (i == 3 || RAM(0x05 + i) >= RAM(0x68 + i)) { a = 2; goto done; }
+    }
+    RAM(0x0A) = RAM(0x03F8);
+    RAM(0x09) = (uint8_t)(RAM(0x0A) << 1);
+    y = (uint8_t)(RAM(0x68) - RAM(0x05));
+    a = 0;
+    for (;;) {
+        y--;
+        if (y & 0x80) break;
+        c = 0; a = adc8(a, 0x3C, &c);
+        if (c) { a = 0xFF; goto scale; }
+    }
+    RAM(0x08) = a;
+    {
+        uint8_t v = RAM(0x69), s = RAM(0x06);
+        c = v >= s; a = (uint8_t)(v - s);
+        uint8_t cc = 0; a = adc8(a, RAM(0x08), &cc);
+        if (c && cc) { a = 0xFF; goto scale; }
+    }
+    if (a < RAM(0x09)) {
+        c = 0; a = adc8(a, RAM(0x09), &c);
+        for (;;) {
+            RAM(0x0A) >>= 1;
+            if (RAM(0x0A) == 0) goto done;
+            a >>= 1;
+        }
+    }
+scale:
+    a = (uint8_t)(((uint8_t)(a - RAM(0x09)) >> 1) + 4);
+done:
+    RAM(0x53) = a; RAM(0x45) = 0x18; RAM(0x49) = 1; RAM(0x40) = 1; RAM(0x44) = 0;
 }
