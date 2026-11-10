@@ -352,7 +352,7 @@ void RiderLaunchUpdate(Regs r) {              /* $DCF2 */
 void ClearOam(void) { for (int i = 0; i < 256; i++) RAM(0x0200 + i) = 0xF8; }   /* $D255 */
 
 /* ---- batch 3: speed model and AI lane changes ---- */
-void RiderTerrainSpeedBias(Regs r) {          /* $CDEE: ramp/terrain-driven bump state ($036C) and the noise SFX */
+Regs RiderTerrainSpeedBias(Regs r) {          /* $CDEE: bump state ($036C) from terrain; returns the 6502 Z flag in .c (1 = on the ramp-free path) */
     uint8_t x = r.x, y;
     if (RAM(0xC0 + x) != 0xE4) {
         int skip = (RAM(0xA4 + x) == 3) && RAM(0x70 + x) >= 3;
@@ -360,12 +360,13 @@ void RiderTerrainSpeedBias(Regs r) {          /* $CDEE: ramp/terrain-driven bump
             y = RAM(0xB8 + x);
             if (y < 0x38 && y >= 0x08) {                       /* $CE1D */
                 if (RAM(0x036C + x) != 1) RAM(0x036C + x) = 0;
-                return;
+                r.c = 1; return r;
             }
         }
     }
     if (RAM(0x036C + x) != 1) RAM(0x036C + x) = 2;             /* $CE0A */
     if (x == 0) RAM(0xFD) = 4;
+    r.c = 0; return r;
 }
 
 void RiderAccelerate(Regs r) {                /* $CE29: Y = acceleration class; speed capped for rider 0 */
@@ -580,4 +581,96 @@ void RiderState4Release(Regs r) {             /* $D9D3 */
         RAM(0xDC + x) = 1; RAM(0x22) = 0x18;
     }
     RAM(0x9C + x)++;
+}
+
+/* ---- batch 6: player/AI control step, race clock, engine sound ---- */
+void RiderControlStep(Regs r) {               /* $CD59: one rider's throttle, brake and pitch handling for this frame */
+    uint8_t x = r.x, y = 0, a;
+    RAM(0x0A) = RAM(0x5C + x) & 3;
+    if ((RAM(0x0374 + x) | RAM(0x98 + x)) != 0) goto decel;
+    a = RAM(0x9C + x);
+    if (a != 0 && a != 5) goto decel;
+    if (x == 0) {
+        y = 2;
+        if (RAM(0x52) != 0) goto cmp_speed;
+        y = 0;
+    }
+    if (RAM(0xB0 + x) != 0) {                   /* $CDB2: airborne */
+        y = 4; a = RAM(0x0A);
+        if (a == 0) goto decel;
+        y = a; goto brake;
+    }
+    a = RAM(0x5C + x) & 0xC0;
+    if (a == 0) goto decel;
+    RAM(0x00) = x;
+    if (!(a & 0x80)) RAM(0x00)++;
+    if (!RiderTerrainSpeedBias(r).c && RAM(0x94 + x) != 0) goto decel;
+    y = RAM(0x00);
+    if (x != 0) goto accel;
+cmp_speed: {                                    /* $CD9A */
+    uint8_t hi = RAM(0x94 + x), t = ROMB(0xC0D1 + y);
+    if (hi < t) goto accel;
+    if (hi != t) goto brake;
+    uint8_t lo = RAM(0x90 + x), t2 = ROMB(0xC0CE + y);
+    if (lo == t2) goto after;
+    if (lo >= t2) goto brake;
+}
+accel:
+    RiderAccelerate((Regs){ 0, x, y, 0 }); goto after;
+brake:
+    y++;
+decel:
+    RiderDecelerate((Regs){ 0, x, y, 0 });
+after:                                          /* $CDBD */
+    if (RAM(0x98 + x) != 0) return;
+    if (RAM(0xB0 + x) == 0) {
+        if ((RAM(0x58 + x) | RAM(0x52)) != 0) goto settle;
+        if (RAM(0x94 + x) == 0 && RAM(0x90 + x) < 0xA0) goto settle;
+    }
+    a = RAM(0x0A);                              /* $CDD5 */
+    if (a == 0) goto settle;
+    RAM(0x00) = a;
+    RiderPitchWobble(r);
+    return;
+settle:                                         /* $CDDE */
+    if (RAM(0xB0 + x) != 0) return;
+    if (RAM(0x0368 + x) == RAM(0xAC + x)) return;
+    RiderPitchAdjust((Regs){ RAM(0x0368 + x), x, 5, 0 });
+}
+
+void UpdateRaceClock(void) {                  /* $DF30: ticks the race time (minutes:seconds:hundredths) and mirrors the digits to $03D9 */
+    if (!RAM(0x4F)) return;
+    RAM(0x6B) += 0x10;
+    for (;;) {
+        if (RAM(0x6B) < 0x0A) break;
+        RAM(0x6B) -= 0x0A;
+        if (++RAM(0x6A) < 0x64) continue;
+        RAM(0x6A) = 0;
+        if (++RAM(0x69) < 0x3C) continue;
+        RAM(0x69) = 0;
+        if (++RAM(0x68) < 0x09) continue;
+        RAM(0x52) = 2;
+        break;
+    }
+    SplitDigits3((Regs){ 0, 0x68, 0, 0 });
+    for (int i = 6; i >= 0; i--) RAM(0x03D9 + i) = RAM(0x03D1 + i);
+}
+
+void UpdateEngineSound(void) {                /* $DEE2: engine pitch request for rider 0 */
+    uint8_t x = 0;
+    if (RAM(0x03A9) != 0) {
+        if (RAM(0x4C) & 1) return;
+        RAM(0x00) = RAM(0x94); RAM(0x01) = RAM(0x90);
+        for (int i = 0; i < 3; i++) { uint8_t c = RAM(0x00) & 1; RAM(0x00) >>= 1; RAM(0x01) = (uint8_t)((RAM(0x01) >> 1) | (c << 7)); }
+        x = RAM(0xB0) ? 4 : 2;
+        uint8_t a = (uint8_t)(RAM(0x01) - 2);
+        if (a & 0x80) x = 1;
+        else {
+            x = DivModByX((Regs){ a, x, 0, 0 }).x;
+            if (x == 0) x = 1;
+        }
+        if (x >= 0x2F) { x = 0x2F; if ((RAM(0x3F) & 8) == 0) x--; }
+        if (!(RAM(0x5C) & 0x80)) x |= 0x80;
+    }
+    RAM(0xFC) = x;
 }

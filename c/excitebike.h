@@ -70,7 +70,7 @@ void RiderStartJump(Regs r);       /* $DD06 */
 void RiderLaunchUpdate(Regs r);    /* $DCF2 */
 void ClearOam(void);               /* $D255 */
 
-void RiderTerrainSpeedBias(Regs r);  /* $CDEE */
+Regs RiderTerrainSpeedBias(Regs r);  /* $CDEE */
 void RiderAccelerate(Regs r);        /* $CE29 */
 void RiderDecelerateBy(Regs r);      /* $CE5C */
 void RiderDecelerate(Regs r);        /* $CE58 */
@@ -91,3 +91,7 @@ Regs TimeTableIndexForTrack(Regs r);      /* $CB13 */
 Regs TimeTableIndexForSelection(Regs r);  /* $CB06 */
 void SaveInputToRider0(void);             /* $CA1B */
 void RiderState4Release(Regs r);          /* $D9D3 */
+
+void RiderControlStep(Regs r);       /* $CD59 */
+void UpdateRaceClock(void);          /* $DF30 */
+void UpdateEngineSound(void);        /* $DEE2 */

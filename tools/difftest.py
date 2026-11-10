@@ -68,7 +68,7 @@ TESTS = [
     ('RiderStartJump',       0xDD06, True,  'V',   lambda r: dict(x=r.randint(0, 3))),
     ('RiderLaunchUpdate',    0xDCF2, True,  'V',   lambda r: dict(x=r.randint(0, 3))),
     ('ClearOam',             0xD255, False, '',    lambda r: {}),
-    ('RiderTerrainSpeedBias',0xCDEE, True,  'V',   lambda r: dict(x=r.randint(0, 3), ram={0xA4+i: r.choice([3, 1, 0]) for i in range(4)} | {0xC0+i: r.choice([0xE4, 0x10]) for i in range(4)} | {0xB8+i: r.choice([5, 0x10, 0x40]) for i in range(4)} | {0x70+i: r.randint(0, 5) for i in range(4)})),
+    ('RiderTerrainSpeedBias',0xCDEE, True,  'z',   lambda r: dict(x=r.randint(0, 3), ram={0xA4+i: r.choice([3, 1, 0]) for i in range(4)} | {0xC0+i: r.choice([0xE4, 0x10]) for i in range(4)} | {0xB8+i: r.choice([5, 0x10, 0x40]) for i in range(4)} | {0x70+i: r.randint(0, 5) for i in range(4)})),
     ('RiderAccelerate',      0xCE29, True,  'V',   lambda r: dict(x=r.randint(0, 3), y=r.randint(0, 2), ram={0x4C: r.randint(0, 3)})),
     ('RiderDecelerateBy',    0xCE5C, True,  'V',   lambda r: dict(x=r.randint(0, 3), y=r.randint(0, 2), ram={0x94+i: r.choice([0, 0, 1]) for i in range(4)} | {0xB0+i: r.randint(0, 3) for i in range(4)})),
     ('RiderDecelerate',      0xCE58, True,  'V',   lambda r: dict(x=r.randint(0, 3), y=r.randint(0, 2), ram={0x4C: r.randint(0, 3)})),
@@ -87,6 +87,9 @@ TESTS = [
     ('TimeTableIndexForSelection', 0xCB06, True, 'ayc', lambda r: dict(ram={0x02: r.choice([0, 1, 2, 3, 4, 5, 6, 90, 130]), 0x46: r.choice([0, 1]), 0x3F2: r.choice([0, 1])})),
     ('SaveInputToRider0', 0xCA1B, False, '', lambda r: {}),
     ('RiderState4Release', 0xD9D3, True, 'V', lambda r: dict(x=r.randint(0, 3), ram={0x36+i: r.choice([0, 0, 2]) for i in range(4)} | {0x3E0: r.choice([0, 0, 1]), 0x3F7: r.choice([0, 1]), 0x22: r.choice([0, 0, 4])})),
+    ('RiderControlStep', 0xCD59, True, 'V', lambda r: dict(x=r.randint(0, 3), ram={0x374+i: r.choice([0, 0, 0, 2]) for i in range(4)} | {0x98+i: r.choice([0, 0, 0, 1]) for i in range(4)} | {0x9C+i: r.choice([0, 0, 5, 2]) for i in range(4)} | {0x52: r.choice([0, 0, 1])} | {0xB0+i: r.choice([0, 0, 2]) for i in range(4)} | {0x5C+i: r.choice([0, 0x40, 0x80, 0xC0, 1, 2, 3, 0x41, 0x82]) for i in range(4)} | {0x58+i: r.choice([0, 0, 1]) for i in range(4)} | {0x94+i: r.choice([0, 0, 1, 2, 3]) for i in range(4)} | {0x4C: r.randint(0, 3)} | {0xA4+i: r.choice([3, 1, 0]) for i in range(4)} | {0xC0+i: r.choice([0xE4, 0x10]) for i in range(4)} | {0xB8+i: r.choice([5, 0x10, 0x40]) for i in range(4)} | {0x70+i: r.randint(0, 5) for i in range(4)} | {0x26+i: r.choice([0, 0, 5]) for i in range(4)} | {0xAC+i: r.randint(0, 14) for i in range(4)} | {0x368+i: r.randint(0, 14) for i in range(4)} | {0x2A+i: r.choice([0, 0, 3]) for i in range(4)})),
+    ('UpdateRaceClock', 0xDF30, False, '', lambda r: dict(ram={0x4F: r.choice([0, 1, 1, 1]), 0x6B: r.choice([0, 3, 9, 0x0A, 0x20, 0xF0]), 0x6A: r.choice([5, 0x62, 0x63]), 0x69: r.choice([5, 0x3A, 0x3B]), 0x68: r.choice([0, 7, 8])})),
+    ('UpdateEngineSound', 0xDEE2, False, '', lambda r: dict(ram={0x3A9: r.choice([0, 1, 1]), 0x4C: r.randint(0, 3), 0x94: r.choice([0, 0, 1, 2, 3]), 0xB0: r.choice([0, 2])})),
 ]
 
 def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
@@ -106,6 +109,7 @@ def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
         rc = (rc.a, rc.x, rc.y, rc.c) if returns else None
         bad = [k for k in range(0x800) if not 0x100 <= k < 0x200 and cpu.ram[k] != ram_c[k]]
         badreg = [r for r, idx in (('a', 0), ('x', 1), ('y', 2), ('c', 3)) if r in cmp_regs and rc is not None and ra[idx] != rc[idx]]
+        if 'z' in cmp_regs and rc is not None and cpu.z != rc[3]: badreg.append('z')
         if bad or badreg:
             print(f'  FAIL {name} run {i}: src {[hex(ram[(regs["x"]+j)&0xFF]) for j in range(3)]} input {regs}  ram diffs at {[hex(k) for k in bad[:6]]}  reg diffs {badreg}  asm={ra} c={rc}')
             return False
