@@ -89,3 +89,18 @@ folder, and loads mods on top.
 - Rendering with an own renderer means matching the original look. Test by comparing frames with the recompiled
   build at 1x.
 - The sound engine has not been read yet. Custom-music support depends on what it turns out to do.
+
+## Status and the game-state renderer (not built)
+
+Built and verified locally: widescreen, extra CPU riders (with collisions against the real riders), rules, CHR/palette mods, audio mods (music, one-shot sounds, engine tone), frame interpolation, replays, design files.
+
+The picture is still produced by a scanline PPU model fed by the game's register writes (`port/ppu.c`). A *game-state renderer* would draw the track, riders, obstacles and HUD straight from game
+state (track window, rider records, scroll position) into any resolution, which would give exact widescreen without the current edge-streaming limit, true high-frame-rate motion (interpolating
+state, not pictures) and custom art with no tile-size limits. It is the largest remaining item and is not started. What it needs:
+
+1. A track-state view: the game keeps the visible track as nametable rows written by the streamer; a renderer would read the track's tile/obstacle list directly (the design data at `TrackDesign`) and own the scroll.
+2. Every sprite source named: riders, shadows, exhaust and start-light sprites, the obstacle and the HUD. Riders and shadows already go through `DrawRider`/`DrawRiderShadow` into OAM, so those can be intercepted at the sprite level first.
+3. A renderer-side copy of the HUD layout (temperature gauge, lap timer, mini-map) driven by state variables (`TempGauge`, timers) instead of nametable writes.
+4. A proof method: render both ways for the same replay and compare pictures (the PPU path stays as the reference), as the C game is compared with the ROM today.
+
+The sensible first step is a hybrid: keep the PPU path for the background and replace only sprite output with state-driven draws (already how widescreen and extra riders work).
