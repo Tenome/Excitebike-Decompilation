@@ -99,3 +99,7 @@ void UpdateEngineSound(void);        /* $DEE2 */
 Regs AiScanObstacles(Regs r);        /* $D018 */
 void UpdateAiRiders(void);           /* $CED0 */
 void UpdateRiderControls(void);      /* $CD1F */
+
+Regs SpawnRider(Regs r);             /* $DAE3 */
+void SpawnCpuRiders(void);           /* $DA9F */
+void HandleLostRider(void);          /* $DBC4 */

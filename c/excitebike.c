@@ -754,3 +754,70 @@ void UpdateRiderControls(void) {              /* $CD1F */
         RAM(0x03A9) = 1; RAM(0xFE) = 1;
     }
 }
+
+/* ---- batch 8: spawning CPU riders and the lost-rider respawn ---- */
+Regs SpawnRider(Regs r) {                     /* $DAE3: X = slot, Y = start lane + 1; A=0 (Z set) when the spot is blocked */
+    uint8_t x = r.x, y = r.y, a;
+    ClearRider((Regs){ 0, x, 0, 0 });
+    y--;
+    RAM(0xB8 + x) = ROMB(0xD8D8 + y);
+    y = RAM(0x84 + x);
+    RAM(0x80 + x) = ROMB(0xD8DF + y);
+    RAM(0xAC + x) = 6;
+    RAM(0xE0 + x) = (uint8_t)((RAM(0xE0) + ROMB(0xD8E2 + y)) & 0x3F);
+    RAM(0x64 + x) = RAM(0x64);
+    if (y != 0) {
+        a = TrackPieceAtRow((Regs){ 0, x, 5, 0 }).a;
+        if (a != 0xE4) {
+            if (a < 0x3B || a >= 0x93) { r.a = 0; r.c = 1; return r; }
+            a = TrackPieceAtRow((Regs){ 0, x, 2, 0 }).a;
+            if (a == 0xE6) {
+                if (RAM(0xB8 + x) >= 0x20) { RAM(0xBC + x) = 0x30; RAM(0xA4 + x) = 1; }
+                else RAM(0xA4 + x) = 3;
+            }
+        }
+    }
+    y = RAM(0x84 + x);                          /* $DB34 */
+    SetRiderTargetSpeed((Regs){ 0, x, y, 0 });
+    RAM(0x94 + x) = (uint8_t)((RAM(0x84 + x) ^ 2) << 1);
+    RAM(0x039B + x) = 0x20;
+    RAM(0x23) = 0x10;
+    RAM(0xA8 + x) = 1;
+    r.a = 1; r.c = 0; return r;
+}
+
+void SpawnCpuRiders(void) {                   /* $DA9F: occasionally brings a CPU rider in from the edge */
+    uint8_t x = 3;
+    if (RAM(0x3B) != 0) x--;                    /* first pass is skipped when $3B is set (falls to the DEX) */
+    for (;;) {
+        if ((uint8_t)(x ^ RAM(0x4C) | RAM(0xA8 + x) | RAM(0x23) | RAM(0x0373) | RAM(0x03A8)) == 0 && RAM(0x18 + x) >= 0xA0) {
+            uint8_t a = RAM(0x18 + x), y;
+            RAM(0x00) = x;
+            y = (uint8_t)((a & 3) + 1);
+            RAM(0x84 + x) = RAM(0x94) & 2;
+            for (uint8_t xx = 3; xx != 0; xx--) {
+                RAM(0x01) = y;
+                if (RAM(0x70 + xx) == y) { y++; if (y >= 5) y = 1; }
+            }
+            x = RAM(0x00);
+            SpawnRider((Regs){ 0, x, y, 0 });
+        }
+        x--;
+        if (x == 0) return;
+    }
+}
+
+void HandleLostRider(void) {                  /* $DBC4: clears rider 3 when it falls behind, or respawns it ahead */
+    if (RAM(0x03A8) == 0) return;
+    if (RAM(0xAB) != 0) {
+        if (RAM(0x87) & 1) return;
+        if (!(RAM(0x87) & 2) && RAM(0x83) >= 0xEA) return;
+        ClearRider((Regs){ 0, 3, 0, 0 });
+        return;
+    }
+    RAM(0x03A8) = 0;
+    RAM(0x87) = 2;
+    if (SpawnRider((Regs){ 0, 3, 1, 0 }).a == 0) return;
+    RAM(0x97) = 0; RAM(0x8F) = 0x92; RAM(0x0373) = 0x92;
+    RAM(0x9B) = 0xFF;
+}
