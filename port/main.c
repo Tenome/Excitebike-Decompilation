@@ -84,18 +84,21 @@ int main(int argc, char **argv) {
     load_config("excitebike.cfg");
     const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL, *record = NULL, *play = NULL;
     FILE *rec_f = NULL, *play_f = NULL;
-    int dump_oam = 0;
+    int dump_oam = 0; const char *peek = NULL;
     int16_t *wavbuf = NULL; size_t wavn = 0, wavcap = 0;
-    int scale = 3, frames_limit = -1;
+    int scale = 3, frames_limit = -1, width_opt = PPU_W;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--frames") && i + 1 < argc) frames_limit = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--width") && i + 1 < argc) width_opt = atoi(argv[++i]);          /* picture width while racing, 256-512 (416 = 16:9) */
+        else if (!strcmp(argv[i], "--widescreen")) width_opt = 416;
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--press") && i + 1 < argc) press = argv[++i];
         else if (!strcmp(argv[i], "--wav") && i + 1 < argc) wav = argv[++i];
         else if (!strcmp(argv[i], "--record") && i + 1 < argc) record = argv[++i];
         else if (!strcmp(argv[i], "--play") && i + 1 < argc) play = argv[++i];
         else if (!strcmp(argv[i], "--rule") && i + 1 < argc) { if (!set_rule(argv[++i])) { fprintf(stderr, "unknown rule %s\n", argv[i]); return 1; } }
+        else if (!strcmp(argv[i], "--peek") && i + 1 < argc) peek = argv[++i];         /* debug: print RAM bytes at exit, e.g. 12,4d,e8 */
         else if (!strcmp(argv[i], "--dump-oam")) dump_oam = 1;
         else if (!strcmp(argv[i], "--unlimited-sprites")) g_ppu.unlimited_sprites = 1;
         else rom_path = argv[i];
@@ -112,17 +115,20 @@ int main(int argc, char **argv) {
     g_pal = pal;
     ppu_init(&g_ppu, rom + 16 + rom[4] * 0x4000, vertical, pal, g_ram);
     g_ppu.unlimited_sprites = unlimited;
+    if (width_opt < PPU_W) width_opt = PPU_W;
+    if (width_opt > PPU_MAXW) width_opt = PPU_MAXW;
+    g_ppu.width = width_opt & ~1;
     apu_init(&g_apu, pal);
     g_hal_write = hal_write; g_hal_read = hal_read; g_hal_event = hal_event;
 
     SDL_SetMainReady();
     int headless = shot != NULL && frames_limit >= 0;
     if (SDL_Init(SDL_INIT_VIDEO | (headless ? 0 : SDL_INIT_AUDIO)) != 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }
-    SDL_Window *win = SDL_CreateWindow("Excitebike", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, PPU_W * scale, PPU_H * scale, headless ? SDL_WINDOW_HIDDEN : SDL_WINDOW_RESIZABLE);
+    SDL_Window *win = SDL_CreateWindow("Excitebike", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_ppu.width * scale, PPU_H * scale, headless ? SDL_WINDOW_HIDDEN : SDL_WINDOW_RESIZABLE);
     SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_PRESENTVSYNC);
     if (!ren) ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_SOFTWARE);
-    SDL_RenderSetLogicalSize(ren, PPU_W, PPU_H);
-    SDL_Texture *tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, PPU_W, PPU_H);
+    SDL_RenderSetLogicalSize(ren, g_ppu.width, PPU_H);
+    SDL_Texture *tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, g_ppu.width, PPU_H);
     SDL_AudioDeviceID dev = 0;
     if (!headless) {
         SDL_AudioSpec want; SDL_zero(want); want.freq = 44100; want.format = AUDIO_S16SYS; want.channels = 1; want.samples = 1024;
@@ -161,8 +167,9 @@ int main(int argc, char **argv) {
         if (play_f) { int c = fgetc(play_f); if (c == EOF) break; pad = (uint8_t)c; }
         if (rec_f) fputc(pad, rec_f);
         g_pad_bits[0] = pad;
+        g_ppu.wide_active = g_ram[0x47] != 0;                  /* widen the picture only while racing / editing a track */
         ppu_run_to_vblank(&g_ppu);                             /* the picture for this frame is complete; vblank starts */
-        if (g_ppu.frames_done > 1) { SDL_UpdateTexture(tex, NULL, g_ppu.frame, PPU_W * 4); }
+        if (g_ppu.frames_done > 1) { SDL_UpdateTexture(tex, NULL, g_ppu.frame, g_ppu.width * 4); }
         for (int i = 0; i < 150; i++) UpdateRandom();          /* the idle loop between frames */
         if (g_ppu.ctrl & 0x80) Nmi();
         /* audio for this frame */
@@ -187,7 +194,7 @@ int main(int argc, char **argv) {
         if (frames_limit >= 0 && frame >= frames_limit) running = 0;
     }
     if (shot) {
-        SDL_Surface *s = SDL_CreateRGBSurfaceWithFormatFrom(g_ppu.frame, PPU_W, PPU_H, 32, PPU_W * 4, SDL_PIXELFORMAT_ARGB8888);
+        SDL_Surface *s = SDL_CreateRGBSurfaceWithFormatFrom(g_ppu.frame, g_ppu.width, PPU_H, 32, g_ppu.width * 4, SDL_PIXELFORMAT_ARGB8888);
         SDL_SaveBMP(s, shot); SDL_FreeSurface(s);
         printf("saved %s (game state %d, frame %d)\n", shot, g_ram[0x41], frame);
     }
@@ -201,6 +208,7 @@ int main(int argc, char **argv) {
         }
     }
     if (dump_oam) for (int i = 0; i < 64; i++) { const uint8_t *o = &g_ppu.oam[i * 4]; if (o[0] < 0xEF) printf("sprite %2d: y=%3d tile=%02X attr=%02X x=%3d\n", i, o[0], o[1], o[2], o[3]); }
+    for (const char *q = peek; q && *q;) { unsigned a; int used = 0; if (sscanf(q, "%x%n", &a, &used) < 1) break; printf("ram[%03X] = %02X\n", a, g_ram[a & 0x7FF]); q += used; if (*q == ',') q++; }
     if (rec_f) fclose(rec_f);
     if (play_f) fclose(play_f);
     {

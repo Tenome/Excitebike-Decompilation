@@ -5,7 +5,8 @@
 #pragma once
 #include <stdint.h>
 
-#define PPU_W 256
+#define PPU_W 256              /* the NES picture width */
+#define PPU_MAXW 512           /* widest picture the port can produce */
 #define PPU_H 240
 
 typedef struct {
@@ -21,8 +22,11 @@ typedef struct {
     int line;                      /* current scanline: 0-239 visible, 241+ vblank */
     double col;                    /* CPU cycles into the current scanline */
     int vblank_flag, sprite0_flag;
-    uint32_t frame[PPU_W * PPU_H]; /* finished picture (ARGB) */
-    uint32_t work[PPU_W * PPU_H];  /* picture being drawn */
+    int width;                     /* output width: 256 = original; wider shows the track ahead during races (the game streams about 20 tiles beyond the screen edge) */
+    int wide_active;               /* set by the host: widen only while racing (menus stay 256 wide, centred) */
+    int hud_start;                 /* first scanline of the status bar (below the sprite-0 split), or 0 */
+    uint32_t frame[PPU_MAXW * PPU_H]; /* finished picture (ARGB), `width` pixels per row */
+    uint32_t work[PPU_MAXW * PPU_H];  /* picture being drawn */
     int frames_done;               /* increments each time a picture is completed */
     int unlimited_sprites;         /* 1 = lift the 8 sprites per scanline limit */
     const uint8_t *cpu_ram;        /* for $4014 sprite DMA */

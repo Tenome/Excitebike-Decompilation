@@ -12,6 +12,8 @@ Keys: arrows, Z = A (accelerate), X = B (turbo), Enter = Start, Shift/Backspace 
 Replays: `--record file` writes the controller state of every frame, `--play file` plays it back; the game is deterministic, so a replay ends with the same RAM checksum every time (printed at exit).
 `--wav out.wav` writes the sound of the run; `--unlimited-sprites` lifts the eight-sprites-per-line limit.
 
+Widescreen: `--widescreen` (416 px, about 16:9) or `--width N` (256-512) draws the track ahead of the normal screen edge while racing: the game already streams about 20 tiles beyond the edge, so no game code changes. The status bar stays 256 wide and centred; menus stay 256 wide. Sprites are still the game's own (a rider beyond the original edge appears when it reaches it); drawing those from game state is the next step.
+
 Rules (mutators): `--rule name=value` or an `excitebike.cfg` next to the executable (see `excitebike.cfg.example`) change how the game plays without changing the ROM:
 `jump_power`, `crash_pitch`, `overheat`, `max_speed` (percent). The defaults are the original game's values, and with the defaults the C game is frame-identical to the ROM (`tools/fulltest.py`).
 

@@ -53,6 +53,7 @@ if not compare('after reset'): sys.exit(1)
 buttons = 0; hold = 0; visited = set()
 pool = [0x00, 0x00, 0x01, 0x01, 0x03, 0x08, 0x08, 0x10, 0x20, 0x40, 0x80, 0x05, 0x02]
 script = sorted((int(x.split('=')[0]), int(x.split('=')[1], 0)) for x in a.press.split(',') if x)
+if script: hold = 10**9                                    # no button until the script's first entry
 for frame in range(a.frames):
     if script and frame >= script[0][0]:                   # scripted input takes over from its first entry on
         while script and frame >= script[0][0]: buttons = script.pop(0)[1]

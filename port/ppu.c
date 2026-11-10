@@ -16,7 +16,7 @@ static int rendering_on(const Ppu *p) { return (p->mask & 0x18) != 0; }
 void ppu_init(Ppu *p, const uint8_t *chr, int vertical_mirroring, int pal_region, const uint8_t *cpu_ram) {
     memset(p, 0, sizeof *p);
     p->chr = chr; p->vertical_mirroring = vertical_mirroring; p->pal_region = pal_region; p->cpu_ram = cpu_ram;
-    p->line = 0; p->col = 0; p->unlimited_sprites = 0;
+    p->line = 0; p->col = 0; p->unlimited_sprites = 0; p->width = PPU_W;
 }
 
 static uint8_t *nt_byte(Ppu *p, uint16_t addr) {            /* addr in $2000-$2FFF */
@@ -75,15 +75,20 @@ static int sprite0_line(const Ppu *p) {                      /* first scanline w
 }
 
 static void draw_line(Ppu *p, int L) {
-    uint32_t *out = &p->work[L * PPU_W];
-    uint8_t bg_opaque[PPU_W], bg_col[PPU_W];
+    int stride = p->width;
+    int wide = stride > PPU_W && p->wide_active;
+    int hud = wide && p->hud_start > 0 && L >= p->hud_start;       /* the status bar stays 256 wide, centred */
+    int cw = (wide && !hud) ? stride : PPU_W;                       /* canvas width for this line */
+    int ox = (cw < stride) ? (stride - cw) / 2 : 0;
+    uint32_t *out = &p->work[L * stride];
+    uint8_t bg_opaque[PPU_MAXW], bg_col[PPU_MAXW];
     int on_bg = (p->mask & 0x08) != 0, on_spr = (p->mask & 0x10) != 0;
     uint8_t grey = (p->mask & 1) ? 0x30 : 0x3F;
     int coarse_x = p->v & 31, nt_x = (p->v >> 10) & 1, coarse_y = (p->v >> 5) & 31, fine_y = (p->v >> 12) & 7, nt_y = (p->v >> 11) & 1;
     memset(bg_opaque, 0, sizeof bg_opaque);
-    for (int x = 0; x < PPU_W; x++) bg_col[x] = p->pal[0];
+    for (int x = 0; x < cw; x++) bg_col[x] = p->pal[0];
     if (on_bg) {
-        for (int x = 0; x < PPU_W; x++) {
+        for (int x = 0; x < cw; x++) {
             if (x < 8 && !(p->mask & 2)) continue;
             int px = p->x + x;
             int tilecol = coarse_x + (px >> 3);
@@ -100,7 +105,7 @@ static void draw_line(Ppu *p, int L) {
             if (pix) { bg_opaque[x] = 1; bg_col[x] = p->pal[palsel * 4 + pix]; }
         }
     }
-    uint8_t spr_col[PPU_W], spr_set[PPU_W], spr_behind[PPU_W];
+    uint8_t spr_col[PPU_MAXW], spr_set[PPU_MAXW], spr_behind[PPU_MAXW];
     memset(spr_set, 0, sizeof spr_set);
     if (on_spr) {
         int found[64], n = 0, h = sprite_height(p);
@@ -118,23 +123,25 @@ static void draw_line(Ppu *p, int L) {
                 int bit = (attr & 0x40) ? c : 7 - c;
                 int pix = ((lo >> bit) & 1) | (((hi >> bit) & 1) << 1);
                 int x = sx + c;
-                if (!pix || x >= PPU_W || (x < 8 && !(p->mask & 4))) continue;
+                if (!pix || x >= cw || (x < 8 && !(p->mask & 4))) continue;
                 spr_set[x] = 1; spr_col[x] = p->pal[16 + (attr & 3) * 4 + pix]; spr_behind[x] = (attr & 0x20) != 0;
             }
         }
     }
-    for (int x = 0; x < PPU_W; x++) {
+    uint32_t black = 0xFF000000u;
+    for (int x = 0; x < stride; x++) out[x] = black;
+    uint32_t backdrop = black | NES_RGB[p->pal[0] & grey];
+    for (int x = 0; x < cw; x++) {
         uint8_t ci = bg_col[x];
         if (spr_set[x] && (!spr_behind[x] || !bg_opaque[x])) ci = spr_col[x];
-        out[x] = 0xFF000000u | NES_RGB[ci & grey];
+        out[ox + x] = rendering_on(p) ? (black | NES_RGB[ci & grey]) : backdrop;
     }
-    if (!rendering_on(p)) { uint32_t c = 0xFF000000u | NES_RGB[p->pal[0] & grey]; for (int x = 0; x < PPU_W; x++) out[x] = c; }
 }
 
 static void enter_line(Ppu *p, int L) {                       /* the PPU starts scanline L */
     int total = total_lines(p);
     if (L == 241) {                                           /* picture complete, vblank begins */
-        memcpy(p->frame, p->work, sizeof p->frame); p->frames_done++; p->vblank_flag = 1;
+        memcpy(p->frame, p->work, sizeof(uint32_t) * (size_t)p->width * PPU_H); p->frames_done++; p->vblank_flag = 1;
     } else if (L == total - 1) {                              /* pre-render line */
         p->vblank_flag = 0; p->sprite0_flag = 0;
         if (rendering_on(p)) p->v = (uint16_t)((p->v & ~0x7BE0) | (p->t & 0x7BE0));
@@ -144,6 +151,7 @@ static void enter_line(Ppu *p, int L) {                       /* the PPU starts 
         if (L == 0 && rendering_on(p)) p->v = (uint16_t)((p->v & ~0x041F) | (p->t & 0x041F));
         draw_line(p, L);
         int s0 = sprite0_line(p);
+        if (s0 >= 0 && (p->mask & 0x18) == 0x18) p->hud_start = s0 + 1; else p->hud_start = 0;
         if (s0 == L && (p->mask & 0x18) == 0x18) p->sprite0_flag = 1;
         if (rendering_on(p)) {                                /* vertical increment */
             int fy = (p->v >> 12) & 7, cy = (p->v >> 5) & 31;
