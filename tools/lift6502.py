@@ -78,7 +78,7 @@ while changed:
 
 def fname(addr):
     if addr in externs: return externs[addr]
-    return names.get(addr, f'Sub_{addr:04X}')
+    return a.prefix + names.get(addr, f'Sub_{addr:04X}')
 def lab(addr): return f'L_{addr:04X}'
 
 def ea(m, arg):

@@ -11,6 +11,7 @@ typedef struct { uint16_t addr; uint8_t val; } IoWrite;
 extern IoWrite g_io_log[8192];                /* hardware-register writes in order (see excitebike.c) */
 extern int g_io_n;
 extern uint8_t g_io_reads[0x8000];            /* values returned by hardware-register reads */
+extern int g_pal;                             /* set to 1 for the European (PAL) ROM */
 extern const uint8_t *g_prg;                  /* 16 KB PRG-ROM, CPU $C000-$FFFF (supplied by the host from the user's ROM) */
 #define ROMB(addr) (g_prg[(addr) & 0x3FFF])
 
@@ -251,3 +252,9 @@ void RacePreUpdate(void);            /* $CA08 */
 void ClearOverlappedRiderSprites(void); /* $E42B */
 void StateDesignFrame(void);         /* $C97C */
 void StateRaceFrame(void);           /* $C99A */
+
+void RaceSetupScreen(void);          /* $C820 */
+void GameStateDispatch(void);        /* $C2A9 */
+void Nmi(void);                      /* $C23B  per-frame entry point */
+void ResetInit(void);                /* $C184 */
+int MainLoopStep(void);              /* $C1D8 */

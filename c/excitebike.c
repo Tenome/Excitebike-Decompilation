@@ -2,6 +2,7 @@
 
 uint8_t g_ram[0x800];
 const uint8_t *g_prg;
+int g_pal;                                    /* 1 = PAL (Europe) release: a few routines differ from the NTSC one */
 
 /* Hardware registers ($2000-$7FFF): writes are logged in order, reads come from g_io_reads. The tests compare the log with the
  * writes the original code makes; the real port replaces these two functions with the PPU/APU/input layer. */
@@ -2805,17 +2806,136 @@ void StateRaceFrame(void) {                   /* $C99A: one frame of racing, in 
     UpdateRiderGroundDistance();
     DrawJumpShadows();
     TrackRenderUpdate();
-    DetectRiderOverlap();
-    UpdateEngineSound();
+    if (!g_pal) { DetectRiderOverlap(); UpdateEngineSound(); }      /* the PAL release runs these two after the sprite-0 wait */
     UpdateTempGauge();
     DrawRiders();
     ErasePassedRiderSprites();
     MoveRiders();
     AdvanceTrackPositions();
     WaitSprite0ThenResetScroll();
+    if (g_pal) { DetectRiderOverlap(); UpdateEngineSound(); }
     UpdateAiRiders();
     ClearOverlappedRiderSprites();
 }
 
 /* mechanically lifted routines (tools/lift6502.py) */
 #include "auto_sound.inc"
+
+#include "auto_tape.inc"
+
+/* ---- batch 22: frame driver (NMI), game-state dispatch, reset ---- */
+void RaceSetupScreen(void) {                  /* $C820: clears the PPU buffer area and loads the menu/race background rows */
+    ClearRiderSprites();
+    RAM(0x01) = 3; RAM(0x45) = 1; RAM(0x00) = 0; RAM(0x4B) = 0;
+    for (uint8_t y = 0xEF; y >= 0x40; y--) RAM(0x0300 + y) = 0;
+    for (int8_t x = 0x7F; x >= 0; x--) { RAM(0x0400 + x) = 0x3B; RAM(0x0480 + x) = 0x3D; RAM(0x0500 + x) = 0x3D; }
+    RAM(0x0200) = 0xBF; RAM(0x0203) = 0xF7; RAM(0x0201) = 0xFF;
+    RAM(0xE8) = 0x3F; RAM(0xE9) = 0x1F; RAM(0xEB) = 0x0A; RAM(0xEA) = 0x25;
+}
+
+static void run_state_handler(uint16_t addr) {          /* the targets of the state table at $C000 */
+    switch (addr) {
+    case 0xC346: StateTitleMenu(); break;
+    case 0xC395: StateMenuChoice5(); break;
+    case 0xC99A: StateRaceFrame(); break;
+    case 0xCB2C: StateSubStepDispatch(); break;
+    case 0xC465: StateRaceEndWait(); break;
+    case 0xC3BD: StateMenuChoice6(); break;
+    case 0xC97C: StateDesignFrame(); break;
+    case 0xC43D: StateDesignEnd(); break;
+    case 0xC41C: StateDesignSaveCheck(); break;
+    default: break;
+    }
+}
+static void run_setup_entry(uint16_t addr) {            /* the targets of the per-state setup lists ($C03C...) */
+    switch (addr) {
+    case 0xC2BD: SetupTitleScreen(); break;
+    case 0xC514: ResultScreenActivate(); break;
+    case 0xC518: ResultScreenActivateKeep(); break;
+    case 0xC55E: SetupPpuUpdate06(); break;
+    case 0xC3F3: SetupTitleSubMenu(); break;
+    case 0xC551: SetupPpuUpdateTrack(); break;
+    case 0xC869: ClearRaceZeroPage(); break;
+    case 0xC820: RaceSetupScreen(); break;
+    case 0xC5A3: SetupPpuUpdate17(); break;
+    case 0xC566: SetupPpuUpdate0E(); break;
+    case 0xC875: StartRaceSetup(); break;
+    case 0xC56A: SetupPpuUpdate04(); break;
+    case 0xC455: SetupResultsPpu(); break;
+    case 0xC5A7: SetupTimeTextSaved0(); break;
+    case 0xC485: ComputeRaceResult(); break;
+    case 0xC571: SetupPpuUpdate09(); break;
+    case 0xC5AC: SetupTrackPicker(); break;
+    case 0xC562: SetupPpuUpdate05(); break;
+    case 0xC5C2: SetupDesignMode(); break;
+    case 0xC575: SetupMenuCursorTrack5(); break;
+    case 0xC582: SetupPpuUpdate11(); break;
+    case 0xC586: SetupDesignTimes(); break;
+    default: break;
+    }
+}
+void GameStateDispatch(void) {                /* $C2A9: runs the current state's handler, or its next setup step while the state is still being prepared */
+    uint8_t x = RAM(0x40), a, y;
+    uint16_t t;
+    if (x != 0) {
+        y = (uint8_t)(RAM(0x41) << 1);
+        RAM(0x00) = ROMB(0xC000 + y); RAM(0x01) = ROMB(0xC001 + y);
+        run_state_handler((uint16_t)(RAM(0x00) | RAM(0x01) << 8));
+        return;
+    }
+    DisableRendering();
+    if (RAM(0x30) != 0) return;
+    x = ROMB(0xC01C + RAM(0x41));
+    RAM(0x02) = ROMB(0xC02A + x); RAM(0x03) = ROMB(0xC033 + x);
+    y = RAM(0x44);
+    RAM(0x44)++;
+    y--;
+    if (y & 0x80) { InitScreenState(); return; }
+    y = (uint8_t)(y << 1);
+    RAM(0x00) = rdp(RAM(0x02), RAM(0x03), y);
+    a = rdp(RAM(0x02), RAM(0x03), (uint8_t)(y + 1));
+    RAM(0x01) = a;
+    t = (uint16_t)(RAM(0x00) | RAM(0x01) << 8);
+    run_setup_entry(t);
+}
+
+void Nmi(void) {                              /* $C23B: the vblank interrupt: sprite DMA, PPU updates, HUD split, timers, input, sound, then the game state */
+    DisableNmi();
+    if (RAM(0x45) == 0) { uint8_t m = RAM(0x11) | 0x1A; io_w(PPU_MASK_REG, m); RAM(0x11) = m; }
+    io_w(0x2003, 0);
+    io_w(0x4014, 2);
+    FlushPpuUpdate();
+    if (RAM(0x47) != 0) { ComputeRiderLanes(); SplitScreenScrollHandler(); }
+    if ((RAM(0x03B1) | RAM(0x03B2)) == 0) { RAM(0x3F)++; TickTimers(); }
+    ReadJoypads();
+    SoundUpdate();
+    GameStateDispatch();
+    (void)io_r(PPU_STATUS_REG);
+    WaitVblankEndEnableNmi();
+}
+
+void ResetInit(void) {                        /* $C184: power-on/reset up to the main loop; $0500-$07FF (backup RAM) survives a reset when its signature is valid */
+    uint8_t hi;
+    io_w(PPU_CTRL_REG, 0);
+    while (!(io_r(PPU_STATUS_REG) & 0x80)) { }
+    while (!(io_r(PPU_STATUS_REG) & 0x80)) { }
+    hi = (RAM(0x05CE) == 0xA5 && RAM(0x05CF) == 0x5A) ? 4 : 7;
+    for (int p = hi; p >= 0; p--) for (int i = 0; i < 256; i++) g_ram[(p * 256 + i) & 0x7FF] = 0;
+    uint8_t a = RAM(0x05CE);                    /* A is what the original writes to the DMC register: the signature, or 0 after InitBackupRam */
+    if (a == 0) { InitBackupRam(); a = 0; }
+    io_w(0x4011, a);
+    io_w(PPU_MASK_REG, 0x06);
+    RAM(0x18) = 0x06;
+    InitScreenState();
+    SetPpuCtrl((Regs){ 0x90, 0, 0, 0 });
+}
+int MainLoopStep(void) {                      /* $C1D8: one pass of the idle loop (random numbers); returns 1 when a save/load request ran */
+    UpdateRandom();
+    uint8_t a = RAM(0x48);
+    if ((a & 0x80) || a == 0) return 0;
+    DisableNmi();
+    if (RAM(0x48) == 1) T_TapeSaveDesigns(); else T_TapeLoadDesigns();
+    RAM(0x48) = 0xFF;
+    WaitVblankEndEnableNmi();
+    return 1;
+}

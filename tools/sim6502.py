@@ -123,12 +123,13 @@ class CPU:
             else: c = self.c; self.c = v & 1; r = v >> 1 | c << 7
             self.wr(a, self.nz(r))
         else: raise RuntimeError(n)
-    def call(self, addr, a=0, x=0, y=0, c=0, max_steps=200000):
+    def call(self, addr, a=0, x=0, y=0, c=0, max_steps=200000, stop=None, rti=False):
         """Run the routine at addr (JSR-style) until it returns; returns (a, x, y, carry)."""
         self.a, self.x, self.y, self.c = a, x, y, c; self.sp = 0xFF
-        self.push(0xFF); self.push(0xFD)          # return to $FFFE (RTS adds 1)
+        if rti: self.push(0xFF); self.push(0xFE); self.push(0x00)     # interrupt-style return (RTI): P, then PC = $FFFE
+        else: self.push(0xFF); self.push(0xFD)          # return to $FFFE (RTS adds 1)
         self.pc = addr
         for _ in range(max_steps):
-            if self.pc == 0xFFFE: return self.a, self.x, self.y, self.c
+            if self.pc == 0xFFFE or self.pc == stop: return self.a, self.x, self.y, self.c
             self.step()
         raise RuntimeError('routine did not return')

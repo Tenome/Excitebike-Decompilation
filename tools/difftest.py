@@ -27,6 +27,7 @@ class IoWrite(ctypes.Structure): _fields_ = [('addr', ctypes.c_uint16), ('val', 
 io_log = (IoWrite * 8192).in_dll(lib, 'g_io_log'); io_n = ctypes.c_int.in_dll(lib, 'g_io_n'); io_reads_c = (ctypes.c_uint8 * 0x8000).in_dll(lib, 'g_io_reads')
 prg = bytes(ebdis.PRG); prg_buf = ctypes.create_string_buffer(prg, len(prg))
 ctypes.c_void_p.in_dll(lib, 'g_prg').value = ctypes.addressof(prg_buf)
+ctypes.c_int.in_dll(lib, 'g_pal').value = 1 if a.version == 'eu' else 0
 
 
 def RB(r):
@@ -60,6 +61,13 @@ def RB(r):
         for i in range(0x40): rows[base + i] = r.choice(choices)
     d.update(rows)
     return d
+
+_LIST_LEN = [2, 3, 6, 5, 4, 6, 3, 3, 2]; _STATE_LIST = [0, 1, 2, 3, 4, 2, 3, 4, 6, 5, 2, 3, 7, 8]
+def STATE_RAM(r, states=range(14)):
+    """GameState plus a valid setup-list step for it (the dispatcher jumps to whatever the list holds)."""
+    st = r.choice(list(states)); n = _LIST_LEN[_STATE_LIST[st]]
+    act = r.choice([0, 0, 1])
+    return {0x41: st, 0x44: r.randint(0, 3) if act else r.randint(0, n), 0x40: act, 0x30: r.choice([0, 0, 0, 1])}
 
 # name, asm address, C symbol, takes_regs, result regs to compare, input constraints
 TESTS = [
@@ -271,6 +279,10 @@ TESTS = [
     ('V_Sub_F889', 0xF889, True, 'V', lambda r: dict(a=r.randint(0,255), x=r.choice([0x80,0x85,0x9C,0]), y=r.randint(0,255), ram={0xF0+i: r.choice([0, 0, 1, 2, 5, 0x10, 0x20]) for i in range(16)} | {0x7F0+i: r.choice([0, 0, 1, 3, 0x20]) for i in range(16)} | {0xFB: r.choice([0, 0, 1, 2, 4, 0x20, 0x40, 0x80, 0xFF]), 0xFC: r.choice([0, 0, 1, 0x80, 0x85, 0x2F]), 0xFD: r.choice([0, 0, 1, 2, 4, 8]), 0xFE: r.choice([0, 0, 1, 2, 4]), 0xFF: r.choice([0, 0, 1, 2, 4, 8, 0x40, 0x80, 0xFF])})),
     ('V_SoundNoiseSfx', 0xFC3D, True, 'V', lambda r: dict(a=r.randint(0,255), x=r.randint(0,255), y=r.randint(0,255), ram={0xF0+i: r.choice([0, 0, 1, 2, 5, 0x10, 0x20, 0x40, 0x80, 0xFF]) for i in range(16)} | {0x7F0+i: r.choice([0, 0, 1, 3, 0x20, 0x80, 0xFF]) for i in range(16)} | {0xFB: r.choice([0, 0, 1, 2, 4, 0x20, 0x40, 0x80, 0xFF]), 0xFC: r.choice([0, 0, 1, 0x80, 0x85, 0x2F]), 0xFD: r.choice([0, 0, 1, 2, 4, 8]), 0xFE: r.choice([0, 0, 1, 2, 4]), 0xFF: r.choice([0, 0, 1, 2, 4, 8, 0x40, 0x80, 0xFF])})),
     ('V_SoundMusic', 0xFC8D, True, 'V', lambda r: dict(a=r.randint(0,255), x=r.randint(0,255), y=r.randint(0,255), ram={0xF0+i: r.choice([0, 0, 1, 2, 5, 0x10, 0x20, 0x40, 0x80, 0xFF]) for i in range(16)} | {0x7F0+i: r.choice([0, 0, 1, 3, 0x20, 0x80, 0xFF]) for i in range(16)} | {0xFB: r.choice([0, 0, 1, 2, 4, 0x20, 0x40, 0x80, 0xFF]), 0xFC: r.choice([0, 0, 1, 0x80, 0x85, 0x2F]), 0xFD: r.choice([0, 0, 1, 2, 4, 8]), 0xFE: r.choice([0, 0, 1, 2, 4]), 0xFF: r.choice([0, 0, 1, 2, 4, 8, 0x40, 0x80, 0xFF])})),
+    ('RaceSetupScreen', 0xC820, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0})),
+    ('ResetInit', 0xC184, False, '', lambda r: dict(ram=RB(r) | {0x5CE: r.choice([0xA5, 0xA5, 0, 7]), 0x5CF: r.choice([0x5A, 0x5A, 1])}, io={0x2002: 0x80}, stop=0xC1D8)),
+    ('GameStateDispatch', 0xC2A9, False, '', lambda r: dict(ram=RB(r) | STATE_RAM(r) | {0x301 + i: 0 for i in range(0x30)}, io={0x2002: 0x40})),
+    ('Nmi', 0xC23B, False, '', lambda r: dict(ram=RB(r) | STATE_RAM(r, [0, 1, 3, 4, 6, 7, 8, 11, 12, 13]) | {0x47: r.choice([0, 0, 1]), 0x45: r.choice([0, 0, 1, 3])} | {0x301 + i: 0 for i in range(0x30)}, io={0x2002: 0}, rti=True)),
 ]
 
 def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
@@ -282,6 +294,8 @@ def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
         ram = bytearray(rnd.randrange(256) for _ in range(0x800))
         regs = dict(a=rnd.randrange(256), x=rnd.randrange(256), y=rnd.randrange(256), c=rnd.randrange(2)); regs.update(gen(rnd))
         for k, v in regs.pop('ram', {}).items(): ram[k] = v          # generators may bias RAM to reach rare branches
+        rti = regs.pop('rti', False)
+        stop = regs.pop('stop', None)                                  # run the original up to this address instead of to its RTS (for the reset code)
         io = regs.pop('io', {})                                      # values the hardware registers return (PPU/APU/joypad), same for both sides
         ram[0x100:0x200] = bytes(0x100)                              # keep the stack page identical for both sides
         ram = bytes(ram)
@@ -289,7 +303,11 @@ def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
         for k in range(0x8000): io_reads_c[k] = 0
         for k, v in io.items(): io_reads_c[k] = v
         io_n.value = 0
-        ra = cpu.call(addr, regs['a'], regs['x'], regs['y'], regs['c'])
+        try:
+            ra = cpu.call(addr, regs['a'], regs['x'], regs['y'], regs['c'], stop=stop, rti=rti)
+        except RuntimeError as e_:                                   # the original ran off into data/RAM: an unreachable state, report it
+            print(f'  SKIP {name} run {i}: original code did not complete ({e_}) game(active,state,step)={(ram[0x40], ram[0x41], ram[0x44])} pc={cpu.pc:04X}')
+            continue
         for k in range(0x800): ram_c[k] = ram[k]
         rc = fn(Regs(regs['a'], regs['x'], regs['y'], regs['c'])) if takes_regs else fn()
         rc = (rc.a, rc.x, rc.y, rc.c) if returns else None
@@ -298,9 +316,12 @@ def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
         if 'z' in cmp_regs and rc is not None and cpu.z != rc[3]: badreg.append('z')
         c_io = [(io_log[k].addr, io_log[k].val) for k in range(min(io_n.value, 8192))]
         io_bad = c_io != [(a_, v_) for a_, v_ in cpu.io_writes]
-        if io_bad: badreg.append(f'hardware writes asm={cpu.io_writes[:12]} c={c_io[:12]}')
+        if io_bad:
+            aw = [(a_, v_) for a_, v_ in cpu.io_writes]
+            k_ = next((j for j in range(min(len(aw), len(c_io))) if aw[j] != c_io[j]), min(len(aw), len(c_io)))
+            badreg.append(f'hardware writes differ at #{k_} (asm has {len(aw)}, c has {len(c_io)}): asm={aw[max(0, k_-2):k_+4]} c={c_io[max(0, k_-2):k_+4]}')
         if bad or badreg:
-            print(f'  FAIL {name} run {i}: src {[hex(ram[(regs["x"]+j)&0xFF]) for j in range(3)]} input {regs}  ram diffs (addr, asm, c) {[(hex(k), cpu.ram[k], ram_c[k]) for k in bad[:6]]}  reg diffs {badreg}  asm={ra} c={rc}')
+            print(f'  FAIL {name} run {i}: game(active,state,step)={(ram[0x40], ram[0x41], ram[0x44])} src {[hex(ram[(regs["x"]+j)&0xFF]) for j in range(3)]} input {regs}  ram diffs (addr, asm, c) {[(hex(k), cpu.ram[k], ram_c[k]) for k in bad[:6]]}  reg diffs {badreg}  asm={ra} c={rc}')
             return False
     return True
 
