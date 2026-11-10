@@ -1894,3 +1894,315 @@ void DesignBlinkCursor(void) {                /* $EC5D */
     uint8_t a = (RAM(0x3F) & 0x10) ? 0xF8 : 0xC7;
     RAM(0x0228) = a; RAM(0x022C) = a;
 }
+
+/* ---- batch 17: track streaming (TrackRenderUpdate) and the track editor (design mode) ---- */
+#define P07(y) rdp(RAM(0x07), RAM(0x08), (y))
+#define P05(y) rdp(RAM(0x05), RAM(0x06), (y))
+
+void TrackRenderUpdate(void) {                /* $F4FF: streams the next column of the track (script at ROM $ED3A,X) into the PPU buffer and the row tables */
+    uint8_t x, y, a;
+    x = RAM(0x43);
+    RAM(0x07) = ROMB(0xED3A + x); RAM(0x08) = ROMB(0xED40 + x);
+    if (RAM(0xEB) != RAM(0xE0)) return;
+    if (RAM(0xEC) != 0) goto f591;
+    if (RAM(0xEF) != 0) goto f597;
+f51a:
+    y = RAM(0xED);
+    if (y == 0) { RAM(0x57) = P07(y); RAM(0x03A4)++; }
+f525:
+    if (RAM(0x41) == 9 && RAM(0x03BC) != 0) { RAM(0xEE) = 0; RAM(0xED) = 0; a = 0x7F; goto f58d; }
+    RAM(0xED)++;
+    y = RAM(0xED);
+    a = P07(y);
+    if (a == 0) return;
+    if ((a & ROMB(0xF3D8)) != 0 && RAM(0x46) == 0) goto f51a;
+    a = P07(y);
+    if ((a & ROMB(0xF0B5)) == 0) goto f576;
+    x = a & 0x0F;
+    RAM(0xEE) = ROMB(0xF4C6 + x);
+    RAM(0xED)++;
+    y++;
+    if (RAM(0x41) == 9 && y == 2) {
+        RAM(0x57) = 1;
+        a = (uint8_t)(P07(y) - 0x3D);
+        if (a != 0) goto f58d;
+    }
+    a = P07(y);
+    if (a != 0) goto f58d;
+f576:
+    x = 1;
+    a &= 0x3F;
+    RAM(0xEE) = a;
+    if (a < 0x30) goto f597;
+    if (a == 0x30 && RAM(0x03BC) == 0) goto f588;
+    x--;
+f588:
+    RAM(0x03A8) = x;
+    goto f51a;
+f58d:
+    RAM(0xEC) = a & 0x7F;
+f591:
+    RAM(0xEF) = 0;
+    RAM(0xEC)--;
+f597:
+    x = RAM(0xEE);
+    TrackColumnPointer05((Regs){ 0, x, 0, 0 });
+    y = RAM(0xEF);
+    a = P05(y);
+    if (a == 0) {                               /* $F62D: end of this piece's column list */
+        RAM(0xEF) = a;
+        if (RAM(0xEE) != 9) goto f51a;
+        RAM(0x03A4)++;
+        RAM(0x57)--;
+        if (RAM(0x57) == 0) RAM(0x03BC) = 1;
+        RAM(0xED) = 0; RAM(0x03A5) = 0;
+        goto f525;
+    }
+    ClearColumnBuffer();
+    {
+        Regs q = CopyColumnBytes((Regs){ 0, P05(y), y, 0 });
+        y = q.y;
+    }
+    a = RAM(0xEE);
+    if (a == 0 || a == 0x18 || a == 0x1A) {
+        RAM(0x03A2) ^= 1;
+        if (RAM(0x03A2) == 0) RAM(0x030A) = 0x83;
+    }
+    y++;
+    RAM(0xEF) = y;
+    a = RAM(0xEE);
+    if (a == 9 && RAM(0x57) != 1 && y >= 0x25 && y < 0x58) {
+        x = RAM(0x03A5);
+        RAM(0x0310) = ROMB(0xF4CD + x);
+        RAM(0x03A5)++;
+        if (x == 5) RAM(0x0310) = RAM(0x03A4);
+    }
+    RAM(0x0303) = 0x8E;
+    RAM(0x0301) = RAM(0xEA); RAM(0x0302) = RAM(0xE9);
+    RAM(0x0F) = RAM(0xE8);
+    WriteColumnToRows();
+    RAM(0xE8) = IncMod64((Regs){ RAM(0xE8), 0, 0, 0 }).a;
+    RAM(0xE9)++;
+    if (RAM(0xE9) == 0x20) { RAM(0xE9) = 0; RAM(0xEA) ^= 4; }
+    RAM(0xEB) = IncMod64((Regs){ RAM(0xE0), 0, 0, 0 }).a;
+}
+
+void DesignPlayback(void) {                   /* $F68D: replays the loaded design piece by piece into the track rows */
+    uint8_t x, y, a;
+    if (RAM(0xBE) == 0) return;
+    if (RAM(0xCA) != 0 || RAM(0xC3) != 0) goto f6c7;
+    x = RAM(0xC8);
+    if (x == 0) goto f6c7;
+    x--;
+    TrackColumnPointer07((Regs){ 0, x, 0, 0 });
+    y = RAM(0xC9);
+    a = P07(y);
+    if (a == 0) goto f71e;
+    if ((a & ROMB(0xF0B5)) == 0) { RAM(0xB8) = a; y++; RAM(0xC9) = y; }
+    else {
+        x = a & 0x0F;
+        RAM(0xB8) = ROMB(0xF4C6 + x);
+        y++;
+        RAM(0xCA) = P07(y);
+        y++; RAM(0xC9) = y;
+    }
+f6c7:
+    x = RAM(0xB8);
+    TrackColumnPointer05((Regs){ 0, x, 0, 0 });
+    y = RAM(0xC3);
+    a = P05(y);
+    if (a == 0) goto f70e;
+    ClearColumnBuffer();
+    y = CopyColumnBytes((Regs){ 0, P05(y), y, 0 }).y;
+    y++;
+    RAM(0xC3) = y;
+    RAM(0x0303) = 0x8E;
+    RAM(0x0301) = RAM(0xB0); RAM(0x0302) = RAM(0xB1);
+    RAM(0x0F) = RAM(0xB2);
+    WriteColumnToRows();
+    RAM(0xB2) = IncMod64((Regs){ RAM(0xB2), 0, 0, 0 }).a;
+    DrawTrackColumn();
+    return;
+f70e:
+    if (RAM(0xC8) == 0) goto f71e;
+    RAM(0xC3) = 0;
+    if (RAM(0xCA) == 0) goto f739;
+    RAM(0xCA)--;
+    if (!(RAM(0xCA) & 0x80)) goto f739;
+f71e:
+    y = RAM(0xB2);
+    if (DesignCheckSlotFree((Regs){ 0, 0, y, 0 }).a == 0) {
+        y++;
+        if (y == 0x40) y = 0;
+        if (DesignCheckSlotFree((Regs){ 0, 0, y, 0 }).a == 0) goto f73e;
+    }
+    RAM(0xB8) = 0; RAM(0xC3) = 0; RAM(0xC8) = 0;
+f739:
+    RAM(0xBE) = 1;
+    return;
+f73e:
+    RAM(0xC3) = 0; RAM(0xBE) = 0; RAM(0xBD) = 0; RAM(0xC8) = 0;
+    RAM(0xB2) = RAM(0xBA); RAM(0xB0) = RAM(0xBB); RAM(0xB1) = RAM(0xBC);
+}
+
+void DesignCapture(void) {                    /* $F755: records the track the rider is laying into the design buffer ($05E0...) */
+    uint8_t x, y, a;
+    Regs q;
+    if (RAM(0xB4) != 0) return;
+    if (RAM(0xC0) == 0) return;
+    x = 0x15;
+    for (;;) {
+        TrackColumnPointer05((Regs){ 0, x, 0, 0 });
+        a = P05(0);
+        RAM(0x03) = a;
+        y = (uint8_t)(0x0F - a);
+        RAM(0x04) = x;
+        x = RAM(0xB3);
+        if (P05(y) == RAM(0x0540 + x)) {
+            y -= 3;
+            if (P05(y) == RAM(0x0480 + x)) {
+                y -= 2;
+                if (P05(y) == RAM(0x0400 + x)) { RAM(0xC7) = RAM(0x04); break; }
+            }
+        }
+        RAM(0x04)--;
+        x = RAM(0x04);
+        if (x & 0x80) return;
+    }
+    if (RAM(0xC4) == 0) {
+        RAM(0xC6) = RAM(0xC7);
+        DesignMarkRecord((Regs){ 0, RAM(0xB7), 0, 0 });
+        RAM(0xC5) = 0x3D;
+        RAM(0xC4)++;
+    }
+    if (RAM(0xC7) == RAM(0xC6)) {
+        if (RAM(0xC6) != 0) return;
+        RAM(0xC5)++;
+        a = RAM(0xC5);
+        if (a >= 0x7F) {
+            x = RAM(0xB7);
+            wrmem((uint16_t)(0x05E0 + x), a);
+            x++;
+            DesignMarkRecord((Regs){ 0, x, 0, 0 });
+        }
+        goto f7fa;
+    }
+    if (RAM(0xC6) != 0) { DesignMarkRecord((Regs){ 0, RAM(0xB7), 0, 0 }); goto f7ec; }
+    x = RAM(0xB7);
+    wrmem((uint16_t)(0x05E0 + x), RAM(0xC5));
+    x++;
+    RAM(0xB7) = x;
+    a = RAM(0xC7);
+    if (a >= 0x11) {                            /* $F809: a canned multi-piece sequence */
+        x = (uint8_t)((a & 0x0F) - 1);
+        TrackColumnPointer07((Regs){ 0, x, 0, 0 });
+        y = 0;
+        for (;;) {
+            x = RAM(0xB7);
+            a = P07(y);
+            if (a == 0) break;
+            wrmem((uint16_t)(0x05E0 + x), a);
+            x++; RAM(0xB7) = x;
+            y++;
+        }
+        goto f7ec;
+    }
+    wrmem((uint16_t)(0x05E0 + x), a);
+    q = DesignEndRecord((Regs){ 0, x, 0, 0 });
+f7ec:
+    RAM(0xC6) = RAM(0xC7);
+    if (RAM(0xC7) == 9) { RAM(0xBF) = 2; RAM(0x49) = 2; }
+f7fa:
+    if (RAM(0xB7) >= 0xED && RAM(0xC1) == 0) RAM(0xC1) = 1;
+    (void)q;
+}
+
+void DesignModeUpdate(void) {                 /* $EB17: the track editor's per-frame update (cursor, piece placement, scrolling, piece-slot menu) */
+    uint8_t a, y;
+    if (RAM(0xBE) != 0) return;
+    if (RAM(0xB4) != 0) { RAM(0xB4)--; if (RAM(0xB4) != 0) goto eb5e; }
+    if ((RAM(0xBD) | RAM(0xB9)) != 0) goto eb5e;
+    RAM(0x60) = 0; RAM(0xC0) = 0;
+    a = RAM(0xBF);
+    if (a != 0 && a != 1) goto eb9e;
+    a = RAM(0xC1);
+    if (a == 2) goto eb5e;
+    if (RAM(0xC1) != 0) { RAM(0xB8) = 9; goto eb43; }
+    if (RAM(0xBF) != 0) goto eb5e;
+    a = RAM(0x5C);
+    if (a & 0x80) {
+        RAM(0x49) = 0;
+        if (RAM(0x2B) != 0) return;
+        RAM(0x2B) = 5;
+        goto eb5e;
+    }
+    if (!(a & 0x40)) goto ebf6;
+    if (RAM(0x49) != 0) return;
+    DesignLoadPiece();
+    a = RAM(0xB8);
+    if (a == 0xFF) return;
+    if (a == 9) goto eb43;
+    goto eb93;
+eb43:
+    RAM(0xC1) = 2;
+eb93:
+    RAM(0xBE) = 1; RAM(0x49) = 1; RAM(0xFB) = 0x40;
+    return;
+eb5e:
+    RAM(0x60) = 4;
+    DesignScrollStep();
+    y = RAM(0xB3);
+    RAM(0xBD) = 0;
+    if (DesignCheckSlotFree((Regs){ 0, 0, y, 0 }).a == 0) {
+        y++;
+        if (y == 0x40) y = 0;
+        if (DesignCheckSlotFree((Regs){ 0, 0, y, 0 }).a == 0) return;
+    }
+    RAM(0xBD)++;
+    return;
+eb9e:
+    if (RAM(0x49) == 0) {
+        a = RAM(0x5C);
+        if (!(a & 0x40)) goto ebbd;
+        GameStateClearSteps();
+        CopyBackupToDesign();
+        RAM(0x47) = 0; RAM(0x42) = 0;
+        RAM(0x41) = 8;
+    }
+ebb6:
+    if (RAM(0x5C) == 0) RAM(0x49) = 0;
+    return;
+ebbd:
+    DesignBlinkCursor();
+    if (RAM(0x3A) != 0) return;
+    RAM(0x3A)++;
+    a = RAM(0x5C);
+    if (a == 0x80 || a == 0x08) {
+        RAM(0x05E0)++;
+        a = RAM(0x05E0);
+        if (!((uint8_t)(a - 0x0A) & 0x80)) { a = 1; RAM(0x05E0) = a; }
+    } else if (a == 0x04) {
+        RAM(0x05E0)--;
+        if (RAM(0x05E0) == 0) RAM(0x05E0) = 9;
+    } else goto ebb6;
+    RAM(0xFF) = 1; RAM(0x49) = 0;
+    RAM(0x0234) = 0xCF; RAM(0x0235) = RAM(0x05E0); RAM(0x0236) = 0; RAM(0x0237) = 0xE4;
+    return;
+ebf6:
+    if (RAM(0x2C) != 0) return;
+    RAM(0x2C) = 8;
+    a = RAM(0x5C);
+    if (a & 1) {
+        RAM(0xC2)++;
+        a = RAM(0xC2);
+        if (a >= 0x15) a = 0;
+        RAM(0xC2) = a;
+    } else {
+        if (!(a & 2)) return;
+        RAM(0xC2)--;
+        a = RAM(0xC2);
+        if (a & 0x80) { a = 0x14; RAM(0xC2) = a; }
+    }
+    RAM(0xFF) = 1; RAM(0x49) = 0;
+    DrawDesignCursorSprite((Regs){ 0xD0, 0, 0, 0 });
+}

@@ -176,3 +176,8 @@ void DesignScrollStep(void);         /* $EC99 */
 void CopyBackupToDesign(void);       /* $EC3B */
 void DrawDesignCursorSprite(Regs r); /* $EC25 */
 void DesignBlinkCursor(void);        /* $EC5D */
+
+void TrackRenderUpdate(void);        /* $F4FF */
+void DesignPlayback(void);           /* $F68D */
+void DesignCapture(void);            /* $F755 */
+void DesignModeUpdate(void);         /* $EB17 */
