@@ -129,7 +129,7 @@ def classify(roots, extra_code=()):
                 dp = resolve(p, ob[0] | ob[1] << 8)
                 if dp is not None:
                     labels.add(dp); mark(dp, 'data')
-                    if m in ('abx', 'aby'): IDX.setdefault(dp, set()).add(op)
+                    if m in ('abx', 'aby'): IDX.setdefault(dp, set()).add(p)
             if n in ('rts', 'rti', 'jmp', 'brk'): break
             p += l
     return code, labels, conflicts
@@ -149,9 +149,9 @@ def _plaus(p, need=3):
         if n in ('rts', 'rti', 'jmp'): return cnt >= need
         if n == 'brk': return False
     return cnt >= need
-def _entry_ok(q, v, code):
+def _entry_ok(q, v, code, need=1):
     t = resolve(q, v)
-    return t is not None and code[t] != 'c' and _plaus(t, 2), t
+    return t is not None and code[t] != 'c' and _plaus(t, need), t
 def discover_tables(code):
     """Pointer tables found via paired indexed loads (word interleaved, or split lo/hi). Returns list of new code roots."""
     new = []
@@ -170,7 +170,7 @@ def discover_tables(code):
                 if len(tg) >= 3:
                     TABLES[p] = dict(kind='word', n=len(tg), trick=trick, tg=tg); new += tg; break
             continue
-        # split lo/hi: another indexed label q2 > p within 128 bytes; entries (PRG[p+i], PRG[q2+i])
+        # split lo/hi: another indexed label p2 > p within 128 bytes; entries (PRG[p+i], PRG[p2+i])
         for p2 in idx:
             if p2 <= p or p2 - p > 128 or (p2 >> 14) != (p >> 14): continue
             n = p2 - p
@@ -184,6 +184,28 @@ def discover_tables(code):
                 if len(tg) == n and n >= 3:
                     TABLES[p] = dict(kind='split', n=n, trick=trick, tg=tg, hi=p2); new += tg; break
             if p in TABLES: break
+            # data-pointer variant: every (lo, hi) pair is a ROM address that is not code
+            if n >= 4 and all(code[p+i] is None and code[p2+i] is None for i in range(n)):
+                dt = []
+                for i in range(n):
+                    v = PRG[p+i] | PRG[p2+i] << 8
+                    t = resolve(p + i, v) if 0xC000 <= v < 0xFFFA else None
+                    if t is None or code[t] is not None: dt = None; break
+                    dt.append(t)
+                if dt and len(set(dt)) >= max(3, n // 2):
+                    TABLES[p] = dict(kind='split', n=n, trick=0, tg=dt, hi=p2, data=True); break
+        if p in TABLES: continue
+        # plain word table: needs two load sites of the label (low byte, then high byte), >=3 consecutive pointers,
+        # mostly into already-known code (anchored), at least 3 distinct
+        if len(IDX.get(p, ())) < 2: continue
+        for trick in (0, 1):
+            tg = []; q = p
+            while q + 1 < (p >> 14 << 14) + 0x4000 and len(tg) < 128 and code[q] is None and code[q+1] is None and (q == p or q not in S):
+                ok, t = _entry_ok(q, (PRG[q] | PRG[q+1] << 8) + trick, code, 2)
+                if not ok: break
+                tg.append(t); q += 2
+            if len(tg) >= 3 and len(set(tg)) >= 3 and sum(1 for x in tg if code[x] == 'S') * 10 >= len(tg) * 6:
+                TABLES[p] = dict(kind='word', n=len(tg), trick=trick, tg=tg); new += tg; break
     return new
 HEUR = set()
 def classify_full(roots):
@@ -198,9 +220,17 @@ def classify_full(roots):
         if not new: break
         extra = list(set(extra) | set(new))
     for t in TABLES.values():
-        for x in t['tg']: labels.add(x); mark(x, 'sub')
+        for x in t['tg']: labels.add(x); mark(x, 'data' if t.get('data') else 'sub')
     return code, labels, conf
 # ---------- emission ----------
+MODFILES = []   # (name, start_p, end_p) filled by emit
+def load_comments():
+    f = os.path.join(CONF, 'comments.json')
+    return {int(k, 16): v for k, v in json.load(open(f)).items()} if os.path.exists(f) else {}
+def load_modules():
+    f = os.path.join(CONF, 'modules.json')
+    m = json.load(open(f)) if os.path.exists(f) else {}
+    return sorted((p_of(0, int(k, 16)), v) for k, v in m.items())
 def load_names():
     f = os.path.join(CONF, 'names.json')
     return json.load(open(f)) if os.path.exists(f) else {}
@@ -245,13 +275,23 @@ def emit(code, labels, outdir):
         if tp is not None: names.setdefault(f'{addr_of(tp):04X}', nm); labels.add(tp); mark(tp, 'sub')
     equ = []                       # labels that fall inside an instruction -> equates
     stats = {}
+    comments = load_comments()
+    mods = load_modules(); MODSTART = {p: n for p, n in mods}
+    if not mods: MODSTART = {p_of(0, 0xC000): 'prg'}
+    MODFILES.clear(); finished = []
     for b in range(NB):
-        lines = [f'; PRG-ROM $C000-$FFFF', '.segment "PRG"', '']
+        lines = []; cur_mod = None
         p = b * 0x4000; end = p + 0x4000
         if b == FIXED: end -= 6        # vectors emitted separately
         ncode = 0; done = set()
         while p < end:
+            if p in MODSTART and MODSTART[p] != cur_mod:
+                if cur_mod is not None: finished.append((cur_mod, lines, mod_p0, p))
+                cur_mod = MODSTART[p]; mod_p0 = p
+                lines = [f'; Module {cur_mod}: ${addr_of(p):04X}-', '.segment "PRG"', '']
             if p in labels and code[p] != 'c':
+                cm = comments.get(addr_of(p))
+                if cm: lines += ['', *[f'; {t}' for t in cm.split('\n')]]
                 lines.append(f'{lname(p, names)}:'); done.add(p)
             if code[p] == 'S':
                 op, n, m, l, ob = decode(p)
@@ -277,10 +317,10 @@ def emit(code, labels, outdir):
                 p += hi['n']; continue
             # data run
             q = p
-            while q < end and code[q] is None and (q == p or q not in labels) and q - p < 16: q += 1
+            while q < end and code[q] is None and (q == p or (q not in labels and q not in MODSTART)) and q - p < 16: q += 1
             if q == p: q = p + 1
             # data stays out of the repository: it is read from assets/<ver>/prg_bank_N.bin (extracted from your ROM)
-            while q < end and code[q] is None and q not in labels and (q - p) < 0x400 and not (TABLES.get(q) or any(t['kind'] == 'split' and t['hi'] == q for t in TABLES.values())): q += 1
+            while q < end and code[q] is None and q not in labels and q not in MODSTART and (q - p) < 0x400 and not (TABLES.get(q) or any(t['kind'] == 'split' and t['hi'] == q for t in TABLES.values())): q += 1
             lines.append(f'  .incbin "prg_bank_{b}.bin", ${p & 0x3FFF:04X}, ${q - p:X}  ; ${addr_of(p):04X}')
             p = q
         for lp in sorted(labels):
@@ -291,7 +331,10 @@ def emit(code, labels, outdir):
             lines.append('  .addr ' + ', '.join(lname(t, names) if t is not None else f'${v:04X}' for t, v in zip(vecp, vec)))
             # NOTE: segment already active; first line emitted before vectors
         stats[b] = ncode
-        open(os.path.join(outdir, f'bank_{b}.asm'), 'w').write('\n'.join(lines) + '\n')
+        finished.append((cur_mod, lines, mod_p0, b * 0x4000 + 0x4000))
+    for old_f in glob.glob(os.path.join(outdir, '*.asm')): os.remove(old_f)
+    for name, ls, p0, p1 in finished:
+        open(os.path.join(outdir, f'{name}.asm'), 'w').write(chr(10).join(ls) + chr(10)); MODFILES.append((name, p0, p1))
     hw = ['; Hardware register equates'] + [f'{n} = ${a:04X}' for a, n in sorted(HW.items())]
     hw += ['', '; RAM variables'] + [f'{n} = ${a:04X}' for a, n in sorted(RAMN.items())]
     open(os.path.join(outdir, 'hardware.inc'), 'w').write('\n'.join(hw) + '\n')
@@ -304,7 +347,7 @@ def emit(code, labels, outdir):
             '.byte ' + ', '.join(f'${x:02X}' for x in hdr[8:12]) + '                ; NES 2.0 mapper MSB/submapper, PRG/CHR size MSB, RAM sizes',
             f'.byte ${hdr[12]:02X}                        ; CPU/PPU timing (0 = NTSC, 1 = PAL)',
             f'.byte ${hdr[13]:02X}, ${hdr[14]:02X}', f'.byte ${hdr[15]:02X}                        ; default expansion device', '',
-            '.include "inside_instr.inc"'] + [f'.include "bank_{b}.asm"' for b in range(NB)] + ['', '.segment "TILES"', '.incbin "chr.bin"']
+            '.include "inside_instr.inc"'] + [f'.include "{n}.asm"' for n, _, _ in MODFILES] + ['', '.segment "TILES"', '.incbin "chr.bin"']
     open(os.path.join(outdir, 'excitebike.asm'), 'w').write(chr(10).join(main) + chr(10))
     return stats
 def write_assets():

@@ -1,0 +1,12 @@
+{
+ "C184": "Power-on/reset: wait two vblanks; clear RAM (only $0000-$04FF when the backup-RAM signature $A5/$5A is present, so saved designs survive);\nthen loop reading the next game state request from $48.",
+ "C23B": "NMI: sprite DMA, PPU buffer flush, split-screen scroll, timers, joypads, sound, then the per-state game logic.",
+ "C2A9": "Dispatch to the current game state's handler through the word table at $C000 (when GameStateActive is set),\notherwise run the state's setup list (tables at $C01C/$C02A/$C033).",
+ "C7DE": "Menu cursor handler: A = number of items; moves MenuCursor with up/down/select, Start confirms.",
+ "D1C7": "Draw a metasprite into OAM: $00 X, $01 Y, $02 first tile, $03 size nibbles (columns/rows), $04 OAM pointer low, $0B attributes.",
+ "D3C1": "Run a PPU write list at ($00): {addr hi, addr lo, count/flags, data...} records ended by a zero byte.",
+ "D326": "64-bit shift-register random number generator (RandomState $18-$1F).",
+ "DA26": "Per-frame rider movement: accumulate each rider's speed into pixel moves, scroll the world by rider 0's move, shift the others.",
+ "E70B": "Advance each rider's position in the 64-entry track ring by the pixels it moved.",
+ "F844": "Sound engine, called every NMI: pulse 1 SFX, pulse 2/triangle SFX, noise SFX, music; clears the request bytes."
+}

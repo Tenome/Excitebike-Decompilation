@@ -1,0 +1,18 @@
+{
+ "C000": "tables",
+ "C184": "boot",
+ "C346": "game_states",
+ "C621": "tape",
+ "C7DE": "race_setup",
+ "CB06": "results",
+ "CD1F": "rider_ai",
+ "D0AB": "video_support",
+ "D3D6": "video_data",
+ "D918": "riders",
+ "E17F": "rider_draw",
+ "E4C8": "rider_overlap",
+ "E70B": "track_scripts",
+ "EAC5": "design_mode",
+ "F4FF": "track_render",
+ "F844": "sound"
+}

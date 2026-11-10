@@ -40,8 +40,9 @@ def main():
     code, labels, conf = g.classify_full(roots)
     names = g.load_names()
     units = []; all_code = []; all_data = []
-    for b in range(g.NB):
-        lo, hi = b * 0x4000, (b + 1) * 0x4000
+    mods = g.load_modules() or [(0, 'prg')]
+    ranges = [(p, mods[k + 1][0] if k + 1 < len(mods) else g.PRGSIZE, n) for k, (p, n) in enumerate(mods)]
+    for lo, hi, mname in ranges:
         funcs, data = [], []
         p = lo
         while p < hi:
@@ -49,7 +50,7 @@ def main():
                 start = p
                 while p < hi and code[p] is not None:
                     p += 1
-                    if p < hi and code[p] == 'S' and g.KIND.get(p) == 'sub': 
+                    if p < hi and code[p] == 'S' and g.KIND.get(p) == 'sub':
                         funcs.append((start, p)); start = p
                 funcs.append((start, p))
             else:                                         # data run, split at data labels
@@ -57,8 +58,8 @@ def main():
                 while p < hi and code[p] is None and (p == start or not (p in labels and g.KIND.get(p) == 'data')): p += 1
                 data.append((start, p))
         fi = [{'name': g.lname(s, names), 'size': e - s, 'pct': pct, 'addr': s + 16} for s, e in funcs]
-        di = [{'name': ('Data_%d_%04X' % (b, s & 0x3FFF)) if g.lname(s, names).startswith(('Loc', 'Sub')) else g.lname(s, names), 'size': e - s, 'pct': pct, 'addr': s + 16} for s, e in data]
-        units.append(('main/prg', fi, di, f'src/{a.version}/bank_{b}.asm'))
+        di = [{'name': ('Data_%04X' % g.addr_of(s)) if g.lname(s, names).startswith(('Loc', 'Sub')) else g.lname(s, names), 'size': e - s, 'pct': pct, 'addr': s + 16} for s, e in data]
+        units.append((f'main/{mname}', fi, di, f'src/{a.version}/{mname}.asm'))
     units.append(('main/chr', [], [{'name': 'ChrRom', 'size': g.CHRSIZE, 'pct': pct, 'addr': 16 + g.PRGSIZE}], f'src/{a.version}/excitebike.asm'))
     out_units = []
     for name, fi, di, srcp in units:

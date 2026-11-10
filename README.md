@@ -11,10 +11,11 @@ This repository contains no game files. You need your own ROMs.
 
 | | |
 |---|---|
-| Code found | 11,260 of 16,384 PRG bytes in 199 routines (2,797 opcodes seen executing; the rest reached statically). The remaining 5 KB is data: tables, track pieces, text |
+| Code found | 11,299 of 16,384 PRG bytes in 216 routines (2,797 opcodes seen executing; the rest reached statically). The remaining 5 KB is data: tables, track pieces, text |
 | Byte identity | `python tools/build.py --version us|eu` prints `MATCH` |
 | Native build | `recomp/build_native.ps1` statically recompiles the classified code to C with [NESRecomp](https://github.com/mstan/nesrecomp); over 120,000 random-input frames the native build matched the interpreter hash for hash with 0 % of ROM cycles interpreted |
-| Not done yet | decompilation to C, a PPU/APU-free runtime, the PC features (see `docs/ROADMAP.md`) |
+| Lifted to C | 30 routines in `c/excitebike.c`, each differential-tested against the original 6502 code on thousands of random states (`tools/difftest.py`) |
+| Not done yet | the rest of the C lift, a PPU/APU-free runtime, the PC features (see `docs/ROADMAP.md`) |
 
 The ByteMatch report counts **byte-exact assembly source**: instructions and `.incbin` data both count as matching, so the numbers start at 100 %. Progress from here is understanding: names, structured data, C.
 
@@ -33,10 +34,11 @@ cc65 is found through `--cc65 DIR`, `$CC65_DIR` or `PATH`. Edit `config/<ver>/*.
 
 | Path | Contents |
 |---|---|
-| `src/<ver>/` | generated ca65: `excitebike.asm` (header, includes), `bank_0.asm` (PRG), `hardware.inc` (PPU/APU registers and RAM names) |
-| `config/<ver>/` | `coverage.json` (opcodes executed in play, PRG offsets), `names.json`, `ram.json`, `hints.json`; `config/excitebike.cfg` is the ld65 layout |
+| `src/<ver>/` | generated ca65, one file per module (`boot`, `game_states`, `tape`, `riders`, `rider_draw`, `track_scripts`, `design_mode`, `track_render`, `sound`, ...) plus `excitebike.asm` (header, includes) and `hardware.inc` (PPU/APU registers and RAM names) |
+| `config/<ver>/` | `coverage.json` (opcodes executed in play, PRG offsets), `names.json`, `ram.json`, `modules.json` (file split), `comments.json` (routine headers), `hints.json`; `config/excitebike.cfg` is the ld65 layout |
 | `assets/<ver>/` | data extracted from your ROM (git-ignored) |
-| `tools/` | `ebdis.py` tracing disassembler/emitter, `build.py`, `report.py`, `gapscan.py`, coverage tools (`mkroute.py`, `miss2cov.py`, `run_routes.sh`), `make_seeds.py` |
+| `tools/` | `ebdis.py` tracing disassembler/emitter, `build.py`, `report.py`, `gapscan.py`, `sim6502.py` + `difftest.py` (lift verification), coverage tools (`mkroute.py`, `miss2cov.py`, `run_routes.sh`), `make_seeds.py` |
+| `c/` | routines lifted to C (`excitebike.c/.h`) |
 | `progress/<ver>/report.json` | objdiff-format report for ByteMatch (published by `.github/workflows/report.yml` as `us_report` / `eu_report`) |
 | `recomp/` | native Windows build script |
 | `docs/` | `NOTES.md` findings, `ROADMAP.md` port plan |

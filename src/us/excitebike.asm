@@ -14,7 +14,22 @@
 .byte $20                        ; default expansion device
 
 .include "inside_instr.inc"
-.include "bank_0.asm"
+.include "tables.asm"
+.include "boot.asm"
+.include "game_states.asm"
+.include "tape.asm"
+.include "race_setup.asm"
+.include "results.asm"
+.include "rider_ai.asm"
+.include "video_support.asm"
+.include "video_data.asm"
+.include "riders.asm"
+.include "rider_draw.asm"
+.include "rider_overlap.asm"
+.include "track_scripts.asm"
+.include "design_mode.asm"
+.include "track_render.asm"
+.include "sound.asm"
 
 .segment "TILES"
 .incbin "chr.bin"

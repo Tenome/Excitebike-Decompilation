@@ -1,52 +1,80 @@
 {
  "measures": {
   "fuzzy_match_percent": 100.0,
-  "total_code": "11260",
-  "matched_code": "11260",
+  "total_code": "11299",
+  "matched_code": "11299",
   "matched_code_percent": 100.0,
-  "total_data": "13316",
-  "matched_data": "13316",
+  "total_data": "13277",
+  "matched_data": "13277",
   "matched_data_percent": 100.0,
-  "total_functions": 199,
-  "matched_functions": 199,
+  "total_functions": 216,
+  "matched_functions": 216,
   "matched_functions_percent": 100.0,
-  "complete_code": "11260",
+  "complete_code": "11299",
   "complete_code_percent": 100.0,
-  "complete_data": "13316",
+  "complete_data": "13277",
   "complete_data_percent": 100.0,
-  "total_units": 2,
-  "complete_units": 2
+  "total_units": 17,
+  "complete_units": 17
  },
  "units": [
   {
-   "name": "main/prg",
+   "name": "main/tables",
    "measures": {
-    "fuzzy_match_percent": 100.0,
-    "total_code": "11260",
-    "matched_code": "11260",
-    "matched_code_percent": 100.0,
-    "total_data": "5124",
-    "matched_data": "5124",
+    "fuzzy_match_percent": 0.0,
+    "total_code": "0",
+    "matched_code": "0",
+    "matched_code_percent": 0.0,
+    "total_data": "388",
+    "matched_data": "388",
     "matched_data_percent": 100.0,
-    "total_functions": 199,
-    "matched_functions": 199,
-    "matched_functions_percent": 100.0,
-    "complete_code": "11260",
-    "complete_code_percent": 100.0,
-    "complete_data": "5124",
+    "total_functions": 0,
+    "matched_functions": 0,
+    "matched_functions_percent": 0.0,
+    "complete_code": "0",
+    "complete_code_percent": 0.0,
+    "complete_data": "388",
     "complete_data_percent": 100.0,
     "total_units": 1,
     "complete_units": 1
    },
    "sections": [
     {
-     "name": ".text",
-     "size": "11260",
-     "fuzzy_match_percent": 100.0
-    },
-    {
      "name": ".data",
-     "size": "5124",
+     "size": "388",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/tables.asm"
+   }
+  },
+  {
+   "name": "main/boot",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "450",
+    "matched_code": "450",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 9,
+    "matched_functions": 9,
+    "matched_functions_percent": 100.0,
+    "complete_code": "450",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "450",
      "fuzzy_match_percent": 100.0
     }
    ],
@@ -61,10 +89,18 @@
     },
     {
      "name": "InitBackupRam",
-     "size": "130",
+     "size": "44",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "525"
+     }
+    },
+    {
+     "name": "Sub_C229",
+     "size": "86",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "569"
      }
     },
     {
@@ -109,10 +145,65 @@
     },
     {
      "name": "WaitVblankEndEnableNmi",
-     "size": "118",
+     "size": "13",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "841"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/boot.asm"
+   }
+  },
+  {
+   "name": "main/game_states",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "681",
+    "matched_code": "681",
+    "matched_code_percent": 100.0,
+    "total_data": "50",
+    "matched_data": "50",
+    "matched_data_percent": 100.0,
+    "total_functions": 13,
+    "matched_functions": 13,
+    "matched_functions_percent": 100.0,
+    "complete_code": "681",
+    "complete_code_percent": 100.0,
+    "complete_data": "50",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "681",
+     "fuzzy_match_percent": 100.0
+    },
+    {
+     "name": ".data",
+     "size": "50",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "StateTitleMenu",
+     "size": "79",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "854"
+     }
+    },
+    {
+     "name": "StateMenuChoice5",
+     "size": "26",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "933"
      }
     },
     {
@@ -125,38 +216,54 @@
     },
     {
      "name": "Sub_C3B1",
-     "size": "88",
+     "size": "12",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "961"
      }
     },
     {
-     "name": "Sub_C409",
-     "size": "52",
+     "name": "StateMenuChoice6",
+     "size": "76",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "973"
+     }
+    },
+    {
+     "name": "SetMenuCursorSprite",
+     "size": "19",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1049"
      }
     },
     {
-     "name": "Loc_C447",
-     "size": "7",
+     "name": "StateDesignSaveCheck",
+     "size": "33",
      "fuzzy_match_percent": 100.0,
      "metadata": {
-      "virtual_address": "1111"
+      "virtual_address": "1068"
      }
     },
     {
-     "name": "Loc_C450",
-     "size": "210",
+     "name": "StateDesignEnd",
+     "size": "40",
      "fuzzy_match_percent": 100.0,
      "metadata": {
-      "virtual_address": "1120"
+      "virtual_address": "1101"
      }
     },
     {
-     "name": "Sub_C522",
+     "name": "StateRaceEndWait",
+     "size": "189",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1141"
+     }
+    },
+    {
+     "name": "LoadBestTime",
      "size": "24",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -164,7 +271,7 @@
      }
     },
     {
-     "name": "Sub_C53A",
+     "name": "LoadSavedTime",
      "size": "4",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -172,7 +279,7 @@
      }
     },
     {
-     "name": "Sub_C53E",
+     "name": "LoadSavedTimeForIndex",
      "size": "51",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -186,9 +293,43 @@
      "metadata": {
       "virtual_address": "1459"
      }
-    },
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/game_states.asm"
+   }
+  },
+  {
+   "name": "main/tape",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "445",
+    "matched_code": "445",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 15,
+    "matched_functions": 15,
+    "matched_functions_percent": 100.0,
+    "complete_code": "445",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
     {
-     "name": "Sub_C621",
+     "name": ".text",
+     "size": "445",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "CopyTrackDesignToBackup",
      "size": "12",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -196,7 +337,7 @@
      }
     },
     {
-     "name": "Sub_C62D",
+     "name": "TapeStrobe",
      "size": "12",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -204,7 +345,7 @@
      }
     },
     {
-     "name": "Sub_C639",
+     "name": "TapeWaitEdges",
      "size": "21",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -212,7 +353,7 @@
      }
     },
     {
-     "name": "Sub_C64E",
+     "name": "TapeWriteZeroPulse",
      "size": "5",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -220,7 +361,7 @@
      }
     },
     {
-     "name": "Sub_C653",
+     "name": "TapeWritePulse",
      "size": "27",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -228,7 +369,7 @@
      }
     },
     {
-     "name": "Sub_C66E",
+     "name": "TapeWriteByte",
      "size": "28",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -236,7 +377,7 @@
      }
     },
     {
-     "name": "Sub_C68A",
+     "name": "TapeCountBit",
      "size": "7",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -244,7 +385,7 @@
      }
     },
     {
-     "name": "Sub_C691",
+     "name": "TapeReadHalfBit",
      "size": "20",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -252,7 +393,7 @@
      }
     },
     {
-     "name": "Sub_C6A5",
+     "name": "TapeReadByte",
      "size": "35",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -260,7 +401,7 @@
      }
     },
     {
-     "name": "Sub_C6C8",
+     "name": "TapeSaveDesigns",
      "size": "9",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -268,7 +409,7 @@
      }
     },
     {
-     "name": "Sub_C6D1",
+     "name": "TapeWriteBlock",
      "size": "69",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -276,7 +417,7 @@
      }
     },
     {
-     "name": "Sub_C716",
+     "name": "TapeSelectBlockA",
      "size": "16",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -284,7 +425,7 @@
      }
     },
     {
-     "name": "Sub_C726",
+     "name": "TapeSelectBlockB",
      "size": "19",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -292,7 +433,7 @@
      }
     },
     {
-     "name": "Sub_C739",
+     "name": "TapeLoadDesigns",
      "size": "89",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -300,15 +441,49 @@
      }
     },
     {
-     "name": "Sub_C792",
+     "name": "TapeReadBlock",
      "size": "76",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1954"
      }
-    },
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/tape.asm"
+   }
+  },
+  {
+   "name": "main/race_setup",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "808",
+    "matched_code": "808",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 11,
+    "matched_functions": 11,
+    "matched_functions_percent": 100.0,
+    "complete_code": "808",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
     {
-     "name": "Sub_C7DE",
+     "name": ".text",
+     "size": "808",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "MenuHandleInput",
      "size": "334",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -316,7 +491,7 @@
      }
     },
     {
-     "name": "Sub_C92C",
+     "name": "WriteTimeTextSaved",
      "size": "9",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -324,7 +499,7 @@
      }
     },
     {
-     "name": "Sub_C935",
+     "name": "WriteTimeDigitsToBuffer",
      "size": "22",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -332,7 +507,7 @@
      }
     },
     {
-     "name": "Sub_C94B",
+     "name": "WriteTimeTextHeader",
      "size": "38",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -340,7 +515,7 @@
      }
     },
     {
-     "name": "Sub_C971",
+     "name": "AdvanceBufferPos",
      "size": "11",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -348,23 +523,39 @@
      }
     },
     {
-     "name": "Loc_C997",
-     "size": "113",
+     "name": "StateDesignFrame",
+     "size": "30",
      "fuzzy_match_percent": 100.0,
      "metadata": {
-      "virtual_address": "2471"
+      "virtual_address": "2444"
      }
     },
     {
-     "name": "Sub_CA08",
-     "size": "48",
+     "name": "StateRaceFrame",
+     "size": "110",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2474"
+     }
+    },
+    {
+     "name": "RacePreUpdate",
+     "size": "19",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "2584"
      }
     },
     {
-     "name": "Sub_CA38",
+     "name": "SaveInputToRider0",
+     "size": "29",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2603"
+     }
+    },
+    {
+     "name": "HandlePause",
      "size": "99",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -372,15 +563,49 @@
      }
     },
     {
-     "name": "Sub_CA9B",
+     "name": "RaceEndSequence",
      "size": "107",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "2731"
      }
-    },
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/race_setup.asm"
+   }
+  },
+  {
+   "name": "main/results",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "537",
+    "matched_code": "537",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 9,
+    "matched_functions": 9,
+    "matched_functions_percent": 100.0,
+    "complete_code": "537",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
     {
-     "name": "Sub_CB06",
+     "name": ".text",
+     "size": "537",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "TimeTableIndexForSelection",
      "size": "13",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -388,15 +613,23 @@
      }
     },
     {
-     "name": "Sub_CB13",
-     "size": "40",
+     "name": "TimeTableIndexForTrack",
+     "size": "25",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "2851"
      }
     },
     {
-     "name": "Sub_CB3B",
+     "name": "StateSubStepDispatch",
+     "size": "15",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2876"
+     }
+    },
+    {
+     "name": "ResultsStepInit",
      "size": "60",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -404,7 +637,7 @@
      }
     },
     {
-     "name": "Sub_CB77",
+     "name": "ResultsStepDrawText",
      "size": "45",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -412,7 +645,7 @@
      }
     },
     {
-     "name": "Sub_CBA4",
+     "name": "ResultsStepWait",
      "size": "113",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -420,7 +653,7 @@
      }
     },
     {
-     "name": "Sub_CC15",
+     "name": "ResultsDrawRank",
      "size": "86",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -428,7 +661,7 @@
      }
     },
     {
-     "name": "Sub_CC6B",
+     "name": "ResultsStepFinish",
      "size": "95",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -436,15 +669,49 @@
      }
     },
     {
-     "name": "Sub_CCCA",
+     "name": "ResultsDrawLine",
      "size": "85",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "3290"
      }
-    },
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/results.asm"
+   }
+  },
+  {
+   "name": "main/rider_ai",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "908",
+    "matched_code": "908",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 19,
+    "matched_functions": 19,
+    "matched_functions_percent": 100.0,
+    "complete_code": "908",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
     {
-     "name": "Sub_CD1F",
+     "name": ".text",
+     "size": "908",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "UpdateRiderControls",
      "size": "58",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -452,7 +719,7 @@
      }
     },
     {
-     "name": "Sub_CD59",
+     "name": "RiderControlStep",
      "size": "149",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -460,7 +727,7 @@
      }
     },
     {
-     "name": "Sub_CDEE",
+     "name": "RiderTerrainSpeedBias",
      "size": "59",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -468,7 +735,7 @@
      }
     },
     {
-     "name": "Sub_CE29",
+     "name": "RiderAccelerate",
      "size": "47",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -476,7 +743,7 @@
      }
     },
     {
-     "name": "Sub_CE58",
+     "name": "RiderDecelerate",
      "size": "4",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -484,7 +751,7 @@
      }
     },
     {
-     "name": "Sub_CE5C",
+     "name": "RiderDecelerateBy",
      "size": "116",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -492,7 +759,7 @@
      }
     },
     {
-     "name": "Sub_CED0",
+     "name": "UpdateAiRiders",
      "size": "60",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -500,7 +767,7 @@
      }
     },
     {
-     "name": "Sub_CF0C",
+     "name": "AiConsiderLaneChange",
      "size": "59",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -508,7 +775,7 @@
      }
     },
     {
-     "name": "Sub_CF47",
+     "name": "AiLaneChangeUp",
      "size": "35",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -516,7 +783,7 @@
      }
     },
     {
-     "name": "Sub_CF6A",
+     "name": "AiLaneChangeDown",
      "size": "30",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -540,7 +807,7 @@
      }
     },
     {
-     "name": "Sub_CF96",
+     "name": "AiLaneBlocked",
      "size": "53",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -548,7 +815,7 @@
      }
     },
     {
-     "name": "Sub_CFCB",
+     "name": "AiMatchTargetSpeed",
      "size": "16",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -572,7 +839,7 @@
      }
     },
     {
-     "name": "Sub_CFEA",
+     "name": "AiSetPitchInput",
      "size": "22",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -580,7 +847,7 @@
      }
     },
     {
-     "name": "Sub_D000",
+     "name": "AiJumpCheck",
      "size": "24",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -588,15 +855,49 @@
      }
     },
     {
-     "name": "Sub_D018",
+     "name": "AiScanObstacles",
      "size": "147",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "4136"
      }
-    },
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/rider_ai.asm"
+   }
+  },
+  {
+   "name": "main/video_support",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "811",
+    "matched_code": "811",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 20,
+    "matched_functions": 20,
+    "matched_functions_percent": 100.0,
+    "complete_code": "811",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
     {
-     "name": "Sub_D0AB",
+     "name": ".text",
+     "size": "811",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "ComputeRiderLanes",
      "size": "27",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -604,7 +905,7 @@
      }
     },
     {
-     "name": "Sub_D0C6",
+     "name": "FetchTrackWindow",
      "size": "46",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -612,7 +913,7 @@
      }
     },
     {
-     "name": "Sub_D0F4",
+     "name": "CopyTimeDigitsToHud",
      "size": "43",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -620,7 +921,7 @@
      }
     },
     {
-     "name": "Sub_D11F",
+     "name": "InitHudBuffer",
      "size": "32",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -628,7 +929,7 @@
      }
     },
     {
-     "name": "Sub_D13F",
+     "name": "ClearRiderSprites",
      "size": "15",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -636,7 +937,7 @@
      }
     },
     {
-     "name": "Sub_D14E",
+     "name": "SplitScreenScrollHandler",
      "size": "77",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -644,7 +945,7 @@
      }
     },
     {
-     "name": "Sub_D19B",
+     "name": "WaitSprite0ThenResetScroll",
      "size": "14",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -660,7 +961,7 @@
      }
     },
     {
-     "name": "Sub_D1B3",
+     "name": "ApplySplitScroll",
      "size": "20",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -668,7 +969,7 @@
      }
     },
     {
-     "name": "Sub_D1C7",
+     "name": "DrawMetasprite",
      "size": "116",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -676,7 +977,7 @@
      }
     },
     {
-     "name": "Sub_D23B",
+     "name": "ClearNametables",
      "size": "20",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -684,7 +985,7 @@
      }
     },
     {
-     "name": "Sub_D24F",
+     "name": "DisableRendering",
      "size": "6",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -700,7 +1001,7 @@
      }
     },
     {
-     "name": "Sub_D260",
+     "name": "ClearNametable",
      "size": "159",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -708,7 +1009,7 @@
      }
     },
     {
-     "name": "Sub_D2FF",
+     "name": "PpuBufferAdvance",
      "size": "17",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -754,25 +1055,140 @@
      "metadata": {
       "virtual_address": "5073"
      }
-    },
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/video_support.asm"
+   }
+  },
+  {
+   "name": "main/video_data",
+   "measures": {
+    "fuzzy_match_percent": 0.0,
+    "total_code": "0",
+    "matched_code": "0",
+    "matched_code_percent": 0.0,
+    "total_data": "1346",
+    "matched_data": "1346",
+    "matched_data_percent": 100.0,
+    "total_functions": 0,
+    "matched_functions": 0,
+    "matched_functions_percent": 0.0,
+    "complete_code": "0",
+    "complete_code_percent": 0.0,
+    "complete_data": "1346",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
     {
-     "name": "Sub_D918",
-     "size": "12",
+     "name": ".data",
+     "size": "1346",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/video_data.asm"
+   }
+  },
+  {
+   "name": "main/riders",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "2151",
+    "matched_code": "2151",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 43,
+    "matched_functions": 43,
+    "matched_functions_percent": 100.0,
+    "complete_code": "2151",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "2151",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "UpdateRiderStates",
+     "size": "11",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "6440"
      }
     },
     {
-     "name": "Sub_D924",
-     "size": "241",
+     "name": "RiderState0Racing",
+     "size": "1",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6451"
+     }
+    },
+    {
+     "name": "RiderStateDispatch",
+     "size": "15",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "6452"
      }
     },
     {
-     "name": "Sub_DA15",
+     "name": "RiderState1Gate",
+     "size": "32",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6467"
+     }
+    },
+    {
+     "name": "RiderState2MoveToLane",
+     "size": "48",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6499"
+     }
+    },
+    {
+     "name": "RiderState3Wait",
+     "size": "80",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6547"
+     }
+    },
+    {
+     "name": "RiderState4Release",
+     "size": "35",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6627"
+     }
+    },
+    {
+     "name": "RiderState5Finish",
+     "size": "31",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6662"
+     }
+    },
+    {
+     "name": "ComputeRiderShadowY",
      "size": "17",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -780,7 +1196,7 @@
      }
     },
     {
-     "name": "Sub_DA26",
+     "name": "MoveRiders",
      "size": "50",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -788,7 +1204,7 @@
      }
     },
     {
-     "name": "Sub_DA58",
+     "name": "AccumulateRiderMove",
      "size": "18",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -796,7 +1212,7 @@
      }
     },
     {
-     "name": "Sub_DA6A",
+     "name": "ScrollWorld",
      "size": "16",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -804,7 +1220,7 @@
      }
     },
     {
-     "name": "Sub_DA7A",
+     "name": "ShiftRidersByScroll",
      "size": "37",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -812,7 +1228,7 @@
      }
     },
     {
-     "name": "Sub_DA9F",
+     "name": "SpawnCpuRiders",
      "size": "68",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -820,7 +1236,7 @@
      }
     },
     {
-     "name": "Sub_DAE3",
+     "name": "SpawnRider",
      "size": "109",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -828,7 +1244,7 @@
      }
     },
     {
-     "name": "Sub_DB50",
+     "name": "SetRiderTargetSpeed",
      "size": "69",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -836,7 +1252,7 @@
      }
     },
     {
-     "name": "Sub_DB95",
+     "name": "ClearRider",
      "size": "47",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -844,7 +1260,7 @@
      }
     },
     {
-     "name": "Sub_DBC4",
+     "name": "HandleLostRider",
      "size": "58",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -852,7 +1268,7 @@
      }
     },
     {
-     "name": "Sub_DBFE",
+     "name": "ScrollSplitLayer",
      "size": "28",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -860,7 +1276,7 @@
      }
     },
     {
-     "name": "Sub_DC1A",
+     "name": "RiderLandingCheck",
      "size": "125",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -868,7 +1284,7 @@
      }
     },
     {
-     "name": "Sub_DC97",
+     "name": "RiderBaseY",
      "size": "3",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -876,7 +1292,7 @@
      }
     },
     {
-     "name": "Sub_DC9A",
+     "name": "RiderBaseYFrom",
      "size": "6",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -884,7 +1300,7 @@
      }
     },
     {
-     "name": "Sub_DCA0",
+     "name": "SetRiderTargetPitch",
      "size": "62",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -892,7 +1308,7 @@
      }
     },
     {
-     "name": "Sub_DCDE",
+     "name": "RiderPitchTimer",
      "size": "20",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -900,7 +1316,7 @@
      }
     },
     {
-     "name": "Sub_DCF2",
+     "name": "RiderLaunchUpdate",
      "size": "20",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -908,7 +1324,7 @@
      }
     },
     {
-     "name": "Sub_DD06",
+     "name": "RiderStartJump",
      "size": "50",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -916,7 +1332,7 @@
      }
     },
     {
-     "name": "Sub_DD38",
+     "name": "RiderJumpSetup",
      "size": "55",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -924,7 +1340,7 @@
      }
     },
     {
-     "name": "Sub_DD6F",
+     "name": "JumpArcStep",
      "size": "30",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -932,7 +1348,7 @@
      }
     },
     {
-     "name": "Sub_DD8D",
+     "name": "OverheatUpdate",
      "size": "68",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -940,7 +1356,7 @@
      }
     },
     {
-     "name": "Sub_DDD1",
+     "name": "RiderCrashUpdate",
      "size": "96",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -948,7 +1364,7 @@
      }
     },
     {
-     "name": "Sub_DE31",
+     "name": "UpdateExhaustSprites",
      "size": "138",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -956,7 +1372,7 @@
      }
     },
     {
-     "name": "Sub_DEBB",
+     "name": "CheckTrackEdge",
      "size": "39",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -964,7 +1380,7 @@
      }
     },
     {
-     "name": "Sub_DEE2",
+     "name": "UpdateEngineSound",
      "size": "78",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -972,7 +1388,7 @@
      }
     },
     {
-     "name": "Sub_DF30",
+     "name": "UpdateRaceClock",
      "size": "79",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -980,7 +1396,7 @@
      }
     },
     {
-     "name": "Sub_DF7F",
+     "name": "SplitDigits3",
      "size": "35",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1004,7 +1420,7 @@
      }
     },
     {
-     "name": "Sub_DFB2",
+     "name": "RiderLaneFromY",
      "size": "35",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1012,7 +1428,7 @@
      }
     },
     {
-     "name": "Sub_DFD5",
+     "name": "RiderCollisions",
      "size": "188",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1020,7 +1436,7 @@
      }
     },
     {
-     "name": "Sub_E091",
+     "name": "AddCollisionHeight",
      "size": "7",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1028,7 +1444,7 @@
      }
     },
     {
-     "name": "Sub_E098",
+     "name": "AddCollisionWidth",
      "size": "7",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1036,7 +1452,7 @@
      }
     },
     {
-     "name": "Sub_E09F",
+     "name": "BikeVsObstacleCheck",
      "size": "205",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1050,9 +1466,43 @@
      "metadata": {
       "virtual_address": "8572"
      }
-    },
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/riders.asm"
+   }
+  },
+  {
+   "name": "main/rider_draw",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "841",
+    "matched_code": "841",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 10,
+    "matched_functions": 10,
+    "matched_functions_percent": 100.0,
+    "complete_code": "841",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
     {
-     "name": "Sub_E17F",
+     "name": ".text",
+     "size": "841",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "DrawRiders",
      "size": "36",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1060,7 +1510,7 @@
      }
     },
     {
-     "name": "Sub_E1A3",
+     "name": "DrawRider",
      "size": "86",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1068,7 +1518,7 @@
      }
     },
     {
-     "name": "Sub_E1F9",
+     "name": "RiderSpriteFrame",
      "size": "113",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1076,7 +1526,7 @@
      }
     },
     {
-     "name": "Sub_E26A",
+     "name": "DrawRiderShadow",
      "size": "140",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1084,7 +1534,7 @@
      }
     },
     {
-     "name": "Sub_E2F6",
+     "name": "DrawSkidSmoke",
      "size": "99",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1092,7 +1542,7 @@
      }
     },
     {
-     "name": "Sub_E359",
+     "name": "UpdateTempGauge",
      "size": "155",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1100,7 +1550,7 @@
      }
     },
     {
-     "name": "Sub_E3F4",
+     "name": "SortRidersByY",
      "size": "98",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1108,7 +1558,7 @@
      }
     },
     {
-     "name": "Sub_E456",
+     "name": "ErasePassedRiderSprites",
      "size": "69",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1116,7 +1566,7 @@
      }
     },
     {
-     "name": "Sub_E49B",
+     "name": "EraseRiderSpriteRange",
      "size": "18",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1124,15 +1574,54 @@
      }
     },
     {
-     "name": "Sub_E4AD",
+     "name": "ClearSpriteBlock",
      "size": "27",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "9405"
      }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/rider_draw.asm"
+   }
+  },
+  {
+   "name": "main/rider_overlap",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "117",
+    "matched_code": "117",
+    "matched_code_percent": 100.0,
+    "total_data": "462",
+    "matched_data": "462",
+    "matched_data_percent": 100.0,
+    "total_functions": 2,
+    "matched_functions": 2,
+    "matched_functions_percent": 100.0,
+    "complete_code": "117",
+    "complete_code_percent": 100.0,
+    "complete_data": "462",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "117",
+     "fuzzy_match_percent": 100.0
     },
     {
-     "name": "Sub_E4C8",
+     "name": ".data",
+     "size": "462",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "DetectRiderOverlap",
      "size": "100",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1140,15 +1629,49 @@
      }
     },
     {
-     "name": "Sub_E52C",
+     "name": "RiderYOverlapTest",
      "size": "17",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "9532"
      }
-    },
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/rider_overlap.asm"
+   }
+  },
+  {
+   "name": "main/track_scripts",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "954",
+    "matched_code": "954",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 32,
+    "matched_functions": 32,
+    "matched_functions_percent": 100.0,
+    "complete_code": "954",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
     {
-     "name": "Sub_E70B",
+     "name": ".text",
+     "size": "954",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "AdvanceTrackPositions",
      "size": "40",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1156,7 +1679,7 @@
      }
     },
     {
-     "name": "Sub_E733",
+     "name": "RunTrackScripts",
      "size": "8",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1164,7 +1687,7 @@
      }
     },
     {
-     "name": "Sub_E73B",
+     "name": "RunTrackScriptRider",
      "size": "89",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1172,7 +1695,7 @@
      }
     },
     {
-     "name": "Sub_E794",
+     "name": "TrackScriptOpcode",
      "size": "104",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1180,7 +1703,7 @@
      }
     },
     {
-     "name": "Sub_E7FC",
+     "name": "TrackPieceAtRiderLane",
      "size": "3",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1188,7 +1711,7 @@
      }
     },
     {
-     "name": "Sub_E7FF",
+     "name": "TrackPieceAtRow",
      "size": "4",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1196,7 +1719,7 @@
      }
     },
     {
-     "name": "Sub_E803",
+     "name": "TrackPieceAt",
      "size": "10",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1204,7 +1727,7 @@
      }
     },
     {
-     "name": "Sub_E80D",
+     "name": "SetTrackRowPointer",
      "size": "11",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1220,7 +1743,7 @@
      }
     },
     {
-     "name": "Sub_E836",
+     "name": "UpdateRiderGroundDistance",
      "size": "15",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1284,7 +1807,7 @@
      }
     },
     {
-     "name": "Sub_E893",
+     "name": "TrackScriptSetHeight",
      "size": "10",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1348,7 +1871,7 @@
      }
     },
     {
-     "name": "Sub_E927",
+     "name": "RunPendingTrackScripts",
      "size": "13",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1380,7 +1903,7 @@
      }
     },
     {
-     "name": "Sub_E96C",
+     "name": "UpdateRiderY",
      "size": "216",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1388,7 +1911,7 @@
      }
     },
     {
-     "name": "Sub_EA44",
+     "name": "DrawJumpShadows",
      "size": "75",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1396,23 +1919,70 @@
      }
     },
     {
-     "name": "Sub_EA8F",
+     "name": "TrackScriptFinishLine",
      "size": "54",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10911"
      }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/track_scripts.asm"
+   }
+  },
+  {
+   "name": "main/design_mode",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "629",
+    "matched_code": "629",
+    "matched_code_percent": 100.0,
+    "total_data": "1989",
+    "matched_data": "1989",
+    "matched_data_percent": 100.0,
+    "total_functions": 10,
+    "matched_functions": 10,
+    "matched_functions_percent": 100.0,
+    "complete_code": "629",
+    "complete_code_percent": 100.0,
+    "complete_data": "1989",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "629",
+     "fuzzy_match_percent": 100.0
     },
     {
-     "name": "Sub_EAC5",
-     "size": "352",
+     "name": ".data",
+     "size": "1989",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "DrawFinishGate",
+     "size": "82",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10965"
      }
     },
     {
-     "name": "Sub_EC25",
+     "name": "DesignModeUpdate",
+     "size": "270",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11047"
+     }
+    },
+    {
+     "name": "DrawDesignCursorSprite",
      "size": "22",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1420,7 +1990,7 @@
      }
     },
     {
-     "name": "Sub_EC3B",
+     "name": "CopyBackupToDesign",
      "size": "34",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1428,7 +1998,7 @@
      }
     },
     {
-     "name": "Sub_EC5D",
+     "name": "DesignBlinkCursor",
      "size": "24",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1436,7 +2006,7 @@
      }
     },
     {
-     "name": "Sub_EC75",
+     "name": "DesignLoadPiece",
      "size": "36",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1444,7 +2014,7 @@
      }
     },
     {
-     "name": "Sub_EC99",
+     "name": "DesignScrollStep",
      "size": "38",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1460,7 +2030,7 @@
      }
     },
     {
-     "name": "Sub_ECC9",
+     "name": "DesignCheckSlotFree",
      "size": "27",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1468,15 +2038,49 @@
      }
     },
     {
-     "name": "Sub_ECE4",
+     "name": "InitHudSprite",
      "size": "86",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "11508"
      }
-    },
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/design_mode.asm"
+   }
+  },
+  {
+   "name": "main/track_render",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "837",
+    "matched_code": "837",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 11,
+    "matched_functions": 11,
+    "matched_functions_percent": 100.0,
+    "complete_code": "837",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
     {
-     "name": "Sub_F4FF",
+     "name": ".text",
+     "size": "837",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "TrackRenderUpdate",
      "size": "335",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1501,18 +2105,34 @@
     },
     {
      "name": "Sub_F681",
-     "size": "122",
+     "size": "12",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "13969"
      }
     },
     {
-     "name": "Sub_F6FB",
-     "size": "294",
+     "name": "Sub_F68D",
+     "size": "110",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "13981"
+     }
+    },
+    {
+     "name": "DrawTrackColumn",
+     "size": "90",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "14091"
+     }
+    },
+    {
+     "name": "Sub_F755",
+     "size": "204",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14181"
      }
     },
     {
@@ -1546,9 +2166,48 @@
      "metadata": {
       "virtual_address": "14409"
      }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/track_render.asm"
+   }
+  },
+  {
+   "name": "main/sound",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "1130",
+    "matched_code": "1130",
+    "matched_code_percent": 100.0,
+    "total_data": "850",
+    "matched_data": "850",
+    "matched_data_percent": 100.0,
+    "total_functions": 12,
+    "matched_functions": 12,
+    "matched_functions_percent": 100.0,
+    "complete_code": "1130",
+    "complete_code_percent": 100.0,
+    "complete_data": "850",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "1130",
+     "fuzzy_match_percent": 100.0
     },
     {
-     "name": "Sub_F844",
+     "name": ".data",
+     "size": "850",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "SoundUpdate",
      "size": "39",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1556,7 +2215,7 @@
      }
     },
     {
-     "name": "Sub_F86B",
+     "name": "SetPulse1Regs",
      "size": "6",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1588,7 +2247,7 @@
      }
     },
     {
-     "name": "Sub_F8D4",
+     "name": "SoundPulse1Sfx",
      "size": "209",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1604,7 +2263,7 @@
      }
     },
     {
-     "name": "Sub_FA74",
+     "name": "SoundPulse2TriangleSfx",
      "size": "259",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1620,7 +2279,7 @@
      }
     },
     {
-     "name": "Sub_FC3D",
+     "name": "SoundNoiseSfx",
      "size": "76",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1628,7 +2287,7 @@
      }
     },
     {
-     "name": "Sub_FC8D",
+     "name": "SoundMusic",
      "size": "326",
      "fuzzy_match_percent": 100.0,
      "metadata": {
@@ -1646,7 +2305,7 @@
    ],
    "metadata": {
     "complete": true,
-    "source_path": "src/us/bank_0.asm"
+    "source_path": "src/us/sound.asm"
    }
   },
   {

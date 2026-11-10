@@ -1,0 +1,60 @@
+/* Excitebike: routines lifted from 6502 assembly to C.
+ * Each function mirrors one routine of src/<ver>/ modules and is differential-tested against the original code
+ * (tools/difftest.py runs both on random state and compares RAM and result registers). */
+#pragma once
+#include <stdint.h>
+
+typedef struct { uint8_t a, x, y, c; } Regs;  /* register (and carry) inputs/outputs of a lifted routine */
+
+extern uint8_t g_ram[0x800];                  /* CPU RAM ($0000-$07FF) */
+extern const uint8_t *g_prg;                  /* 16 KB PRG-ROM, CPU $C000-$FFFF (supplied by the host from the user's ROM) */
+#define ROMB(addr) (g_prg[(addr) & 0x3FFF])
+
+Regs DivModByX(Regs r);       /* $DFA4  A / X -> A remainder, X quotient (uses $0F) */
+Regs DivMod10(Regs r);        /* $DFA2  A / 10 */
+Regs IncMod64(Regs r);        /* $ECBF  A = (A + 1) mod 64 */
+void UpdateRandom(void);      /* $D326  64-bit shift-register RNG in $18-$1F */
+void TickTimers(void);        /* $D310  prescaled countdown timers $21-$3D */
+Regs AddCollisionHeight(Regs r);   /* $E091 */
+Regs AddCollisionWidth(Regs r);    /* $E098 */
+Regs RiderBaseY(Regs r);      /* $DC97 / $DC9A  ($03F1 or A) - RiderHeight[x] - RiderY[x] */
+Regs RiderBaseYFrom(Regs r);
+Regs RiderLaneFromY(Regs r);  /* $DFB2 */
+void ComputeRiderLanes(void); /* $D0AB */
+void AdvanceTrackPositions(void); /* $E70B */
+void SplitDigits3(Regs r);    /* $DF7F  three bytes at $00,x.. -> decimal digits at $03D1-$03D7 */
+void SortRidersByY(void);     /* $E3F4 */
+
+Regs AccumulateRiderMove(Regs r);  /* $DA58 */
+void ScrollWorld(void);            /* $DA6A */
+void ShiftRidersByScroll(void);    /* $DA7A */
+void ScrollSplitLayer(void);       /* $DBFE */
+Regs ComputeRiderShadowY(Regs r);  /* $DA15 */
+Regs JumpArcStep(Regs r);          /* $DD6F  (carry-in significant) */
+Regs RiderPitchTimer(Regs r);      /* $DCDE */
+Regs AiMatchTargetSpeed(Regs r);   /* $CFCB / $CFDB */
+Regs AiMatchTargetSpeedFrom(Regs r);   /* $CFDB */
+Regs SetTrackRowPointer(Regs r);   /* $E80D */
+Regs TrackPieceAt(Regs r);         /* $E803 */
+Regs TrackPieceAtRow(Regs r);      /* $E7FF */
+Regs TrackPieceAtRiderLane(Regs r);/* $E7FC */
+Regs RiderYOverlapTest(Regs r);    /* $E52C */
+Regs ClearRider(Regs r);           /* $DB95 */
+Regs AdvanceBufferPos(Regs r);     /* $C971 */
+
+Regs AccumulateRiderMove(Regs r);  /* $DA58 */
+void ScrollWorld(void);            /* $DA6A */
+void ShiftRidersByScroll(void);    /* $DA7A */
+void ScrollSplitLayer(void);       /* $DBFE */
+Regs ComputeRiderShadowY(Regs r);  /* $DA15 */
+Regs JumpArcStep(Regs r);          /* $DD6F  (carry-in significant) */
+Regs RiderPitchTimer(Regs r);      /* $DCDE */
+Regs AiMatchTargetSpeed(Regs r);   /* $CFCB */
+Regs AiMatchTargetSpeedFrom(Regs r);   /* $CFDB */
+Regs SetTrackRowPointer(Regs r);   /* $E80D */
+Regs TrackPieceAt(Regs r);         /* $E803 */
+Regs TrackPieceAtRow(Regs r);      /* $E7FF */
+Regs TrackPieceAtRiderLane(Regs r);/* $E7FC */
+Regs RiderYOverlapTest(Regs r);    /* $E52C */
+Regs ClearRider(Regs r);           /* $DB95 */
+Regs AdvanceBufferPos(Regs r);     /* $C971 */
