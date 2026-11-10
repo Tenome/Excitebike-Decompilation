@@ -45,7 +45,7 @@ This runs the lifted C game, not an emulator: no CPU is emulated; a small pictur
 | `src/<ver>/` | generated ca65, one file per module (`boot`, `game_states`, `tape`, `riders`, `rider_draw`, `track_scripts`, `design_mode`, `track_render`, `sound`, ...) plus `excitebike.asm` (header, includes) and `hardware.inc` (PPU/APU registers and RAM names) |
 | `config/<ver>/` | `coverage.json` (opcodes executed in play, PRG offsets), `names.json`, `ram.json`, `modules.json` (file split), `comments.json` (routine headers), `hints.json`; `config/excitebike.cfg` is the ld65 layout |
 | `assets/<ver>/` | data extracted from your ROM (git-ignored) |
-| `c/` | the lifted C game: `excitebike.c` (hand-lifted logic and hardware access), `sound.inc` (the sound engine), `extra_riders.inc` (extra CPU riders), `auto_tape.inc` (mechanical lift), `excitebike.h` |
+| `c/` | the lifted C game: `excitebike.c` (hand-lifted logic and hardware access), `sound.inc` (the sound engine), `extra_riders.inc` (extra CPU riders), `tape_recorder.inc` (mechanical lift), `excitebike.h` |
 | `port/` | native PC runtime: scanline picture layer, sound synthesis, SDL2 front end (`port/README.md`) |
 | `tools/` | `ebdis.py` tracing disassembler/emitter, `build.py`, `report.py`, `gapscan.py`, `sim6502.py` + `difftest.py` + `fulltest.py` (lift verification), `lift6502.py` (mechanical 6502 to C lifter), coverage tools (`mkroute.py`, `miss2cov.py`, `run_routes.sh`), `make_seeds.py` |
 | `c/` | routines lifted to C (`excitebike.c/.h`) |

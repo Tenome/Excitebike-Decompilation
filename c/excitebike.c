@@ -2890,7 +2890,7 @@ static void SetPulse2Pitch(void);                 /* hand-written (sound.inc), c
 static void SetPulse1Regs(void); static void PlayPulse1Note(void);
 #include "sound.inc"
 
-#include "auto_tape.inc"
+#include "tape_recorder.inc"
 
 /* ---- batch 22: frame driver (NMI), game-state dispatch, reset ---- */
 void RaceSetupScreen(void) {                  /* $C820: clears the PPU buffer area and loads the menu/race background rows */

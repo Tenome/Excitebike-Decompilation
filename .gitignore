@@ -12,3 +12,4 @@ build/
 *.exe
 diagnostics/
 __pycache__/
+dist/

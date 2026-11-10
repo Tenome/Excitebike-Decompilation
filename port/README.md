@@ -30,6 +30,8 @@ Rules (mutators): `--rule name=value` or an `excitebike.cfg` next to the executa
 `--press "frame=buttons,..."` sets the controller from that frame on (bit 0 A, 1 B, 2 Select, 3 Start, 4 Up, 5 Down, 6 Left, 7 Right).
 The ROM supplies tables, graphics and sound data at run time; nothing from it is in this repository.
 
+Packaging: `python tools/package.py --exe <built exe> --sdl-dll <SDL2.dll> --zip` writes `dist/excitebike/` (no ROM included).
+
 Build: see `CMakeLists.txt`, or directly: `clang -O2 -o excitebike port/main.c port/ppu.c port/apu.c port/audiomod.c c/excitebike.c -I<SDL2>/include -L<SDL2>/lib/x64 -lSDL2`.
 
 This layer is the stepping stone to the planned features (see `../docs/PORT_FEATURES.md`): widescreen, interpolation and more riders need the
