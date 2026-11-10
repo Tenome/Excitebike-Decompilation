@@ -126,3 +126,12 @@ void DetectRiderOverlap(void);       /* $E4C8 */
 void RiderCrashUpdate(void);         /* $DDD1 */
 void CheckTrackEdge(void);           /* $DEBB */
 void UpdateExhaustSprites(void);     /* $DE31 */
+
+void RiderLandingCheck(Regs r);      /* $DC1A */
+void RiderCollisions(void);          /* $DFD5 */
+void BikeVsObstacleCheck(void);      /* $E09F */
+void UpdateRiderGroundDistance(void);/* $E836 */
+void UpdateRiderY(void);             /* $E96C */
+void RiderStateDispatch(Regs r);     /* $D924 */
+void UpdateRiderStates(void);        /* $D918 */
+void MenuHandleInput(Regs r);        /* $C7DE */

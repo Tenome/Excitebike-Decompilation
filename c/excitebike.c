@@ -1320,3 +1320,198 @@ void UpdateExhaustSprites(void) {             /* $DE31: start-light countdown ($
     }
     if (RAM(0x34) != 0) RAM(0x24) = 0x88;
 }
+
+/* ---- batch 12: landing, rider collisions, obstacle hit, Y movement, state dispatch, menu cursor ---- */
+void RiderLandingCheck(Regs r) {              /* $DC1A: an airborne rider touches down (or crashes if the pitch is wrong) */
+    uint8_t x = r.x, a, y;
+    if (RAM(0xB0 + x) == 0) return;
+    a = RiderBaseY(r).a;
+    RAM(0x01) = a;
+    if (a >= RAM(0x8C + x)) return;
+    if (RAM(0x8C + x) >= 0xA8) return;
+    if (RAM(0x0364 + x) == 0) return;
+    if (x == 0) RAM(0xFF) = 2;
+    RAM(0xB0 + x) = 0; RAM(0x0364 + x) = 0;
+    if (RAM(0x98 + x) == 0) {
+        if (RAM(0x52) != 0) {                   /* $DC8E: race over, just level out */
+            if (RAM(0xD4 + x) == 0) RAM(0xAC + x) = 6;
+            return;
+        }
+        y = RAM(0x0388 + x); RAM(0x0388 + x) = 0;
+        if (y == 0) {
+            a = RAM(0xD4 + x);
+            if ((int8_t)(RAM(0x94 + x) - 2) < 0) a += 8;
+            y = a;
+            uint8_t p = RAM(0xAC + x);
+            if (p < ROMB(0xD86C + y) || p >= ROMB(0xD87C + y)) { RAM(0x98 + x) = 0xFF; return; }
+            if (RAM(0x0368 + x) != p && (RAM(0xD4 + x) | RAM(0xCC + x)) == 0) {
+                RAM(0x0374 + x) = 4; RAM(0x0388 + x) = 2; RAM(0xB0 + x) = 1;
+            }
+        }
+    }
+    RAM(0x01)--;                                /* $DC87 */
+    RAM(0x8C + x) = RAM(0x01);
+}
+
+void RiderCollisions(void) {                  /* $DFD5: rider-vs-rider contact; crashes the rider on the left and the other */
+    uint8_t x = 0, y = 1, a, ax, ay, lx, ly;
+    for (;;) {
+        if (RAM(0xA8 + x) == 0) goto next_x;
+        for (;;) {
+            if (RAM(0xA8 + y) == 0) goto next_y;
+            if (!(RAM(0x84 + x) & 1)) goto next_x;
+            if (!(RAM(0x84 + y) & 1)) goto next_y;
+            a = RAM(0x70 + x);
+            if (a == 0) goto next_x;
+            if (a != RAM(0x70 + y)) goto next_y;
+            if ((RAM(0x98 + x) | RAM(0x03E0 + x)) != 0) goto next_x;
+            if (RAM(0x98 + y) != 0) goto next_y;
+            if (RAM(0xB0 + x) != 0 || RAM(0xB0 + y) != 0) {
+                ax = RAM(0x8C + x); ay = RAM(0x8C + y);
+                if (ax >= ay) {
+                    if (AddCollisionHeight((Regs){ ay, 0, 0, 0 }).a < ax) goto next_y;
+                } else {
+                    if (AddCollisionHeight((Regs){ ax, 0, 0, 0 }).a < ay) goto next_y;
+                }
+            }
+            lx = RAM(0x80 + x); ly = RAM(0x80 + y);
+            if (lx < ly) {
+                if (AddCollisionWidth((Regs){ lx, 0, 0, 0 }).a >= ly) goto e061;
+                if (AddCollisionHeight((Regs){ lx, 0, 0, 0 }).a >= ly) goto e05b;
+                goto next_y;
+            } else {
+                if (AddCollisionWidth((Regs){ ly, 0, 0, 0 }).a >= lx) goto e061;
+                if (AddCollisionHeight((Regs){ ly, 0, 0, 0 }).a >= lx) goto e065;
+                goto next_y;
+            }
+        e05b: RAM(0x98 + x) = 0xFF; goto e076;
+        e061: RAM(0x98 + x) = 0xFF;
+        e065: if (x == 0 && y == 3) RAM(0x3B) = 0x10;
+            RAM(0x98 + y) = 0xFF;
+        e076: if (x == 0) RAM(0xFD) = 1;
+        next_y:
+            y++;
+            if (y == 4) break;
+        }
+    next_x:
+        x++; y = x + 1;
+        if (x == 3) return;
+    }
+}
+
+void BikeVsObstacleCheck(void) {              /* $E09F: rider 0 hits the obstacle sprite at $0393 */
+    uint8_t a;
+    if (RAM(0x9C) != 0) return;
+    if (!(RAM(0x87) & 1)) return;
+    if (RAM(0x0373) == 0) return;
+    a = (uint8_t)(RAM(0xB8) - 3);
+    if (a >= RAM(0x6F)) return;
+    a += 7;
+    if (a < RAM(0x6F)) return;
+    a = RAM(0x80);
+    if (a >= RAM(0x0393)) return;
+    a += 0x12;
+    if (a < RAM(0x0393)) return;
+    a = (uint8_t)(RiderBaseY((Regs){ 0, 0, 0, 0 }).a - 8);
+    if (a >= RAM(0x8C)) return;
+    RAM(0x98) = 0xFF; RAM(0xDF) = 0; RAM(0x9F) = 1; RAM(0xFD) = 1; RAM(0x039B) = 2;
+}
+
+void UpdateRiderGroundDistance(void) {        /* $E836 */
+    for (int8_t i = 3; i >= 0; i--)
+        if (RAM(0xB0 + i) == 0) RAM(0x8C + i) = RiderBaseY((Regs){ 0, (uint8_t)i, 0, 0 }).a;
+}
+
+void UpdateRiderY(void) {                     /* $E96C: lane change movement, ramps and screen limits for each rider, then rider 0 steering */
+    uint8_t a;
+    for (int8_t i = 3; i >= 0; i--) {
+        uint8_t x = (uint8_t)i, y;
+        a = RAM(0x58 + x);
+        if (a != 0x15 && a != 0x14) RAM(0xB8 + x) += RAM(0xDC + x);
+        for (y = 0; y < 4; y++) if (RAM(0xB8 + x) == ROMB(0xE53D + y)) break;
+        if (y < 4) { RAM(0xDC + x) = 0; continue; }
+        a = RAM(0xA4 + x);
+        if (a != 0) {
+            if (a == 1) {
+                if (RAM(0xB8 + x) < 0x20) {
+                    RAM(0xA4 + x) = 4;
+                    a = RAM(0x58 + x);
+                    if (a == 0 || a == 0x12 || a == 0x10 || a == 0x0D) {
+                        RAM(0xBC + x) = 0;
+                        RiderStartJump((Regs){ 0, x, 0, 0 });
+                        RAM(0xA4 + x)--;
+                    }
+                    continue;
+                }
+            } else if (a != 3 && RAM(0xB8 + x) >= 0x20) RAM(0xB8 + x)--;
+        }
+        a = RAM(0xB8 + x);                      /* $E9C4 */
+        if (a < 8) {
+            if (RAM(0x9C + x) == 0) a = 7;
+            else { a = RAM(0xB8 + x); if (a < 2) a = 1; }
+            RAM(0xB8 + x) = a;
+            if (x != 0) goto e9d2;
+            goto e9d9;
+        }
+        if (a < 0x3A) continue;
+        RAM(0xB8 + x) = 0x39;
+    e9d2:
+        if ((RAM(0x9C + x) | RAM(0x03E0 + x)) != 0) continue;
+    e9d9:
+        a = RAM(0xDC + x);
+        if (a == 0) a = 0xFF;
+        RAM(0xDC + x) = a ^ 0xFE;
+    }
+    if (RAM(0x4F) == 0) return;
+    if ((RAM(0x98) | RAM(0x03E0) | RAM(0x03F7)) != 0) return;
+    if (RAM(0xB0) != 0) { if (RAM(0x0388) != 2) return; RAM(0x0388)++; }
+    a = RAM(0x9C);
+    if (a != 0 && a != 5) return;
+    a = RAM(0x14) & 0x0C;
+    if (a == 0) return;
+    RAM(0xDC) = (a & 4) ? 0xFF : 1;
+    RAM(0xFD) |= 4;
+}
+
+void RiderStateDispatch(Regs r) {             /* $D924: runs the handler for the rider's state (0 = racing, 1-5 = start/finish sequence) */
+    uint8_t x = r.x, y = RAM(0x9C + x);
+    RAM(0x00) = ROMB(0xD8FF + y); RAM(0x01) = ROMB(0xD905 + y);
+    switch (y) {
+    case 1: RiderState1Gate(r); break;
+    case 2: RiderState2MoveToLane(r); break;
+    case 3: RiderState3Wait(r); break;
+    case 4: RiderState4Release(r); break;
+    case 5: RiderState5Finish(r); break;
+    default: break;
+    }
+}
+void UpdateRiderStates(void) {                /* $D918 */
+    for (int8_t i = 3; i >= 0; i--) {
+        Regs q = { 0, (uint8_t)i, 0, 0 };
+        RiderStateDispatch(q);
+        ComputeRiderShadowY(q);
+    }
+}
+
+void MenuHandleInput(Regs r) {                /* $C7DE: A = number of items; moves $42 with the d-pad, A/B/etc. via $30/$31 */
+    uint8_t y = RAM(0x42), a;
+    RAM(0x00) = r.a;
+    a = RAM(0x15) & 0x3C;
+    if (a == 0) { RAM(0x49) = 0; return; }
+    RAM(0x31) = 0x5D;
+    if (RAM(0x49) != 0) return;
+    a = RAM(0x15);
+    int step = 0;                                /* 1 = down, 2 = up */
+    if (a & ROMB(0xC0CE)) step = 1;
+    else if ((a >> 2) & 1) step = 1;
+    else if ((a >> 3) & 1) step = 2;
+    else { RAM(0x30) = 4; goto store; }
+    if (step == 1) { y++; if (y >= RAM(0x00)) y = 1; else goto beep; }
+    y--;
+    if (y & 0x80) y = (uint8_t)(RAM(0x00) - 1);
+beep:
+    RAM(0xFF) = 1;
+store:
+    RAM(0x42) = y;
+    RAM(0x49)++;
+}
