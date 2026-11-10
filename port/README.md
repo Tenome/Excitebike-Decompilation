@@ -60,3 +60,9 @@ The track script is the game's own (`tools/ebdesign.py` documents the format: la
 
 Tab (or F1) opens a menu that pauses the game: extra riders, rider contact, top speed, jump power, crash pitch, overheating, picture width, frame rate and the sprite limit. Left/Right change a value at once;
 SAVE SETTINGS writes `excitebike.cfg` (read at the next start). F6 reloads the track, tile, palette and audio mod files while the game runs.
+
+## Custom music (.ebm songs)
+
+Besides WAV files, `--audio-mod DIR` plays `song_XX.ebm` songs (XX = the music request byte in hex) through the APU, so the port's own synthesizer plays them: four voices (two pulses, triangle, noise) with free
+pitch and note lengths. `python tools/ebmusic.py export DIR` writes the ROM's eight songs as editable .ebm text (the exported title song matches the original's pitches note for note);
+`tools/editor/music.html` is a piano-roll editor for them. While a custom song plays, the game's sound effects keep pulse 1 and pulse 2 when they fire. Format: see `tools/ebmusic.py`.

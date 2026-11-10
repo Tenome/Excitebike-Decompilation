@@ -99,7 +99,11 @@ def editor_data(ppu_path=None):
     pieces = [piece_columns(prg, i) for i in range(36)]
     return dict(chr=base64.b64encode(chr_).decode(), pal=pal, tilepal={str(k): v for k, v in tilepal.items()}, pieces=pieces,
                 runs=[R(prg, 0xF4C6 + k) for k in range(16)], builtin=[list(builtin_track(prg, n) or []) for n in range(5)],
-                canned=[list(parse_canned(prg, k)) for k in range(5)])
+                canned=[list(parse_canned(prg, k)) for k in range(5)], songs=rom_songs(prg))
+
+def rom_songs(prg):                                    # the ROM's songs as .ebm text for the music editor
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import ebmusic
+    return {'%02x' % r: ebmusic.song_text(ebmusic.decode_song(prg, r)) for r in (1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80)}
 
 def parse_canned(prg, k):                              # design-menu macros ($F4F5/$F4FA): token streams for rough sections etc.
     p = R(prg, 0xF4F5 + k) | R(prg, 0xF4FA + k) << 8; out = []

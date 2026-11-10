@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "audiomod.h"
 #include "../c/excitebike.h"
 
@@ -11,6 +12,7 @@ static const char *CH[4] = { "music", "noise", "pulse2", "pulse1" };
 typedef struct { const Clip *c; int pos, loop; } Voice;
 static Clip g_engine; static double g_engine_pos, g_engine_rate; static int g_engine_on;     /* engine.wav: looped, pitch follows the engine request */
 static Voice g_voice[MAXV];
+#include "musicmod.inc"
 
 static uint32_t rd32(const uint8_t *p) { return p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24; }
 static uint16_t rd16(const uint8_t *p) { return (uint16_t)(p[0] | p[1] << 8); }
@@ -51,6 +53,10 @@ int audiomod_load(const char *dir) {
         FILE *f = fopen(path, "rb"); if (!f) continue; fclose(f);
         if (load_wav(path, &g_clip[c][v])) found++;
     }
+    for (int v = 1; v < 256; v++) {
+        snprintf(path, sizeof path, "%s/song_%02x.ebm", dir, v);
+        if (song_parse(path, &g_song[v])) { g_song_ok[v] = 1; found++; } else g_song_ok[v] = 0;
+    }
     snprintf(path, sizeof path, "%s/engine.wav", dir);
     { FILE *f = fopen(path, "rb"); if (f) { fclose(f); if (load_wav(path, &g_engine)) found++; } }
     if (found) g_hal_sound = audiomod_request;
@@ -58,6 +64,7 @@ int audiomod_load(const char *dir) {
 }
 
 int audiomod_request(int chan, int value) {
+    if (chan == SND_MUSIC && music_request(value)) return 1;
     if (chan == SND_ENGINE) {                                  /* every frame while an engine runs: value = pitch step (0-48), bit 7 = the player's bike */
         if (!g_engine.s || g_engine.n < 2) return 0;
         g_engine_on = 1; g_engine_rate = 0.5 + (value & 0x7F) / 48.0 * 1.2; return 1;
@@ -87,4 +94,4 @@ void audiomod_mix(int16_t *buf, int n) {
     }
 }
 
-void audiomod_frame(void) { g_engine_on = 0; }
+void audiomod_frame(void) { g_engine_on = 0; music_tick(); }

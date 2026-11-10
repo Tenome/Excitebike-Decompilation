@@ -28,6 +28,7 @@ static uint8_t hal_read(uint16_t a) {
     if (a == 0x4016 || a == 0x4017) { int p = a & 1; uint8_t v = g_pad_latch[p] & 1; g_pad_latch[p] = (uint8_t)((g_pad_latch[p] >> 1) | 0x80); return v; }
     return 0;
 }
+static void audio_apu_w(uint16_t a, uint8_t v) { apu_write(&g_apu, a, v); }
 static void hal_event(int ev, int arg) { if (ev == HAL_EV_DELAY) ppu_advance(&g_ppu, arg); }
 
 typedef struct { char magic[8]; uint8_t ram[0x800]; Ppu ppu; Apu apu; uint8_t latch[2], bits[2]; int pal; } SaveState;
@@ -226,6 +227,7 @@ int main(int argc, char **argv) {
     if (width_opt > PPU_MAXW) width_opt = PPU_MAXW;
     g_ppu.width = width_opt & ~1;
     apu_init(&g_apu, pal);
+    audiomod_set_apu_writer(audio_apu_w);
     if (audio_mod) fprintf(stderr, "audio mod %s: %d files\n", audio_mod, audiomod_load(audio_mod));
     g_hal_write = hal_write; g_hal_read = hal_read; g_hal_event = hal_event;
 
