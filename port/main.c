@@ -10,6 +10,7 @@
 #include "../c/excitebike.h"
 #include "ppu.h"
 #include "apu.h"
+#include "audiomod.h"
 
 static Ppu g_ppu;
 static Apu g_apu;
@@ -131,6 +132,7 @@ static void load_config(const char *path) {
 }
 
 int main(int argc, char **argv) {
+    const char *audio_mod = NULL;
     load_config("excitebike.cfg");
     const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL, *record = NULL, *play = NULL, *chr_bmp = NULL, *chr_raw = NULL, *pal_file = NULL;
     FILE *rec_f = NULL, *play_f = NULL;
@@ -151,6 +153,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--play") && i + 1 < argc) play = argv[++i];
         else if (!strcmp(argv[i], "--rule") && i + 1 < argc) { if (!set_rule(argv[++i])) { fprintf(stderr, "unknown rule %s\n", argv[i]); return 1; } }
         else if (!strcmp(argv[i], "--designs") && i + 1 < argc) designs_path = argv[++i];
+        else if (!strcmp(argv[i], "--audio-mod") && i + 1 < argc) audio_mod = argv[++i];
         else if (!strcmp(argv[i], "--chr-bmp") && i + 1 < argc) chr_bmp = argv[++i];
         else if (!strcmp(argv[i], "--chr") && i + 1 < argc) chr_raw = argv[++i];
         else if (!strcmp(argv[i], "--palette") && i + 1 < argc) pal_file = argv[++i];
@@ -178,6 +181,7 @@ int main(int argc, char **argv) {
     if (width_opt > PPU_MAXW) width_opt = PPU_MAXW;
     g_ppu.width = width_opt & ~1;
     apu_init(&g_apu, pal);
+    if (audio_mod) fprintf(stderr, "audio mod %s: %d files\n", audio_mod, audiomod_load(audio_mod));
     g_hal_write = hal_write; g_hal_read = hal_read; g_hal_event = hal_event;
 
     SDL_SetMainReady();
@@ -249,6 +253,7 @@ int main(int argc, char **argv) {
         while (ns > 0) {
             int chunk = ns > 2048 ? 2048 : ns;
             apu_run(&g_apu, abuf, chunk, 44100);
+            audiomod_mix(abuf, chunk);
             if (dev) SDL_QueueAudio(dev, abuf, (Uint32)chunk * 2);
             if (wav) { if (wavn + chunk > wavcap) { wavcap = (wavn + chunk) * 2; wavbuf = realloc(wavbuf, wavcap * 2); } memcpy(wavbuf + wavn, abuf, (size_t)chunk * 2); wavn += chunk; }
             ns -= chunk;

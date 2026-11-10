@@ -33,7 +33,7 @@ cc65 is found through `--cc65 DIR`, `$CC65_DIR` or `PATH`. Edit `config/<ver>/*.
 ## Playing the native build
 
 ```
-clang -O2 -o excitebike port/main.c port/ppu.c port/apu.c c/excitebike.c -I<SDL2>/include -L<SDL2>/lib/x64 -lSDL2     # or use port/CMakeLists.txt
+clang -O2 -o excitebike port/main.c port/ppu.c port/apu.c port/audiomod.c c/excitebike.c -I<SDL2>/include -L<SDL2>/lib/x64 -lSDL2     # or use port/CMakeLists.txt
 excitebike orig/excitebike_us.nes      # arrows, Z = accelerate, X = turbo, Enter = Start; F5/F9 save/load state, F11 fullscreen
 ```
 This runs the lifted C game, not an emulator: no CPU is emulated; a small picture layer and a synthesizer turn the game's PPU/APU writes into video and audio.

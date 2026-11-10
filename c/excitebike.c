@@ -20,6 +20,7 @@ static uint32_t g_ppu_status_reads;
 void (*g_hal_write)(uint16_t addr, uint8_t val);
 uint8_t (*g_hal_read)(uint16_t addr);
 void (*g_hal_event)(int event, int arg);
+int (*g_hal_sound)(int chan, int value);
 static inline void io_w(uint16_t a, uint8_t v) {
     if (g_hal_write) g_hal_write(a, v);
     if (g_io_n < 8192) { g_io_log[g_io_n].addr = a; g_io_log[g_io_n].val = v; g_io_n++; }

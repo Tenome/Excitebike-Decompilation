@@ -30,7 +30,14 @@ Rules (mutators): `--rule name=value` or an `excitebike.cfg` next to the executa
 `--press "frame=buttons,..."` sets the controller from that frame on (bit 0 A, 1 B, 2 Select, 3 Start, 4 Up, 5 Down, 6 Left, 7 Right).
 The ROM supplies tables, graphics and sound data at run time; nothing from it is in this repository.
 
-Build: see `CMakeLists.txt`, or directly: `clang -O2 -o excitebike port/main.c port/ppu.c port/apu.c c/excitebike.c -I<SDL2>/include -L<SDL2>/lib/x64 -lSDL2`.
+Build: see `CMakeLists.txt`, or directly: `clang -O2 -o excitebike port/main.c port/ppu.c port/apu.c port/audiomod.c c/excitebike.c -I<SDL2>/include -L<SDL2>/lib/x64 -lSDL2`.
 
 This layer is the stepping stone to the planned features (see `../docs/PORT_FEATURES.md`): widescreen, interpolation and more riders need the
 game state as named structures and a renderer that reads them directly instead of PPU writes.
+
+## Audio mods
+
+`--audio-mod DIR` replaces the game's music and sound effects with WAV files (PCM 8/16-bit, mono/stereo, any rate). Name a file `<channel>_<request>.wav`
+with the channel `music`, `pulse1`, `pulse2` or `noise` and the request byte the game sends in two hex digits (`music_01.wav`, `pulse1_04.wav`; see the request
+bytes in `c/sound.inc`). A request that has a file is played from it instead of the original sound code; `music_*` files loop until the next music request.
+Requests without a file still use the original synthesized sound. The engine tone (a continuous state, not a one-shot request) is not replaceable yet.

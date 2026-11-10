@@ -362,6 +362,12 @@ static void SoundPulse2TriangleSfx(void) {             /* $FA74 */
 }
 
 static void SoundUpdate(void) {                         /* $F844: runs every NMI */
+    if (g_hal_sound) {                                   /* audio mods: the host may take over a request (nothing happens in the original game's tests) */
+        if (MusicRequest && g_hal_sound(SND_MUSIC, MusicRequest)) MusicRequest = 0;
+        if (SfxNoiseRequest && g_hal_sound(SND_NOISE, SfxNoiseRequest)) SfxNoiseRequest = 0;
+        if (SfxPulse2Request && g_hal_sound(SND_PULSE2, SfxPulse2Request)) SfxPulse2Request = 0;
+        if (SfxPulse1Request && g_hal_sound(SND_PULSE1, SfxPulse1Request)) SfxPulse1Request = 0;
+    }
     ra = 0xC0; SETNZ(ra);                                /* the original loads A with $C0 and keeps it: the pulse routines below read A on entry */
     WR(0x4017, ra);
     SoundPulse1Sfx();
