@@ -30,6 +30,14 @@ python tools/report.py --version us    # verify, then write progress/us/report.j
 ```
 cc65 is found through `--cc65 DIR`, `$CC65_DIR` or `PATH`. Edit `config/<ver>/*.json` (names, RAM names, hints), not the generated `src/`.
 
+## Playing the native build
+
+```
+clang -O2 -o excitebike port/main.c port/ppu.c port/apu.c c/excitebike.c -I<SDL2>/include -L<SDL2>/lib/x64 -lSDL2     # or use port/CMakeLists.txt
+excitebike orig/excitebike_us.nes      # arrows, Z = accelerate, X = turbo, Enter = Start; F5/F9 save/load state, F11 fullscreen
+```
+This runs the lifted C game, not an emulator: no CPU is emulated; a small picture layer and a synthesizer turn the game's PPU/APU writes into video and audio.
+
 ## Layout
 
 | Path | Contents |
@@ -37,7 +45,9 @@ cc65 is found through `--cc65 DIR`, `$CC65_DIR` or `PATH`. Edit `config/<ver>/*.
 | `src/<ver>/` | generated ca65, one file per module (`boot`, `game_states`, `tape`, `riders`, `rider_draw`, `track_scripts`, `design_mode`, `track_render`, `sound`, ...) plus `excitebike.asm` (header, includes) and `hardware.inc` (PPU/APU registers and RAM names) |
 | `config/<ver>/` | `coverage.json` (opcodes executed in play, PRG offsets), `names.json`, `ram.json`, `modules.json` (file split), `comments.json` (routine headers), `hints.json`; `config/excitebike.cfg` is the ld65 layout |
 | `assets/<ver>/` | data extracted from your ROM (git-ignored) |
-| `tools/` | `ebdis.py` tracing disassembler/emitter, `build.py`, `report.py`, `gapscan.py`, `sim6502.py` + `difftest.py` (lift verification), coverage tools (`mkroute.py`, `miss2cov.py`, `run_routes.sh`), `make_seeds.py` |
+| `c/` | the lifted C game: `excitebike.c` (hand-lifted logic and hardware access), `auto_sound.inc` / `auto_tape.inc` (mechanical lifts), `excitebike.h` |
+| `port/` | native PC runtime: scanline picture layer, sound synthesis, SDL2 front end (`port/README.md`) |
+| `tools/` | `ebdis.py` tracing disassembler/emitter, `build.py`, `report.py`, `gapscan.py`, `sim6502.py` + `difftest.py` + `fulltest.py` (lift verification), `lift6502.py` (mechanical 6502 to C lifter), coverage tools (`mkroute.py`, `miss2cov.py`, `run_routes.sh`), `make_seeds.py` |
 | `c/` | routines lifted to C (`excitebike.c/.h`) |
 | `progress/<ver>/report.json` | objdiff-format report for ByteMatch (published by `.github/workflows/report.yml` as `us_report` / `eu_report`) |
 | `recomp/` | native Windows build script |
