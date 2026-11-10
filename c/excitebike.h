@@ -122,3 +122,7 @@ void DrawSkidSmoke(Regs r);          /* $E2F6 */
 void DrawJumpShadows(void);          /* $EA44 */
 void UpdateTempGauge(void);          /* $E359 */
 void DetectRiderOverlap(void);       /* $E4C8 */
+
+void RiderCrashUpdate(void);         /* $DDD1 */
+void CheckTrackEdge(void);           /* $DEBB */
+void UpdateExhaustSprites(void);     /* $DE31 */

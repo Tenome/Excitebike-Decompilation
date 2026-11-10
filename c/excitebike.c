@@ -1250,3 +1250,73 @@ void DetectRiderOverlap(void) {               /* $E4C8: flags in $03A3 when two 
 set1:
     RAM(0x03A3) = 1;
 }
+
+/* ---- batch 11: crash recovery, track edge, start-light animation ---- */
+void RiderCrashUpdate(void) {                 /* $DDD1: tumbling riders slow down, then stand up */
+    for (int8_t i = 3; i >= 0; i--) {
+        uint8_t x = (uint8_t)i, y = 4;
+        if (RAM(0x98 + x) == 0) continue;
+        if (x == 0) {
+            RAM(0x03A9) = 0; RAM(0xFC) = 0;
+            if (RAM(0x4C) == 0) RAM(0xFD) = 1;
+            y = RAM(0x1B) & 3;
+        }
+        RAM(0x03E4 + x) = y;
+        if (RAM(0x4C) & 1) continue;
+        if (RAM(0x94 + x) == 0) {
+            if ((RAM(0xB0 + x) | RAM(0x58 + x)) == 0) {
+                RAM(0x90 + x) = 0; RAM(0x60 + x) = 0; RAM(0x98 + x) = 0;
+                RAM(0xAC + x) = 6;
+                RAM(0x0390 + x) = RAM(0x80 + x) + 8;
+                ComputeRiderShadowY((Regs){ 0, x, 0, 0 });
+                RAM(0x0398 + x) = 2; RAM(0x9C + x) = 1;
+                continue;
+            }
+            RAM(0x90 + x) = 0x88;
+        }
+        RAM(0xAC + x) = (uint8_t)((RAM(0xAC + x) + RAM(0x98 + x)) & 0x0F);
+    }
+}
+
+void CheckTrackEdge(void) {                   /* $DEBB: tracks whether riders 1-3 are on the grass strip at the left edge */
+    for (uint8_t x = 3; x != 0; x--) {
+        if (!(RAM(0x84 + x) & 1)) continue;
+        uint8_t lo = RAM(0x80 + x);
+        if (lo >= 0x30 && lo < 0x40) RAM(0x03A9 + x) = 1;
+        else if (RAM(0x03A9 + x) != 0) { RAM(0xFF) = 0x40; RAM(0x03A9 + x) = 0; }
+    }
+}
+
+void UpdateExhaustSprites(void) {             /* $DE31: start-light countdown ($24) drawn with sprites at $02C0 */
+    uint8_t a = RAM(0x24), y, c;
+    if (a == 1) {
+        RAM(0x4F) = 1;
+        uint8_t v = RAM(0x03B4);
+        RAM(0x03B4) = (uint8_t)(v - RAM(0x60));
+        if (v < RAM(0x60)) return;
+        RAM(0x24) = 2;
+    } else {
+        if (RAM(0x4F) != 0) return;
+        if (a < 0x60 && RAM(0x03A9) != 0 && (RAM(0x5C) & 0xC0) != 0) RAM(0xFE) = 1;
+    }
+    a = RAM(0x24);                              /* $DE4E */
+    y = 0xF0;
+    if (a < 0x10) { y = 0xF2; if (a < 0x08) y = 0xF4; }
+    if (a == 0x72) RAM(0xFB) = 0x20;
+    RAM(0x00) = y; RAM(0x01) = RAM(0x03B4);
+    for (int8_t i = 7; i >= 0; i--) {
+        uint8_t yy = (uint8_t)i, x = (uint8_t)(yy << 2);
+        RAM(0x02C0 + x) = ROMB(0xD8E7 + yy);
+        RAM(0x02C1 + x) = RAM(0x00);
+        RAM(0x02C2 + x) = 0;
+        RAM(0x02C3 + x) = RAM(0x01);
+        if (yy & 1) {
+            RAM(0x02C1 + x)++;
+            if (RAM(0x02C1 + x) != 0) continue;
+        }
+        c = RAM(0x01) < 0x10;
+        RAM(0x01) = (uint8_t)(RAM(0x01) - 0x10);
+        if (c) break;
+    }
+    if (RAM(0x34) != 0) RAM(0x24) = 0x88;
+}
