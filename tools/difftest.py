@@ -283,6 +283,7 @@ TESTS = [
     ('ResetInit', 0xC184, False, '', lambda r: dict(ram=RB(r) | {0x5CE: r.choice([0xA5, 0xA5, 0, 7]), 0x5CF: r.choice([0x5A, 0x5A, 1])}, io={0x2002: 0x80}, stop=0xC1D8)),
     ('GameStateDispatch', 0xC2A9, False, '', lambda r: dict(ram=RB(r) | STATE_RAM(r) | {0x301 + i: 0 for i in range(0x30)}, io={0x2002: 0x40})),
     ('Nmi', 0xC23B, False, '', lambda r: dict(ram=RB(r) | STATE_RAM(r, [0, 1, 3, 4, 6, 7, 8, 11, 12, 13]) | {0x47: r.choice([0, 0, 1]), 0x45: r.choice([0, 0, 1, 3])} | {0x301 + i: 0 for i in range(0x30)}, io={0x2002: 0}, rti=True)),
+    ('V_SetPulse2Pitch', 0xFAF7, True, 'V', lambda r: dict(a=r.randint(0,255), x=r.randint(0,255), y=r.randint(0,255), ram={0xF0+i: r.choice([0, 0, 1, 2, 5, 0x10, 0x20, 0x40, 0x80, 0xFF]) for i in range(16)} | {0x7F0+i: r.choice([0, 0, 1, 3, 0x20, 0x80, 0xFF]) for i in range(16)})),
 ]
 
 def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):

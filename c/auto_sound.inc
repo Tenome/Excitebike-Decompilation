@@ -2,10 +2,8 @@
 static void PlayPulseNote(void);
 static void SetPulse1Regs(void);
 static void SoundMusic(void);
-static void SoundNoiseSfx(void);
 static void SoundPulse1Sfx(void);
 static void SoundPulse2TriangleSfx(void);
-static void SoundUpdate(void);
 static void Sub_F873(void);
 static void Sub_F885(void);
 static void Sub_F889(void);
@@ -13,25 +11,6 @@ static void Sub_F88D(void);
 static void Sub_F942(void);
 static void Sub_F947(void);
 static void Sub_FF53(void);
-
-static void SoundUpdate(void) {                        /* $F844 */
-L_F844: ra = 0xC0; SETNZ(ra);   /* $F844 lda */
-L_F846: WR(0x4017, ra);   /* $F846 sta */
-L_F849: SoundPulse1Sfx();   /* $F849 jsr */
-L_F84C: SoundPulse2TriangleSfx();   /* $F84C jsr */
-L_F84F: SoundNoiseSfx();   /* $F84F jsr */
-L_F852: SoundMusic();   /* $F852 jsr */
-L_F855: ra = 0x00; SETNZ(ra);   /* $F855 lda */
-L_F857: WR(0xFF, ra);   /* $F857 sta */
-L_F859: WR(0xFE, ra);   /* $F859 sta */
-L_F85B: WR(0xFD, ra);   /* $F85B sta */
-L_F85D: WR(0xFB, ra);   /* $F85D sta */
-L_F85F: ra = RD(0x07FF); SETNZ(ra);   /* $F85F lda */
-L_F862: if (fz) goto L_F86A;   /* $F862 beq */
-L_F864: WR(0x4011, ra);   /* $F864 sta */
-L_F867: { uint16_t ea_ = 0x07FF; uint8_t t_ = (uint8_t)(RD(ea_) - 1); WR(ea_, t_); SETNZ(t_); }   /* $F867 dec */
-L_F86A: return;   /* $F86A rts */
-}
 
 static void SetPulse1Regs(void) {                        /* $F86B */
 L_F86B: WR(0x4000, rx);   /* $F86B stx */
@@ -238,7 +217,7 @@ L_FA67: ra = 0x02; SETNZ(ra);   /* $FA67 lda */
 L_FA69: WR(0x07F3, ra);   /* $FA69 sta */
 L_FA6C: ra = RD((uint16_t)(0xFA39 + ry)); SETNZ(ra);   /* $FA6C lda */
 L_FA6F: ry = 0x7F; SETNZ(ry);   /* $FA6F ldy */
-L_FA71: goto L_FAF7;   /* $FA71 jmp */
+L_FA71: { SetPulse2Pitch(); return; }   /* $FA71 jmp */
 L_FA74: ry = RD(0xFE); SETNZ(ry);   /* $FA74 ldy */
 L_FA76: if (!fz) goto L_FA4F;   /* $FA76 bne */
 L_FA78: ry = RD(0xF1); SETNZ(ry);   /* $FA78 ldy */
@@ -298,146 +277,10 @@ L_FAE7: rx = RD(0xFC); SETNZ(rx);   /* $FAE7 ldx */
 L_FAE9: if (!fn) goto L_FAF2;   /* $FAE9 bpl */
 L_FAEB: rx = RD((uint16_t)(0xF9BF + ry)); SETNZ(rx);   /* $FAEB ldx */
 L_FAEE: ry = 0x89; SETNZ(ry);   /* $FAEE ldy */
-L_FAF0: if (!fz) goto L_FAF7;   /* $FAF0 bne */
+L_FAF0: if (!fz) { SetPulse2Pitch(); return; }   /* $FAF0 bne */
 L_FAF2: rx = RD((uint16_t)(0xF9B9 + ry)); SETNZ(rx);   /* $FAF2 ldx */
 L_FAF5: ry = 0x7F; SETNZ(ry);   /* $FAF5 ldy */
-L_FAF7: WR(0x4004, rx);   /* $FAF7 stx */
-L_FAFA: WR(0x4005, ry);   /* $FAFA sty */
-L_FAFD: WR(0x07F9, ra);   /* $FAFD sta */
-L_FB00: ry = 0x07; SETNZ(ry);   /* $FB00 ldy */
-L_FB02: WR(0x00, ry);   /* $FB02 sty */
-L_FB04: ry = 0xFF; SETNZ(ry);   /* $FB04 ldy */
-L_FB06: WR(0x01, ry);   /* $FB06 sty */
-L_FB08: ra = SHIFT_LSR(ra);   /* $FB08 lsr */
-L_FB09: ra = SHIFT_LSR(ra);   /* $FB09 lsr */
-L_FB0A: ra = SHIFT_LSR(ra);   /* $FB0A lsr */
-L_FB0B: ra = SHIFT_LSR(ra);   /* $FB0B lsr */
-L_FB0C: ra = SHIFT_LSR(ra);   /* $FB0C lsr */
-L_FB0D: ry = ra; SETNZ(ry);   /* $FB0D tay */
-L_FB0E: if (fz) goto L_FB17;   /* $FB0E beq */
-L_FB10: { uint16_t ea_ = 0x00; uint8_t t_ = SHIFT_LSR(RD(ea_)); WR(ea_, t_); }   /* $FB10 lsr */
-L_FB12: { uint16_t ea_ = 0x01; uint8_t t_ = SHIFT_ROR(RD(ea_)); WR(ea_, t_); }   /* $FB12 ror */
-L_FB14: ry = (uint8_t)(ry - 1); SETNZ(ry);   /* $FB14 dey */
-L_FB15: if (!fz) goto L_FB10;   /* $FB15 bne */
-L_FB17: ra = RD(0x00); SETNZ(ra);   /* $FB17 lda */
-L_FB19: ra = SHIFT_LSR(ra);   /* $FB19 lsr */
-L_FB1A: rx = ra; SETNZ(rx);   /* $FB1A tax */
-L_FB1B: ra = RD(0x01); SETNZ(ra);   /* $FB1B lda */
-L_FB1D: ra = SHIFT_ROR(ra);   /* $FB1D ror */
-L_FB1E: ry = ra; SETNZ(ry);   /* $FB1E tay */
-L_FB1F: { uint16_t ea_ = 0x07F9; uint8_t t_ = SHIFT_ASL(RD(ea_)); WR(ea_, t_); }   /* $FB1F asl */
-L_FB22: { uint16_t ea_ = 0x07F9; uint8_t t_ = SHIFT_ASL(RD(ea_)); WR(ea_, t_); }   /* $FB22 asl */
-L_FB25: { uint16_t ea_ = 0x07F9; uint8_t t_ = SHIFT_ASL(RD(ea_)); WR(ea_, t_); }   /* $FB25 asl */
-L_FB28: ra = rx; SETNZ(ra);   /* $FB28 txa */
-L_FB29: ra = SHIFT_LSR(ra);   /* $FB29 lsr */
-L_FB2A: rx = ra; SETNZ(rx);   /* $FB2A tax */
-L_FB2B: ra = ry; SETNZ(ra);   /* $FB2B tya */
-L_FB2C: ra = SHIFT_ROR(ra);   /* $FB2C ror */
-L_FB2D: ry = ra; SETNZ(ry);   /* $FB2D tay */
-L_FB2E: { uint16_t ea_ = 0x07F9; uint8_t t_ = SHIFT_ASL(RD(ea_)); WR(ea_, t_); }   /* $FB2E asl */
-L_FB31: if (!fc) goto L_FB41;   /* $FB31 bcc */
-L_FB33: fc = 1;   /* $FB33 sec */
-L_FB34: ra ^= 0xFF; SETNZ(ra);   /* $FB34 eor */
-L_FB36: ADC(RD(0x01));   /* $FB36 adc */
-L_FB38: WR(0x01, ra);   /* $FB38 sta */
-L_FB3A: ra = rx; SETNZ(ra);   /* $FB3A txa */
-L_FB3B: ra ^= 0xFF; SETNZ(ra);   /* $FB3B eor */
-L_FB3D: ADC(RD(0x00));   /* $FB3D adc */
-L_FB3F: WR(0x00, ra);   /* $FB3F sta */
-L_FB41: ra = RD(0x07F9); SETNZ(ra);   /* $FB41 lda */
-L_FB44: if (!fz) goto L_FB28;   /* $FB44 bne */
-L_FB46: ra = RD(0x01); SETNZ(ra);   /* $FB46 lda */
-L_FB48: WR(0x4006, ra);   /* $FB48 sta */
-L_FB4B: ra = RD(0x00); SETNZ(ra);   /* $FB4B lda */
-L_FB4D: WR(0x4007, ra);   /* $FB4D sta */
-L_FB50: ra = RD(0xF1); SETNZ(ra);   /* $FB50 lda */
-L_FB52: if (!fz) goto L_FB5A;   /* $FB52 bne */
-L_FB54: ra = RD(0xF7); SETNZ(ra);   /* $FB54 lda */
-L_FB56: ra |= RD(0xFA); SETNZ(ra);   /* $FB56 ora */
-L_FB58: if (!fz) goto L_FB76;   /* $FB58 bne */
-L_FB5A: { uint16_t ea_ = 0x00; uint8_t t_ = SHIFT_LSR(RD(ea_)); WR(ea_, t_); }   /* $FB5A lsr */
-L_FB5C: { uint16_t ea_ = 0x01; uint8_t t_ = SHIFT_ROR(RD(ea_)); WR(ea_, t_); }   /* $FB5C ror */
-L_FB5E: ra = RD(0x00); SETNZ(ra);   /* $FB5E lda */
-L_FB60: ra = SHIFT_LSR(ra);   /* $FB60 lsr */
-L_FB61: ry = ra; SETNZ(ry);   /* $FB61 tay */
-L_FB62: ra = RD(0x01); SETNZ(ra);   /* $FB62 lda */
-L_FB64: ra = SHIFT_ROR(ra);   /* $FB64 ror */
-L_FB65: fc = 0;   /* $FB65 clc */
-L_FB66: ADC(RD(0x01));   /* $FB66 adc */
-L_FB68: WR(0x400A, ra);   /* $FB68 sta */
-L_FB6B: ra = ry; SETNZ(ra);   /* $FB6B tya */
-L_FB6C: ADC(RD(0x00));   /* $FB6C adc */
-L_FB6E: WR(0x400B, ra);   /* $FB6E sta */
-L_FB71: ra = 0x04; SETNZ(ra);   /* $FB71 lda */
-L_FB73: WR(0x4008, ra);   /* $FB73 sta */
-L_FB76: return;   /* $FB76 rts */
-}
-
-static void SoundNoiseSfx(void) {                        /* $FC3D */
-    goto L_FC3D;
-L_FBFF: WR(0xF2, ry);   /* $FBFF sty */
-L_FC01: ra = 0x2E; SETNZ(ra);   /* $FC01 lda */
-L_FC03: WR(0x07F6, ra);   /* $FC03 sta */
-L_FC06: ra = ry; SETNZ(ra);   /* $FC06 tya */
-L_FC07: if (fz) goto L_FC0E;   /* $FC07 beq */
-L_FC09: ra &= 0x02; SETNZ(ra);   /* $FC09 and */
-L_FC0B: WR(0x07F7, ra);   /* $FC0B sta */
-L_FC0E: ry = RD(0x07F6); SETNZ(ry);   /* $FC0E ldy */
-L_FC11: ra = RD((uint16_t)(0xFB76 + ry)); SETNZ(ra);   /* $FC11 lda */
-L_FC14: WR(0x400C, ra);   /* $FC14 sta */
-L_FC17: ra = RD((uint16_t)(0xFBA4 + ry)); SETNZ(ra);   /* $FC17 lda */
-L_FC1A: WR(0x400E, ra);   /* $FC1A sta */
-L_FC1D: if (!fz) goto L_FC75;   /* $FC1D bne */
-L_FC1F: WR(0xF2, ry);   /* $FC1F sty */
-L_FC21: ra = 0x00; SETNZ(ra);   /* $FC21 lda */
-L_FC23: WR(0x07F6, ra);   /* $FC23 sta */
-L_FC26: WR(0x07F7, ra);   /* $FC26 sta */
-L_FC29: ra = 0x0E; SETNZ(ra);   /* $FC29 lda */
-L_FC2B: WR(0x400E, ra);   /* $FC2B sta */
-L_FC2E: ra = RD(0x07F6); SETNZ(ra);   /* $FC2E lda */
-L_FC31: ra = SHIFT_LSR(ra);   /* $FC31 lsr */
-L_FC32: ra = SHIFT_LSR(ra);   /* $FC32 lsr */
-L_FC33: ra = SHIFT_LSR(ra);   /* $FC33 lsr */
-L_FC34: ry = ra; SETNZ(ry);   /* $FC34 tay */
-L_FC35: ra = RD((uint16_t)(0xFBD3 + ry)); SETNZ(ra);   /* $FC35 lda */
-L_FC38: WR(0x400C, ra);   /* $FC38 sta */
-L_FC3B: if (!fz) goto L_FC75;   /* $FC3B bne */
-L_FC3D: ry = RD(0xFD); SETNZ(ry);   /* $FC3D ldy */
-L_FC3F: ra = RD(0xF2); SETNZ(ra);   /* $FC3F lda */
-L_FC41: { uint16_t ea_ = 0xFD; uint8_t t_ = SHIFT_LSR(RD(ea_)); WR(ea_, t_); }   /* $FC41 lsr */
-L_FC43: if (fc) goto L_FBFF;   /* $FC43 bcs */
-L_FC45: ra = SHIFT_LSR(ra);   /* $FC45 lsr */
-L_FC46: if (fc) goto L_FC06;   /* $FC46 bcs */
-L_FC48: { uint16_t ea_ = 0xFD; uint8_t t_ = SHIFT_LSR(RD(ea_)); WR(ea_, t_); }   /* $FC48 lsr */
-L_FC4A: if (fc) goto L_FC1F;   /* $FC4A bcs */
-L_FC4C: ra = SHIFT_LSR(ra);   /* $FC4C lsr */
-L_FC4D: if (fc) goto L_FC2E;   /* $FC4D bcs */
-L_FC4F: ra = SHIFT_LSR(ra);   /* $FC4F lsr */
-L_FC50: if (fc) goto L_FC63;   /* $FC50 bcs */
-L_FC52: { uint16_t ea_ = 0xFD; uint8_t t_ = SHIFT_LSR(RD(ea_)); WR(ea_, t_); }   /* $FC52 lsr */
-L_FC54: if (fc) goto L_FC57;   /* $FC54 bcs */
-L_FC56: return;   /* $FC56 rts */
-L_FC57: WR(0xF2, ry);   /* $FC57 sty */
-L_FC59: ra = 0x0C; SETNZ(ra);   /* $FC59 lda */
-L_FC5B: WR(0x07F6, ra);   /* $FC5B sta */
-L_FC5E: ra = 0x0D; SETNZ(ra);   /* $FC5E lda */
-L_FC60: WR(0x400E, ra);   /* $FC60 sta */
-L_FC63: ry = RD(0x07F6); SETNZ(ry);   /* $FC63 ldy */
-L_FC66: ra = RD((uint16_t)(0xFBF2 + ry)); SETNZ(ra);   /* $FC66 lda */
-L_FC69: WR(0x400C, ra);   /* $FC69 sta */
-L_FC6C: CMP(ry, 0x08);   /* $FC6C cpy */
-L_FC6E: if (!fz) goto L_FC75;   /* $FC6E bne */
-L_FC70: ra = 0x0E; SETNZ(ra);   /* $FC70 lda */
-L_FC72: WR(0x400E, ra);   /* $FC72 sta */
-L_FC75: ra = 0x08; SETNZ(ra);   /* $FC75 lda */
-L_FC77: WR(0x400F, ra);   /* $FC77 sta */
-L_FC7A: { uint16_t ea_ = 0x07F6; uint8_t t_ = (uint8_t)(RD(ea_) - 1); WR(ea_, t_); SETNZ(t_); }   /* $FC7A dec */
-L_FC7D: if (!fz) goto L_FC56;   /* $FC7D bne */
-L_FC7F: ry = RD(0x07F7); SETNZ(ry);   /* $FC7F ldy */
-L_FC82: if (!fz) goto L_FC1F;   /* $FC82 bne */
-L_FC84: ra = 0x00; SETNZ(ra);   /* $FC84 lda */
-L_FC86: WR(0xF2, ra);   /* $FC86 sta */
-L_FC88: return;   /* $FC88 rts */
+    SetPulse2Pitch(); return;
 }
 
 static void SoundMusic(void) {                        /* $FC8D */
@@ -602,8 +445,6 @@ L_FF5F: ry = ra; SETNZ(ry);   /* $FF5F tay */
 L_FF60: ra = RD((uint16_t)(0xFF3E + ry)); SETNZ(ra);   /* $FF60 lda */
 L_FF63: return;   /* $FF63 rts */
 }
-void V_SoundUpdate(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundUpdate(); }
-Regs W_SoundUpdate(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundUpdate(); return (Regs){ ra, rx, ry, fc }; }
 void V_SetPulse1Regs(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SetPulse1Regs(); }
 Regs W_SetPulse1Regs(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SetPulse1Regs(); return (Regs){ ra, rx, ry, fc }; }
 void V_PlayPulseNote(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; PlayPulseNote(); }
@@ -624,8 +465,6 @@ void V_Sub_F947(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; Sub_F947(); }
 Regs W_Sub_F947(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; Sub_F947(); return (Regs){ ra, rx, ry, fc }; }
 void V_SoundPulse2TriangleSfx(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundPulse2TriangleSfx(); }
 Regs W_SoundPulse2TriangleSfx(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundPulse2TriangleSfx(); return (Regs){ ra, rx, ry, fc }; }
-void V_SoundNoiseSfx(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundNoiseSfx(); }
-Regs W_SoundNoiseSfx(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundNoiseSfx(); return (Regs){ ra, rx, ry, fc }; }
 void V_SoundMusic(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundMusic(); }
 Regs W_SoundMusic(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundMusic(); return (Regs){ ra, rx, ry, fc }; }
 void V_Sub_FF53(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; Sub_FF53(); }

@@ -164,7 +164,7 @@ for e in ents:
         if not ends:
             nextemit = body[body.index(p) + 1] if body.index(p) + 1 < len(body) else None
             if nextemit != nxt:
-                if nxt in starts and nxt in entries and nxt != e: out.append(f'    {fname(nxt)}(); return;')
+                if nxt in starts and (nxt in entries or nxt in externs) and nxt != e: out.append(f'    {fname(nxt)}(); return;')
                 elif nxt in starts and owner.get(nxt) == e: out.append(f'    goto {lab(nxt)};')
                 else: out.append(f'    return; /* falls into data / unreachable at ${nxt:04X} */')
     out.append('}')

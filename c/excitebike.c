@@ -2884,7 +2884,9 @@ int WideRiderSprites(WideSprite *out, int max, int width) {
 #include "extra_riders.inc"
 
 /* mechanically lifted routines (tools/lift6502.py) */
+static void SetPulse2Pitch(void);                 /* hand-written (sound.inc), called from the mechanical lift */
 #include "auto_sound.inc"
+#include "sound.inc"
 
 #include "auto_tape.inc"
 
