@@ -61,6 +61,7 @@ static uint8_t read_pad(const uint8_t *keys) {            /* bit 0 = A (first bi
 int main(int argc, char **argv) {
     const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL, *record = NULL, *play = NULL;
     FILE *rec_f = NULL, *play_f = NULL;
+    int dump_oam = 0;
     int16_t *wavbuf = NULL; size_t wavn = 0, wavcap = 0;
     int scale = 3, frames_limit = -1;
     for (int i = 1; i < argc; i++) {
@@ -71,6 +72,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--wav") && i + 1 < argc) wav = argv[++i];
         else if (!strcmp(argv[i], "--record") && i + 1 < argc) record = argv[++i];
         else if (!strcmp(argv[i], "--play") && i + 1 < argc) play = argv[++i];
+        else if (!strcmp(argv[i], "--dump-oam")) dump_oam = 1;
         else if (!strcmp(argv[i], "--unlimited-sprites")) g_ppu.unlimited_sprites = 1;
         else rom_path = argv[i];
     }
@@ -174,6 +176,7 @@ int main(int argc, char **argv) {
             fwrite(wavbuf, 2, wavn, w); fclose(w); printf("saved %s (%zu samples)\n", wav, wavn);
         }
     }
+    if (dump_oam) for (int i = 0; i < 64; i++) { const uint8_t *o = &g_ppu.oam[i * 4]; if (o[0] < 0xEF) printf("sprite %2d: y=%3d tile=%02X attr=%02X x=%3d\n", i, o[0], o[1], o[2], o[3]); }
     if (rec_f) fclose(rec_f);
     if (play_f) fclose(play_f);
     {
