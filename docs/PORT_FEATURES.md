@@ -93,6 +93,8 @@ folder, and loads mods on top.
 ## Status and the game-state renderer (not built)
 
 Built and verified locally: widescreen, extra CPU riders (with collisions against the real riders), rules, CHR/palette mods, audio mods (music, one-shot sounds, engine tone), frame interpolation, replays, design files.
+Also built: browser editors for tracks, tiles/palette and music (`tools/editor`), custom and longer-than-original tracks (`--track`), custom `.ebm` songs through the APU, an in-game options menu, F6 reload of mod files.
+Not done: the original in-game design mode still holds 236 bytes (longer tracks come from the editor); new obstacle or piece types need new column data in the track tables; music edits cannot be written back into the ROM, they play in the port only.
 
 The picture is still produced by a scanline PPU model fed by the game's register writes (`port/ppu.c`). A *game-state renderer* would draw the track, riders, obstacles and HUD straight from game
 state (track window, rider records, scroll position) into any resolution, which would give exact widescreen without the current edge-streaming limit, true high-frame-rate motion (interpolating
