@@ -5,7 +5,8 @@ uint8_t g_ram[0x800];
 const uint8_t *g_prg;
 /* Game rules the port can change (mutators); the defaults are the original game's values, so the lifted code stays identical to it. */
 Rules g_rules = { 0xAF, 0x0D, 1, 100 };
-int g_pal;                                    /* 1 = PAL (Europe) release: a few routines differ from the NTSC one */
+int g_pal;
+int g_rlo = 0, g_rhi = 3;                /* rider range the per-rider loops cover (the extra-riders code narrows it to one slot) */                                    /* 1 = PAL (Europe) release: a few routines differ from the NTSC one */
 
 /* Hardware registers ($2000-$7FFF): writes are logged in order, reads come from g_io_reads. The tests compare the log with the
  * writes the original code makes; the real port replaces these two functions with the PPU/APU/input layer. */
@@ -119,7 +120,7 @@ Regs RiderLaneFromY(Regs r) {
 }
 
 void ComputeRiderLanes(void) {
-    for (int x = 3; x >= 0; x--) {
+    for (int x = g_rhi; x >= g_rlo; x--) {
         uint8_t y = 5, a = (uint8_t)(RAM(0xB8 + x) - 0x10);
         if (!NEG(a)) {
             for (;;) { y--; if (y == 0) break; a = (uint8_t)(a - 8); if (NEG(a)) break; }
@@ -129,7 +130,7 @@ void ComputeRiderLanes(void) {
 }
 
 void AdvanceTrackPositions(void) {
-    for (int x = 3; x >= 0; x--) {
+    for (int x = g_rhi; x >= g_rlo; x--) {
         if (RAM(0x60 + x) != 0) {
             uint8_t d = (uint8_t)(RAM(0x64 + x) - RAM(0x60 + x));
             if (d == 0 || NEG(d)) {
@@ -182,7 +183,7 @@ void ScrollWorld(void) {                      /* $DA6A */
 }
 
 void ShiftRidersByScroll(void) {              /* $DA7A */
-    for (int x = 3; x != 0; x--) {
+    for (int x = g_rhi; x >= (g_rlo ? g_rlo : 1); x--) {
         if (RAM(0xA8 + x) == 0) continue;
         uint8_t c = 0, a = adc8(RAM(0x60 + x), RAM(0x80 + x), &c);
         if (c) RAM(0x84 + x)++;
@@ -797,13 +798,14 @@ void UpdateAiRiders(void) {                   /* $CED0 */
 
 void UpdateRiderControls(void) {              /* $CD1F */
     if (RAM(0x4F)) {
-        for (int i = 3; i >= 0; i--) {
+        for (int i = g_rhi; i >= g_rlo; i--) {
             uint8_t x = (uint8_t)i;
             if (RAM(0xA8 + x) == 0) continue;
             if (RAM(0x9C + x) != 5 && (RAM(0x9C + x) | RAM(0x98 + x) | RAM(0x03E0 + x)) != 0) RAM(0x5C + x) = 0;
             RiderControlStep((Regs){ 0, x, 0, 0 });
         }
     }
+    if (g_rlo != 0) return;
     if (RAM(0x34) == 0 && (RAM(0x5C) & 0xC0) != 0 && (RAM(0x03A9) | RAM(0x52)) == 0) {
         RAM(0x03A9) = 1; RAM(0xFE) = 1;
     }
@@ -983,7 +985,7 @@ void TrackScriptOpcode(Regs r) {              /* $E794: A = opcode (0-20, not 17
 }
 
 void RunPendingTrackScripts(void) {           /* $E927 */
-    for (int i = 3; i >= 0; i--) {
+    for (int i = g_rhi; i >= g_rlo; i--) {
         uint8_t x = (uint8_t)i;
         if (RAM(0xCC + x) != 0) TrackScriptOpcode((Regs){ RAM(0xCC + x), x, 0, 0 });
     }
@@ -1310,7 +1312,7 @@ set1:
 
 /* ---- batch 11: crash recovery, track edge, start-light animation ---- */
 void RiderCrashUpdate(void) {                 /* $DDD1: tumbling riders slow down, then stand up */
-    for (int8_t i = 3; i >= 0; i--) {
+    for (int8_t i = (int8_t)g_rhi; i >= g_rlo; i--) {
         uint8_t x = (uint8_t)i, y = 4;
         if (RAM(0x98 + x) == 0) continue;
         if (x == 0) {
@@ -1475,13 +1477,13 @@ void BikeVsObstacleCheck(void) {              /* $E09F: rider 0 hits the obstacl
 }
 
 void UpdateRiderGroundDistance(void) {        /* $E836 */
-    for (int8_t i = 3; i >= 0; i--)
+    for (int8_t i = (int8_t)g_rhi; i >= g_rlo; i--)
         if (RAM(0xB0 + i) == 0) RAM(0x8C + i) = RiderBaseY((Regs){ 0, (uint8_t)i, 0, 0 }).a;
 }
 
 void UpdateRiderY(void) {                     /* $E96C: lane change movement, ramps and screen limits for each rider, then rider 0 steering */
     uint8_t a;
-    for (int8_t i = 3; i >= 0; i--) {
+    for (int8_t i = (int8_t)g_rhi; i >= g_rlo; i--) {
         uint8_t x = (uint8_t)i, y;
         a = RAM(0x58 + x);
         if (a != 0x15 && a != 0x14) RAM(0xB8 + x) += RAM(0xDC + x);
@@ -1519,6 +1521,7 @@ void UpdateRiderY(void) {                     /* $E96C: lane change movement, ra
         if (a == 0) a = 0xFF;
         RAM(0xDC + x) = a ^ 0xFE;
     }
+    if (g_rlo != 0) return;                     /* range-limited call (extra riders): skip the player-only steering */
     if (RAM(0x4F) == 0) return;
     if ((RAM(0x98) | RAM(0x03E0) | RAM(0x03F7)) != 0) return;
     if (RAM(0xB0) != 0) { if (RAM(0x0388) != 2) return; RAM(0x0388)++; }
@@ -1543,7 +1546,7 @@ void RiderStateDispatch(Regs r) {             /* $D924: runs the handler for the
     }
 }
 void UpdateRiderStates(void) {                /* $D918 */
-    for (int8_t i = 3; i >= 0; i--) {
+    for (int8_t i = (int8_t)g_rhi; i >= g_rlo; i--) {
         Regs q = { 0, (uint8_t)i, 0, 0 };
         RiderStateDispatch(q);
         ComputeRiderShadowY(q);
@@ -2266,7 +2269,7 @@ ebf6:
 
 /* ---- batch 18: HUD buffers, scrolling objects, per-frame rider movement ---- */
 void FetchTrackWindow(void) {                 /* $D0C6: copies the 4 track pieces ahead of each rider into $03C0 (for the AI) */
-    for (int8_t i = 3; i >= 0; i--) {
+    for (int8_t i = (int8_t)g_rhi; i >= g_rlo; i--) {
         uint8_t x = (uint8_t)i, y, a;
         RAM(0x0C) = (uint8_t)(x << 2);
         RAM(0x0B) = 4;
@@ -2877,6 +2880,8 @@ int WideRiderSprites(WideSprite *out, int max, int width) {
     }
     return n;
 }
+
+#include "extra_riders.inc"
 
 /* mechanically lifted routines (tools/lift6502.py) */
 #include "auto_sound.inc"

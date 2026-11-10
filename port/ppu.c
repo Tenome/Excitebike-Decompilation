@@ -116,7 +116,7 @@ static void draw_line(Ppu *p, int L) {
             if (n < 8 || p->unlimited_sprites) found[n++] = i;
             else break;
         }
-        for (int k = 0; k < p->extra_n && wide; k++) {                  /* host sprites (beyond the old right edge), under the game's own */
+        for (int k = 0; k < p->extra_n; k++) {                  /* host sprites (beyond the old right edge), under the game's own */
             int row = L - (p->extra[k].y + 1);
             if (row < 0 || row >= h) continue;
             int hi; uint8_t lo = sprite_row_bits(p, p->extra[k].tile, p->extra[k].attr, row, &hi);
