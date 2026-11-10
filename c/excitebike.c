@@ -989,3 +989,264 @@ void RunTrackScripts(void) {                  /* $E733 */
     for (uint8_t x = 3; x != 0; x--) RunTrackScriptRider((Regs){ 0, x, 0, 0 });
     RunTrackScriptRider((Regs){ 0, 0, 0, 0 });
 }
+
+/* ---- batch 10: sprite drawing into the OAM buffer, temperature gauge, rider overlap ---- */
+#define OAM_AT(off) RAM(0x0200 + RAM(0x04) + (uint8_t)(off))     /* ($04),y with $05 = 2 */
+
+void DrawMetasprite(Regs r) {                 /* $D1C7: A = blank-tile mask; $00 X, $01 Y, $02 first tile, $03 size (rows<<4|cols), $04 OAM offset, $0B attributes */
+    uint8_t x, y, a, c = 0;
+    RAM(0x0A) = r.a;
+    RAM(0x05) = 2;
+    RAM(0x07) = 0x0F & RAM(0x03);
+    RAM(0x06) = RAM(0x03) >> 4;
+    x = RAM(0x06); a = 0;
+    do { a = adc8(a, RAM(0x07), &c); x--; } while (x != 0);
+    RAM(0x08) = a;
+    y = 1; x = 0;
+    do {
+        int write = 1;
+        if (!(x & 1)) { uint8_t b = RAM(0x0A) & 1; RAM(0x0A) >>= 1; if (b) write = 0; }
+        if (write) { OAM_AT(y) = RAM(0x02); RAM(0x02)++; } else OAM_AT(y) = 0xFC;
+        y++; OAM_AT(y) = RAM(0x0B);
+        y += 3; x++;
+    } while (x != RAM(0x08));
+    y = 0;
+    do {
+        x = RAM(0x06); RAM(0x09) = RAM(0x01);
+        do {
+            OAM_AT(y) = RAM(0x09); RAM(0x09) += 8;
+            y += 3; OAM_AT(y) = RAM(0x00); y++;
+            x--;
+        } while (x != 0);
+        RAM(0x00) += 8;
+        RAM(0x07)--;
+    } while (RAM(0x07) != 0);
+}
+
+void ClearSpriteBlock(Regs r) {               /* $E4AD: Y = block index, $07 = base offset: hides three sprites */
+    RAM(0x01) = 2;
+    RAM(0x00) = (uint8_t)(RAM(0x07) + ROMB(0xD8DC + r.y));
+    for (uint8_t y = 0; y < 0x0C; y += 4) RAM(0x0200 + RAM(0x00) + y) = 0xF8;
+}
+void EraseRiderSpriteRange(void) {            /* $E49B */
+    for (uint8_t x = 0; x < 3; x++)
+        if (!(RAM(0x02 + x) & 1)) ClearSpriteBlock((Regs){ 0, 0, x, 0 });
+}
+void ErasePassedRiderSprites(void) {          /* $E456 */
+    int8_t y = 3;
+    do {
+        RAM(0x05) = (uint8_t)y;
+        RAM(0x07) = ROMB(0xD8C0 + y);
+        uint8_t x = RAM(0x88 + y);
+        if (x != 0) {
+            uint8_t a = RAM(0x84 + x);
+            RAM(0x02) = RAM(0x03) = RAM(0x04) = a;
+            uint8_t lo = RAM(0x80 + x);
+            if (!(a & 1) && lo >= 0x70 && lo < 0x90) {
+                ClearRider((Regs){ 0, x, 0, 0 });
+                RAM(0x03A6) = 1;
+            } else {
+                if (lo >= 0xF8) RAM(0x03)++;
+                if (lo >= 0xF0) RAM(0x04)++;
+            }
+            EraseRiderSpriteRange();
+        }
+        y = (int8_t)(RAM(0x05) - 1);
+    } while (y >= 0);
+}
+
+Regs RiderSpriteFrame(Regs r) {               /* $E1F9: returns the animation frame for a rider (also sets $0E and $039F) */
+    uint8_t x = r.x, a, y;
+    RAM(0x0E) = 0; RAM(0x039F) = 0;
+    a = RAM(0x9C + x);
+    if (a != 0 && a != 5) {
+        y = 6;
+        if (RAM(0xBC + x) != 0 || RAM(0x0370 + x) == 0) y = 2;
+        a = y; y = RAM(0x36 + x);
+        if (y != 0) { y--; a = y; }
+        r.a = a | 0x10; return r;
+    }
+    if (RAM(0x52) == 1 && RAM(0xAC + x) == 0x0A) { RAM(0x0E) = 2; r.a = 0x0A; return r; }
+    if ((RAM(0x98 + x) | RAM(0xB0 + x)) == 0) {
+        a = RAM(0x58 + x);
+        if (a == 0 || (a == 0x0D && RAM(0xB8 + x) >= 0x20)) {
+            if ((RAM(0x90 + x) | RAM(0x94 + x)) == 0) { RAM(0x0E)++; }
+            else if (RAM(0xAC + x) == 6) {
+                y = 0x14; a = RAM(0xDC + x);
+                if (a != 0) { if (a & 0x80) y++; r.a = y; return r; }
+                if (RAM(0x3F) & 2) { r.a = 0x13; return r; }
+            }
+        }
+    }
+    r.a = RAM(0xAC + x); return r;
+}
+
+void DrawRider(Regs r) {                      /* $E1A3 */
+    uint8_t x = r.x;
+    RAM(0x00) = RAM(0x80 + x); RAM(0x01) = RAM(0x8C + x);
+    uint8_t y = RiderSpriteFrame(r).a;
+    RAM(0x02) = ROMB(0xD892 + y); RAM(0x03) = 0x33;
+    if (y == 0x16) {
+        RAM(0x039F) = RAM(0x04);
+        RAM(0x04) += 0x0C; RAM(0x01) += 8; RAM(0x03) = 0x23;
+    }
+    DrawMetasprite((Regs){ ROMB(0xD8A9 + y), x, y, 0 });
+    uint8_t a = RAM(0x0E);
+    if (a == 0) return;
+    if (!(a & 1)) {
+        uint8_t t = 0xB2;
+        for (int8_t yy = 0x11; yy >= 0; yy -= 4) {
+            if (yy != 9) { OAM_AT(yy) = t; t--; }
+        }
+    } else OAM_AT(0x15) = 0xAE;
+}
+
+void DrawRiderShadow(Regs r) {                /* $E26A */
+    uint8_t x = r.x, a;
+    if (RAM(0x039F) == 0) return;
+    if (RAM(0x84 + x) == 2) return;
+    a = RAM(0x0390 + x);
+    if (a >= 0xF8 || a < RAM(0x80 + x)) return;
+    RAM(0x00) = a;
+    RAM(0x01) = (uint8_t)(0xA8 - RAM(0x6C + x));
+    RAM(0x03) = 0x22;
+    RAM(0x04) = RAM(0x039F);
+    a = RAM(0xA4 + x) ? 0x20 : 0;
+    RAM(0x0B) = a | RAM(0x0B);
+    uint8_t y = RAM(0x0398 + x);
+    RAM(0x02) = ROMB(0xD90B + y);
+    a = y ? (y ^ 3) : 0;
+    DrawMetasprite((Regs){ a, x, y, 0 });
+}
+
+void DrawRiders(void) {                       /* $E17F: back to front by Y */
+    SortRidersByY();
+    for (int8_t x = 3; x >= 0; x--) {
+        RAM(0x0D) = (uint8_t)x;
+        RAM(0x04) = ROMB(0xD8C0 + x);
+        uint8_t xx = RAM(0x88 + x);
+        if (RAM(0xA8 + xx) != 0) {
+            RAM(0x0B) = ROMB(0xD8C9 + xx);
+            DrawRider((Regs){ 0, xx, 0, 0 });
+            DrawRiderShadow((Regs){ 0, xx, 0, 0 });
+        }
+        x = (int8_t)RAM(0x0D);
+    }
+}
+
+void DrawSkidSmoke(Regs r) {                  /* $E2F6: Y = OAM offset of the rider's smoke sprites */
+    uint8_t x = r.x, y = r.y, a, c = 0;
+    if (RAM(0x036C + x) == 0) return;
+    if ((RAM(0x94 + x) | RAM(0x90 + x)) == 0) return;
+    if (RAM(0xBC + x) != 0) return;
+    if (!(RAM(0x84 + x) & 1)) return;
+    a = RAM(0x80 + x);
+    if (a < 0x10) return;
+    c = 0; a = adc8(a, 0xF9, &c); RAM(0x0297 + y) = a;
+    c = 0; a = adc8(a, 0xF8, &c); RAM(0x029B + y) = a;
+    c = 0; a = adc8(RAM(0x8C + x), 8, &c); RAM(0x0298 + y) = a;
+    c = 0; a = adc8(a, 8, &c); RAM(0x0294 + y) = a;
+    RAM(0x0295 + y) = 0xF6; RAM(0x0299 + y) = 0xF7;
+    if (RAM(0x3F) & 4) { RAM(0x0295 + y) = 0xF7; RAM(0x0299 + y) = 0xF6; }
+    a = RAM(0x036C + x) & 2;
+    RAM(0x0296 + y) = a; RAM(0x029A + y) = a;
+    if (RAM(0x94 + x) == 0) RAM(0x0298 + y) = 0xF8;
+}
+
+void DrawJumpShadows(void) {                  /* $EA44: shadow under airborne riders near the right edge, or skid smoke */
+    for (int8_t i = 3; i >= 0; i--) {
+        uint8_t x = (uint8_t)i, y = (uint8_t)(x << 3), a = RAM(0x84 + x), draw = 0;
+        if (a & 1) draw = RAM(0x80 + x) < 0xF4;
+        else if (!((a >> 1) & 1)) draw = RAM(0x80 + x) >= 0xF6;
+        if (draw && RAM(0xB0 + x) != 0) {
+            uint8_t c = 0;
+            RAM(0x0294 + y) = RiderBaseYFrom((Regs){ 0xB6, x, 0, 0 }).a;
+            RAM(0x0297 + y) = adc8(RAM(0x80 + x), 0x0A, &c);
+            RAM(0x01) = y;
+            RAM(0x0295 + y) = ROMB(0xE69A + RAM(0xB4 + x));
+            RAM(0x0296 + y) = 0;
+        } else DrawSkidSmoke((Regs){ 0, x, y, 0 });
+    }
+}
+
+void UpdateTempGauge(void) {                  /* $E359: turbo temperature: updates $03B5/$03B6 and draws the gauge sprites */
+    uint8_t a, y = 0, c;
+    if (RAM(0x52) != 0) { a = 0xFE; goto draw; }
+    if (RAM(0x03E0) != 0) {
+        if (RAM(0x3C) & 1) { a = 0xFE; goto draw; }
+        a = 0xFC; goto draw;
+    }
+    a = RAM(0x5C) & 0xC0;
+    if (a != 0) {
+        if (RAM(0x4F) == 0) a = 0x80;
+        c = a >> 7; a <<= 1;                                   /* ASL */
+        { uint8_t n = a >> 7; a = (uint8_t)((a << 1) | c); c = n; }   /* ROL */
+        { uint8_t n = a >> 7; a = (uint8_t)((a << 1) | c); c = n; }   /* ROL */
+    }
+    y = a;
+    {
+        uint8_t t = ROMB(0xD8FB + y), h = RAM(0x03B6);
+        if (h < t) {
+            c = 0; RAM(0x03B5) = adc8(RAM(0x03B5), ROMB(0xD8F7 + y), &c);
+            if (c) RAM(0x03B6)++;
+        } else if (h != t) {
+            uint8_t v = RAM(0x03B5), nv = (uint8_t)(v - 0x0B);
+            RAM(0x03B5) = nv;
+            if (v < 0x0B && RAM(0x03B6) != 0) RAM(0x03B6)--;
+        }
+    }
+    {
+        uint8_t x = 0, h = RAM(0x03B6);
+        if (h >= 0x20) { RAM(0x3C) = h; RAM(0x03E0) = h; }
+        if (h >= 0x1A) { y--; if (y == 0) x = 0xB0; }
+        RAM(0xFC) = x | RAM(0xFC);
+    }
+    a = 0xFE;
+draw:
+    RAM(0x01) = a;
+    RAM(0x00) = (uint8_t)(RAM(0x03B6) + 0x50);
+    for (int8_t x = 0x0C; x >= 0; x -= 4) {
+        RAM(0x02F0 + x) = 0xCF; RAM(0x02F1 + x) = RAM(0x01);
+        RAM(0x02F2 + x) = 0x20; RAM(0x02F3 + x) = RAM(0x00);
+        RAM(0x00) += 8;
+    }
+}
+
+static uint8_t ryo_z(uint8_t x, uint8_t y) {   /* Z flag RiderYOverlapTest leaves: set for the "far apart" result or a difference of exactly $EC */
+    uint8_t d = (uint8_t)(RAM(0x8C + x) - RAM(0x8C + y));
+    if (d >= 0xEC) return d == 0xEC;
+    if (d < 0x12) return 0;
+    return 1;
+}
+void DetectRiderOverlap(void) {               /* $E4C8: flags in $03A3 when two or more riders overlap on screen */
+    uint8_t x = 1, y, a, n;
+    for (;;) {
+        RAM(0x0C) = x;
+        a = RAM(0x84 + x);
+        if ((a & 1) || ((a >> 1) == 0 && RAM(0x80 + x) >= 0xF8)) {
+            RAM(0x0A) = 0;
+            y = x + 1;
+            do {
+                RAM(0x05) = y;
+                a = RAM(0x84 + y);
+                if ((a & 1) || ((a >> 1) == 0 && RAM(0x80 + x) >= 0xF8)) {
+                    if (!ryo_z(x, y)) {
+                        RAM(0x0A)++;
+                        RAM(0x0B) = (uint8_t)((RAM(0x0B) << 2) | RAM(0x05));
+                    }
+                }
+                y++;
+            } while (y < 4);
+            n = RAM(0x0A);
+            if (n >= 2) {
+                if (n != 2) goto set1;
+                uint8_t v = RAM(0x0B);
+                if (!ryo_z((uint8_t)((v >> 2) & 3), (uint8_t)(v & 3))) goto set1;
+            }
+        }
+        x = RAM(0x0C) - 1;
+        if (x & 0x80) { RAM(0x03A3) = 0; return; }
+    }
+set1:
+    RAM(0x03A3) = 1;
+}

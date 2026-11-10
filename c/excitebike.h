@@ -109,3 +109,16 @@ void TrackScriptOpcode(Regs r);          /* $E794 */
 void RunPendingTrackScripts(void);       /* $E927 */
 void RunTrackScriptRider(Regs r);        /* $E73B */
 void RunTrackScripts(void);              /* $E733 */
+
+void DrawMetasprite(Regs r);         /* $D1C7 */
+void ClearSpriteBlock(Regs r);       /* $E4AD */
+void EraseRiderSpriteRange(void);    /* $E49B */
+void ErasePassedRiderSprites(void);  /* $E456 */
+Regs RiderSpriteFrame(Regs r);       /* $E1F9 */
+void DrawRider(Regs r);              /* $E1A3 */
+void DrawRiderShadow(Regs r);        /* $E26A */
+void DrawRiders(void);               /* $E17F */
+void DrawSkidSmoke(Regs r);          /* $E2F6 */
+void DrawJumpShadows(void);          /* $EA44 */
+void UpdateTempGauge(void);          /* $E359 */
+void DetectRiderOverlap(void);       /* $E4C8 */
