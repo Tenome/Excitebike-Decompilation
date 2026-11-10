@@ -24,6 +24,8 @@ typedef struct {
     uint16_t max_speed_pct;      /* player top speed in percent of the original (100) */
 } Rules;
 extern Rules g_rules;
+typedef struct { int x; uint8_t y, tile, attr; } WideSprite;
+int WideRiderSprites(WideSprite *out, int max, int width);   /* host helper: riders beyond the right edge, for widescreen */
 extern int g_pal;                             /* set to 1 for the European (PAL) ROM */
 extern const uint8_t *g_prg;                  /* 16 KB PRG-ROM, CPU $C000-$FFFF (supplied by the host from the user's ROM) */
 #define ROMB(addr) (g_prg[(addr) & 0x3FFF])

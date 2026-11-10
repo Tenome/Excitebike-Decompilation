@@ -116,6 +116,17 @@ static void draw_line(Ppu *p, int L) {
             if (n < 8 || p->unlimited_sprites) found[n++] = i;
             else break;
         }
+        for (int k = 0; k < p->extra_n && wide; k++) {                  /* host sprites (beyond the old right edge), under the game's own */
+            int row = L - (p->extra[k].y + 1);
+            if (row < 0 || row >= h) continue;
+            int hi; uint8_t lo = sprite_row_bits(p, p->extra[k].tile, p->extra[k].attr, row, &hi);
+            for (int c = 0; c < 8; c++) {
+                int bit = (p->extra[k].attr & 0x40) ? c : 7 - c;
+                int pix = ((lo >> bit) & 1) | (((hi >> bit) & 1) << 1), x = p->extra[k].x + c;
+                if (!pix || x >= cw) continue;
+                spr_set[x] = 1; spr_col[x] = p->pal[16 + (p->extra[k].attr & 3) * 4 + pix]; spr_behind[x] = (p->extra[k].attr & 0x20) != 0;
+            }
+        }
         for (int k = n - 1; k >= 0; k--) {
             int i = found[k], row = L - (p->oam[i * 4] + 1);
             int tile = p->oam[i * 4 + 1], attr = p->oam[i * 4 + 2], sx = p->oam[i * 4 + 3];

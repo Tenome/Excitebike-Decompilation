@@ -1,3 +1,4 @@
+#include <string.h>
 #include "excitebike.h"
 
 uint8_t g_ram[0x800];
@@ -2851,6 +2852,30 @@ void StateRaceFrame(void) {                   /* $C99A: one frame of racing, in 
     if (g_pal) { DetectRiderOverlap(); UpdateEngineSound(); }
     UpdateAiRiders();
     ClearOverlappedRiderSprites();
+}
+
+
+/* ---- host helper for widescreen: sprites of riders that are beyond the original right screen edge ----
+ * The game hides a rider whose X high byte is 2 (right of the screen). This draws such riders with the game's own drawing routines into a scratch
+ * copy of RAM, collects the sprites, and restores RAM, so the game state is untouched. x is the screen position (256 + the rider's X low byte). */
+int WideRiderSprites(WideSprite *out, int max, int width) {
+    static uint8_t keep[0x800];
+    int n = 0;
+    for (int xx = 0; xx < 4; xx++) {
+        if (RAM(0xA8 + xx) == 0 || RAM(0x84 + xx) != 2 || RAM(0x80 + xx) + 24 >= width - 256) continue;
+        memcpy(keep, g_ram, sizeof keep);
+        for (int i = 0; i < 256; i++) g_ram[0x0200 + i] = 0xF8;
+        RAM(0x04) = 0x80; RAM(0x0B) = ROMB(0xD8C9 + xx);
+        DrawRider((Regs){ 0, (uint8_t)xx, 0, 0 });
+        if (RAM(0x039F) != 0) DrawRiderShadow((Regs){ 0, (uint8_t)xx, 0, 0 });
+        for (int i = 0; i < 64 && n < max; i++) {
+            const uint8_t *o = &g_ram[0x0200 + i * 4];
+            if (o[0] >= 0xEF) continue;
+            out[n].x = 256 + o[3]; out[n].y = o[0]; out[n].tile = o[1]; out[n].attr = o[2]; n++;
+        }
+        memcpy(g_ram, keep, sizeof keep);
+    }
+    return n;
 }
 
 /* mechanically lifted routines (tools/lift6502.py) */

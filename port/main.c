@@ -221,6 +221,8 @@ int main(int argc, char **argv) {
         if (g_ppu.frames_done > 1) { SDL_UpdateTexture(tex, NULL, g_ppu.frame, g_ppu.width * 4); }
         for (int i = 0; i < 150; i++) UpdateRandom();          /* the idle loop between frames */
         if (g_ppu.ctrl & 0x80) Nmi();
+        g_ppu.extra_n = 0;
+        if (g_ppu.width > PPU_W && g_ram[0x47]) { WideSprite ws[64]; int k = WideRiderSprites(ws, 64, g_ppu.width); for (int i = 0; i < k; i++) { g_ppu.extra[i].x = ws[i].x; g_ppu.extra[i].y = ws[i].y; g_ppu.extra[i].tile = ws[i].tile; g_ppu.extra[i].attr = ws[i].attr; } g_ppu.extra_n = k; }
         tape_service();                                        /* design save/load requested through the (former) tape interface */
         /* audio for this frame */
         audio_acc += samples_per_frame;

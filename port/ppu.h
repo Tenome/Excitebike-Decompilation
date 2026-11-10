@@ -29,6 +29,8 @@ typedef struct {
     uint32_t frame[PPU_MAXW * PPU_H]; /* finished picture (ARGB), `width` pixels per row */
     uint32_t work[PPU_MAXW * PPU_H];  /* picture being drawn */
     int frames_done;               /* increments each time a picture is completed */
+    int extra_n;                   /* extra sprites with 9-bit x (widescreen: riders beyond the old edge), set by the host each frame */
+    struct { int x; uint8_t y, tile, attr; } extra[64];
     int unlimited_sprites;         /* 1 = lift the 8 sprites per scanline limit */
     const uint8_t *cpu_ram;        /* for $4014 sprite DMA */
 } Ppu;
