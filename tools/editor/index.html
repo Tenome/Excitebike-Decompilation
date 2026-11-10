@@ -35,6 +35,15 @@ tr { cursor:pointer; }
 .note { color:var(--mut); font-size:12px; }
 #msg { color:var(--acc); font-weight:600; }
 #tokscroll { max-height:340px; overflow:auto; }
+h3 { font-size:13px; margin:14px 0 6px; }
+.cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px; }
+.card { border:1px solid var(--line); border-radius:8px; padding:8px; background:var(--bg); display:flex; flex-direction:column; gap:4px; }
+.card canvas { width:100%; height:64px; image-rendering:pixelated; background:#000; border-radius:4px; }
+.card b { font-size:14px; } .card .by { color:var(--mut); font-size:12px; } .card p { margin:0; font-size:12px; max-height:52px; overflow:hidden; }
+.card .tags span { display:inline-block; font-size:11px; border:1px solid var(--line); border-radius:10px; padding:0 6px; margin-right:3px; color:var(--mut); }
+.card .acts { display:flex; gap:6px; flex-wrap:wrap; margin-top:auto; } .card .acts button { padding:2px 8px; font-size:12px; }
+textarea { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:4px 8px; width:100%; min-height:56px; }
+input.wide { width:min(420px, 100%); } .empty { color:var(--mut); font-size:12px; }
 </style>
 </head>
 <body>
@@ -58,6 +67,19 @@ tr { cursor:pointer; }
     <div id="pal" style="margin-top:8px"></div></section>
   <section><h2>Pieces in order</h2><div id="tokscroll"><table id="toks"><thead><tr><th>#</th><th>Kind</th><th>Piece</th><th>Count</th><th>B only</th><th></th></tr></thead><tbody></tbody></table></div>
     <div class="row" style="margin-top:8px"><button id="up">Move up</button><button id="down">Move down</button><button id="dup">Duplicate</button><button id="del">Delete</button></div></section>
+  <section id="packs"><h2>Level packs</h2>
+    <div class="row"><label>Title <input id="pk_title" type="text" maxlength="60" style="width:200px"></label><label>Author <input id="pk_author" type="text" maxlength="40" style="width:150px"></label>
+      <label>Tags <input id="pk_tags" type="text" placeholder="jumps, hard" style="width:170px"></label></div>
+    <textarea id="pk_desc" maxlength="600" placeholder="Describe the level (up to 600 characters)"></textarea>
+    <div class="row"><button id="pk_dl">Download pack</button><button id="pk_lib">Add to my library</button><button id="pk_submit" class="primary">Submit to community…</button><button id="pk_imp">Import pack(s)…</button><input id="pk_file" type="file" accept=".json,.ebd" multiple hidden>
+      <span id="pk_msg" class="note"></span></div>
+    <div class="note">Packs contain only the track script and your text (no game graphics); previews are drawn here from your own ROM data. Sharing a level means licensing it (CC0 by default).</div>
+    <h3>My library</h3><div id="lib" class="cards"></div>
+    <h3>Community levels</h3>
+    <div class="row"><label>Repository <input id="repo" type="text" placeholder="owner/name" style="width:200px"></label><label>Index URL <input id="idxurl" class="wide" type="text" placeholder="https://raw.githubusercontent.com/owner/name/main/levels/index.json"></label>
+      <button id="idxload">Load</button><input id="q" type="text" placeholder="search" style="width:140px"></div>
+    <div id="net" class="cards"><span class="empty">Set the repository (or an index URL) and press Load.</span></div>
+  </section>
   <section><h2>Playing your track</h2>
     <div class="note">Save the file as <b>designs.ebd</b> next to the game, start <code>excitebike</code>, choose DESIGN, then LOAD, and run the track. Tracks over 255 bytes are saved in the extended format
     (the port plays them with no length limit; the original game's 236-byte limit does not apply). The port can also reload the file while it runs (F6).</div></section>
@@ -169,6 +191,88 @@ $('save').onclick = () => {
   else { out = new Uint8Array(8 + s.length); out.set([...'EBDES2'].map(c => c.charCodeAt(0))); out[6] = s.length & 255; out[7] = s.length >> 8; out.set(s, 8); }
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out])); a.download = 'designs.ebd'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
+// ---- level packs: export, import, library, community browser ----
+const LIM = { title: 60, author: 40, desc: 600, tag: 24, tags: 8, bytes: 2000 };
+const b64e = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 4096) s += String.fromCharCode(...u8.subarray(i, i + 4096)); return btoa(s); };
+const b64d = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
+const slug = t => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'level';
+function packProblems(p) {                                 // mirrors tools/levelpack.py: what the repository's check will say
+  const e = [], bad = /[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/;
+  if (!p || p.format !== 'ebpack1') return ['format must be ebpack1'];
+  for (const [k, mx, req] of [['title', LIM.title, 1], ['author', LIM.author, 1], ['description', LIM.desc, 0]]) { const v = p[k] ?? ''; if (typeof v !== 'string') e.push(k + ' must be text'); else if (req && !v.trim()) e.push(k + ' is required'); else if (v.length > mx) e.push(k + ' is too long'); else if (bad.test(v)) e.push(k + ' contains < > or control characters'); }
+  if (!/^[a-z0-9][a-z0-9-]{1,47}$/.test(p.id || '')) e.push('id must be 2-48 characters of a-z, 0-9, -');
+  if (!['CC0-1.0', 'CC-BY-4.0', 'MIT'].includes(p.license)) e.push('license must be CC0-1.0, CC-BY-4.0 or MIT');
+  if (!Array.isArray(p.tags) || p.tags.length > LIM.tags || p.tags.some(t => typeof t !== 'string' || !/^[a-z0-9 -]{1,24}$/.test(t))) e.push('tags: up to 8 of a-z 0-9 space -');
+  let raw; try { raw = b64d(p.track || ''); } catch (x) { return e.concat('track is not valid base64'); }
+  if (raw.length < 3 || raw.length > LIM.bytes) return e.concat('track must be 3-' + LIM.bytes + ' bytes');
+  if (raw[0] < 1 || raw[0] > 9) e.push('laps must be 1-9'); if (p.laps !== raw[0]) e.push('laps must equal the track\'s first byte');
+  let i = 1, ok = false, fin = false; while (i < raw.length) { const b = raw[i++]; if (b === 0) { ok = true; break; } if (b === 9) { ok = fin = true; break; }
+    if (b & 0x40) { if (i >= raw.length || raw[i] < 1 || raw[i] > 127) { e.push('a run needs a count of 1-127'); break; } i++; } else { const q = b & 0x3F; if (q >= 36 && (q < 0x30 || q > 0x33)) { e.push('unknown piece ' + q); break; } } }
+  if (!fin && !e.length) e.push('the track must end with the finish line (piece 9)');
+  return e;
+}
+function currentPack() {
+  const meta = { title: $('pk_title').value.trim(), author: $('pk_author').value.trim(), description: $('pk_desc').value.trim(), tags: $('pk_tags').value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) };
+  const s = serialize();
+  const trimmed = s.slice(0, s.length - 1);                   // drop the trailing 0 pad: the finish line (9) ends the script
+  return { format: 'ebpack1', id: slug(meta.title), ...meta, license: 'CC0-1.0', created: new Date().toISOString().slice(0, 10), laps, track: b64e(trimmed) };
+}
+const packJson = p => JSON.stringify(p, null, 2) + '\n';
+function say(t, err) { $('pk_msg').textContent = t; $('pk_msg').style.color = err ? 'var(--acc)' : ''; }
+function download(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+function drawPreview(canvas, bytes) {                       // the track strip from the viewer's own ROM data, scaled to the card
+  const o = parse(bytes); const cols = []; o.toks.forEach(t => { const pc = piecesOf(t); if (t.t === 'run') for (let i = 0; i < t.n; i++) cols.push(...pc); else cols.push(...pc); });
+  const off = document.createElement('canvas'); off.width = Math.max(cols.length * 8, 8); off.height = ROWS * 8; const x = off.getContext('2d'); x.fillStyle = bgCss; x.fillRect(0, 0, off.width, off.height); drawColumns(x, cols, 0, 0, 8);
+  canvas.width = 320; canvas.height = 64; const c = canvas.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(off, 0, 0, off.width, off.height, 0, 0, 320, 64);
+}
+function card(p, acts) {
+  const d = document.createElement('div'); d.className = 'card'; const cv2 = document.createElement('canvas'); d.appendChild(cv2);
+  try { drawPreview(cv2, b64d(p.track)); } catch (x) {}
+  const t = document.createElement('b'); t.textContent = p.title; d.appendChild(t);
+  const by = document.createElement('div'); by.className = 'by'; by.textContent = `by ${p.author} · ${p.laps} lap${p.laps > 1 ? 's' : ''} · ${b64d(p.track).length} bytes · ${p.license}`; d.appendChild(by);
+  const de = document.createElement('p'); de.textContent = p.description || ''; d.appendChild(de);
+  const tg = document.createElement('div'); tg.className = 'tags'; (p.tags || []).forEach(x => { const s = document.createElement('span'); s.textContent = x; tg.appendChild(s); }); d.appendChild(tg);
+  const ac = document.createElement('div'); ac.className = 'acts'; acts.forEach(([label, fn]) => { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; ac.appendChild(b); }); d.appendChild(ac); return d;
+}
+function openPack(p) { push(); const o = parse(b64d(p.track)); laps = o.laps; toks = o.toks; sel = 0; $('pk_title').value = p.title; $('pk_author').value = p.author; $('pk_desc').value = p.description || ''; $('pk_tags').value = (p.tags || []).join(', '); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+// library (this browser only)
+function libGet() { try { const v = JSON.parse(localStorage.getItem('eb_library') || '[]'); return Array.isArray(v) ? v.filter(p => !packProblems(p).length) : []; } catch (x) { return []; } }
+function libSet(v) { try { localStorage.setItem('eb_library', JSON.stringify(v)); } catch (x) { say('Could not save the library in this browser.', 1); } }
+function libAdd(p) { const l = libGet().filter(x => x.id !== p.id); l.unshift(p); libSet(l); renderLib(); }
+function renderLib() { const l = libGet(), box = $('lib'); box.innerHTML = ''; if (!l.length) { box.innerHTML = '<span class="empty">Nothing here yet: add the current level or import packs.</span>'; return; }
+  l.forEach(p => box.appendChild(card(p, [['Open', () => openPack(p)], ['Download', () => download(p.id + '.ebpack.json', packJson(p))], ['Delete', () => { libSet(libGet().filter(x => x.id !== p.id)); renderLib(); }]]))); }
+$('pk_dl').onclick = () => { const p = currentPack(), e = packProblems(p); if (e.length) return say(e.join('; '), 1); download(p.id + '.ebpack.json', packJson(p)); say('Saved ' + p.id + '.ebpack.json'); };
+$('pk_lib').onclick = () => { const p = currentPack(), e = packProblems(p); if (e.length) return say(e.join('; '), 1); libAdd(p); say('Added to your library.'); };
+$('pk_imp').onclick = () => $('pk_file').click();
+$('pk_file').onchange = async () => { let n = 0, errs = [];
+  for (const f of $('pk_file').files) { try { if (f.name.endsWith('.ebd')) { const b = new Uint8Array(await f.arrayBuffer()); if (String.fromCharCode(...b.slice(0, 6)) === 'EBDES1' && b.length >= 326) { zp = b.slice(6, 70); setStream(b.slice(70, 326)); n++; } else errs.push(f.name + ': not a design file'); continue; }
+      const p = JSON.parse(await f.text()), e = packProblems(p); if (e.length) errs.push(f.name + ': ' + e.join('; ')); else { libAdd(p); n++; } } catch (x) { errs.push(f.name + ': not a level pack'); } }
+  say(`${n} imported` + (errs.length ? '. Skipped: ' + errs.join(' | ') : ''), errs.length > 0); $('pk_file').value = ''; };
+// community: a static index.json in the GitHub repository (no server needed)
+let repoName = ''; try { repoName = localStorage.getItem('eb_repo') || ''; } catch (x) {} $('repo').value = repoName;
+const repoOk = r => /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(r);
+function defaultIdx() { const r = $('repo').value.trim(); return repoOk(r) ? `https://raw.githubusercontent.com/${r}/main/levels/index.json` : ''; }
+$('repo').onchange = () => { const r = $('repo').value.trim(); try { localStorage.setItem('eb_repo', r); } catch (x) {} if (!$('idxurl').value || $('idxurl').dataset.auto) { $('idxurl').value = defaultIdx(); $('idxurl').dataset.auto = '1'; } };
+$('idxurl').oninput = () => delete $('idxurl').dataset.auto; $('idxurl').value = defaultIdx(); if ($('idxurl').value) $('idxurl').dataset.auto = '1';
+let netLevels = [];
+function renderNet() { const q = $('q').value.trim().toLowerCase(), box = $('net'); box.innerHTML = '';
+  const l = netLevels.filter(p => !q || [p.title, p.author, p.description, ...(p.tags || [])].join(' ').toLowerCase().includes(q));
+  if (!l.length) { box.innerHTML = '<span class="empty">No levels to show.</span>'; return; }
+  l.forEach(p => box.appendChild(card(p, [['Open', () => openPack(p)], ['Add to library', () => { libAdd(p); say('Added "' + p.title + '" to your library.'); }], ['Download', () => download(p.id + '.ebpack.json', packJson(p))]]))); }
+$('q').oninput = renderNet;
+$('idxload').onclick = async () => { const u = $('idxurl').value.trim(); if (!/^https:\/\//.test(u)) { $('net').innerHTML = '<span class="empty">Enter the repository (owner/name) or an https index URL.</span>'; return; }
+  $('net').innerHTML = '<span class="empty">Loading…</span>';
+  try { const r = await fetch(u, { cache: 'no-cache' }); if (!r.ok) throw new Error('HTTP ' + r.status); const j = await r.json(); if (j.format !== 'ebindex1' || !Array.isArray(j.levels)) throw new Error('not an ebindex1 file');
+    netLevels = j.levels.map(l => ({ format: 'ebpack1', ...l })).filter(p => !packProblems(p).length); renderNet(); if (!netLevels.length) $('net').innerHTML = '<span class="empty">The index has no valid levels yet.</span>'; }
+  catch (x) { $('net').innerHTML = ''; const sp = document.createElement('span'); sp.className = 'empty'; sp.textContent = 'Could not load the index: ' + x.message + '. Levels you receive as files can be imported above.'; $('net').appendChild(sp); } };
+// submit: GitHub's web editor turns "new file" into a fork and pull request; nothing is sent from here
+$('pk_submit').onclick = () => { const p = currentPack(), e = packProblems(p); if (e.length) return say('Fix first: ' + e.join('; '), 1);
+  const r = $('repo').value.trim(); const text = packJson(p), file = p.id + '.ebpack.json';
+  if (!repoOk(r)) { download(file, text); say('Saved ' + file + '. Enter the community repository (owner/name) above to submit it as a pull request.', 1); return; }
+  if (!confirm(`Submit "${p.title}" to github.com/${r}?\n\nGitHub opens in a new tab with the level file filled in. GitHub will offer to fork the repository and open a pull request; nothing is sent until you confirm there. The level is shared under ${p.license}.`)) return;
+  const url = `https://github.com/${r}/new/main?filename=${encodeURIComponent('levels/' + file)}&value=${encodeURIComponent(text)}`;
+  if (url.length <= 7500) window.open(url, '_blank', 'noopener'); else { download(file, text); window.open(`https://github.com/${r}/upload/main/levels`, '_blank', 'noopener'); say('This level is too large for a link: the file was downloaded; drag it onto the page that opened.'); } };
+renderLib();
 buildPalette(); setStream(Uint8Array.from(D.builtin[0]));
 </script>
 </body>

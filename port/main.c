@@ -124,10 +124,23 @@ static void reload_graphics(void) {
  * Tracks may be longer than the original design limit; F6 reloads the files while the game runs (a track is read when its race starts). */
 static int width_opt = PPU_W, fps_mult = 1;                 /* picture width while racing; output frames per game frame */
 static const char *g_track_file[6];
+static int b64_value(int c) { return c >= 'A' && c <= 'Z' ? c - 'A' : c >= 'a' && c <= 'z' ? c - 'a' + 26 : c >= '0' && c <= '9' ? c - '0' + 52 : c == '+' ? 62 : c == '/' ? 63 : -1; }
+static size_t pack_track_bytes(const char *json, uint8_t *out, size_t cap) {       /* the "track" field of a level pack (*.ebpack.json, see tools/levelpack.py) */
+    const char *k = strstr(json, "\"track\""); if (!k) return 0;
+    k = strchr(k + 7, '"'); if (!k) return 0; k++;
+    size_t n = 0; unsigned acc = 0; int bits = 0;
+    for (; *k && *k != '"'; k++) { int v = b64_value((unsigned char)*k); if (v < 0) continue; acc = acc << 6 | (unsigned)v; bits += 6; if (bits >= 8) { bits -= 8; if (n < cap) out[n++] = (uint8_t)(acc >> bits); acc &= (1u << bits) - 1; } }
+    return n;
+}
 static int load_track_file(int slot, const char *path) {
     static uint8_t buf[0x2000 + 400]; size_t n; FILE *f = fopen(path, "rb"); if (!f) return 0;
     n = fread(buf, 1, sizeof buf, f); fclose(f);
     const uint8_t *st; size_t avail;
+    static uint8_t packed[0x2000]; static char text[0x2000 + 400];
+    if (n > 0 && buf[0] == '{') {                       /* level pack */
+        size_t m = n < sizeof text - 1 ? n : sizeof text - 1; memcpy(text, buf, m); text[m] = 0;
+        avail = pack_track_bytes(text, packed, sizeof packed); st = packed; if (avail < 3) return 0;
+    } else
     if (n >= 326 && !memcmp(buf, "EBDES1", 6)) { st = buf + 70; avail = 256; }
     else if (n >= 8 && !memcmp(buf, "EBDES2", 6)) { st = buf + 8; avail = n - 8; if (avail > (size_t)(buf[6] | buf[7] << 8)) avail = (size_t)(buf[6] | buf[7] << 8); }
     else return 0;
@@ -140,7 +153,7 @@ static int load_track_file(int slot, const char *path) {
 static void load_tracks(void) {
     for (int k = 0; k < 6; k++) if (g_track_file[k]) {
         if (load_track_file(k, g_track_file[k])) fprintf(stderr, "track %d: %s\n", k + 1, g_track_file[k]);
-        else { fprintf(stderr, "track %d: cannot use %s (need an EBDES1/EBDES2 design file)\n", k + 1, g_track_file[k]); TrackExtClear(k); }
+        else { fprintf(stderr, "track %d: cannot use %s (need an EBDES1/EBDES2 design file or a .ebpack.json level pack)\n", k + 1, g_track_file[k]); TrackExtClear(k); }
     }
 }
 

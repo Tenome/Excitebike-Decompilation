@@ -1,0 +1,15 @@
+{
+  "format": "ebpack1",
+  "id": "practice-hills",
+  "title": "Practice Hills",
+  "author": "Excitebike Decomp",
+  "description": "A short two-lap warm-up: eight jumps of growing size on a flat track. Made as an example for the level pack format.",
+  "tags": [
+    "example",
+    "jumps"
+  ],
+  "license": "CC0-1.0",
+  "created": "2026-11-10",
+  "laps": 2,
+  "track": "AkAQMEAIB0AMBUAQCkAIDUAMEEAQB0AICkAMBUAUMQkA"
+}

@@ -1,0 +1,46 @@
+name: community levels
+on:
+  pull_request:
+    paths: ['levels/**']
+  push:
+    branches: [main]
+    paths: ['levels/**']
+permissions:
+  contents: write
+jobs:
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Only level packs may change
+        run: |
+          changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- levels)
+          echo "$changed"
+          for f in $changed; do
+            case "$f" in
+              levels/index.json) echo "index.json is generated; please do not edit it"; exit 1 ;;
+              levels/README.md) ;;
+              levels/*.ebpack.json) ;;
+              *) echo "unexpected file in levels/: $f"; exit 1 ;;
+            esac
+          done
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python tools/levelpack.py validate levels
+  index:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python tools/levelpack.py validate levels
+      - run: python tools/levelpack.py index levels
+      - name: Commit the index
+        run: |
+          if ! git diff --quiet -- levels/index.json; then
+            git config user.name "github-actions"; git config user.email "actions@users.noreply.github.com"
+            git add levels/index.json && git commit -m "Rebuild level index" && git push
+          fi

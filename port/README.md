@@ -72,3 +72,9 @@ pitch and note lengths. `python tools/ebmusic.py export DIR` writes the ROM's ei
 `python tools/editor/serve.py excitebike.nes` (or `editors.bat` in the packaged folder) opens three browser editors that read your own ROM and write the files the port loads:
 `index.html` the track editor (`.ebd`), `tiles.html` the tile and palette editor (`.chr`, `.bmp`, `.pal`), `music.html` the piano-roll music editor (`song_XX.ebm`).
 Start the port with `--track N=file.ebd --chr-bmp tiles.bmp --palette colors.pal --audio-mod DIR` (or just the ones you use) and press F6 to reload them without restarting.
+
+## Level packs
+
+The track editor can share levels: **Level packs** (title, author, description, tags), download/import `.ebpack.json` files, a local library with previews drawn from your own ROM, a community browser that reads `levels/index.json` from a GitHub repository,
+and **Submit to community…**, which opens GitHub's web editor with the level filled in so it becomes a pull request (nothing is sent without your confirmation on GitHub). The port plays packs directly: `--track 1=level.ebpack.json`.
+Format, rules and the PR check: `levels/README.md`, `tools/levelpack.py`.
