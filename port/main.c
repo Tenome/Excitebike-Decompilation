@@ -109,6 +109,16 @@ static int load_chr_bmp(const char *path, uint8_t *chr) {
 }
 static int load_file(const char *path, void *dst, size_t n) { FILE *f = fopen(path, "rb"); if (!f) return 0; size_t r = fread(dst, 1, n, f); fclose(f); return r == n; }
 
+/* Graphics mods are re-read on F6 (together with the track files): edit tiles.bmp / colors.pal in the editors, save, press F6. */
+static const char *s_chr_bmp, *s_chr_raw, *s_pal_file; static uint8_t *s_chr_data; static uint8_t s_rom_chr[0x2000]; static uint32_t s_rgb_default[64];
+static void reload_graphics(void) {
+    memcpy(s_chr_data, s_rom_chr, sizeof s_rom_chr);
+    if (s_chr_raw && !load_file(s_chr_raw, s_chr_data, 0x2000)) fprintf(stderr, "cannot read 8 KB CHR file %s\n", s_chr_raw);
+    if (s_chr_bmp && !load_chr_bmp(s_chr_bmp, s_chr_data)) fprintf(stderr, "cannot use tile BMP %s\n", s_chr_bmp);
+    memcpy(g_ppu.rgb, s_rgb_default, sizeof s_rgb_default);
+    if (s_pal_file) { uint8_t rgb[192]; if (load_file(s_pal_file, rgb, sizeof rgb)) { for (int i = 0; i < 64; i++) g_ppu.rgb[i] = 0xFF000000u | (uint32_t)rgb[i * 3] << 16 | (uint32_t)rgb[i * 3 + 1] << 8 | rgb[i * 3 + 2]; } else fprintf(stderr, "cannot read 192-byte palette file %s\n", s_pal_file); }
+}
+
 /* Custom tracks: `--track N=file.ebd` replaces built-in track N (1-5) or the designed track (6) with a track made by the editor (tools/editor) or by the game's own design mode.
  * Tracks may be longer than the original design limit; F6 reloads the files while the game runs (a track is read when its race starts). */
 static const char *g_track_file[6];
@@ -202,6 +212,7 @@ int main(int argc, char **argv) {
     memcpy(chr_data, rom + 16 + rom[4] * 0x4000, sizeof chr_data);
     if (chr_raw && !load_file(chr_raw, chr_data, sizeof chr_data)) { fprintf(stderr, "cannot read 8 KB CHR file %s\n", chr_raw); return 1; }
     ppu_init(&g_ppu, chr_data, vertical, pal, g_ram);
+    s_chr_data = chr_data; memcpy(s_rom_chr, chr_data, sizeof s_rom_chr); memcpy(s_rgb_default, g_ppu.rgb, sizeof s_rgb_default); s_chr_bmp = chr_bmp; s_chr_raw = chr_raw; s_pal_file = pal_file;
     g_ppu.unlimited_sprites = unlimited;
     if (width_opt < PPU_W) width_opt = PPU_W;
     if (width_opt > PPU_MAXW) width_opt = PPU_MAXW;
@@ -212,7 +223,7 @@ int main(int argc, char **argv) {
 
     SDL_SetMainReady();
     if (chr_bmp && !load_chr_bmp(chr_bmp, chr_data)) return 1;
-    if (pal_file) { uint8_t rgb[192]; if (!load_file(pal_file, rgb, sizeof rgb)) { fprintf(stderr, "cannot read 192-byte palette file %s\n", pal_file); return 1; } for (int i = 0; i < 64; i++) g_ppu.rgb[i] = 0xFF000000u | (uint32_t)rgb[i * 3] << 16 | (uint32_t)rgb[i * 3 + 1] << 8 | rgb[i * 3 + 2]; }
+    reload_graphics();
     load_tracks();
     int headless = shot != NULL && frames_limit >= 0;
     if (SDL_Init(SDL_INIT_VIDEO | (headless ? 0 : SDL_INIT_AUDIO)) != 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }
@@ -247,7 +258,7 @@ int main(int argc, char **argv) {
             if (e.type == SDL_QUIT) running = 0;
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) running = 0;
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F5) state_save("quicksave.sav");
-            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F6) load_tracks();
+            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F6) { load_tracks(); reload_graphics(); if (audio_mod) audiomod_load(audio_mod); fprintf(stderr, "mods reloaded\n"); }
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F9) { if (!state_load("quicksave.sav")) fprintf(stderr, "no usable quicksave.sav\n"); }
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F11) SDL_SetWindowFullscreen(win, (SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP) ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
         }
