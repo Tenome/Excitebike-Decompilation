@@ -10,17 +10,26 @@ class CPU:
         self.a = self.x = self.y = 0; self.sp = 0xFF; self.pc = 0
         self.c = self.z = self.i = self.d = self.v = self.n = 0
         self.io_writes = []; self.cycles = 0; self.io_reads = {}
+        self.model = False; self.pad_buttons = [0, 0]; self.pad_shift = [0, 0]; self.status_reads = 0   # optional hardware model (see tools/fulltest.py)
     # -- memory
     def rd(self, a):
         a &= 0xFFFF
         if a < 0x2000: return self.ram[a & 0x7FF]
         if a >= 0x8000: return self.prg[a & 0x3FFF]
+        if self.model:
+            if a == 0x2002:
+                c = self.status_reads & 0xFF; self.status_reads += 1
+                return ((c & 1) << 6) | (((c >> 1) & 1) << 7)
+            if a in (0x4016, 0x4017):
+                p = a & 1; v = self.pad_shift[p] & 1; self.pad_shift[p] = (self.pad_shift[p] >> 1) | 0x80; return v
         if a in self.io_reads: return self.io_reads[a]
         return 0
     def wr(self, a, v):
         a &= 0xFFFF; v &= 0xFF
         if a < 0x2000: self.ram[a & 0x7FF] = v
-        elif a < 0x8000: self.io_writes.append((a, v))
+        elif a < 0x8000:
+            self.io_writes.append((a, v))
+            if self.model and a == 0x4016 and not v & 1: self.pad_shift = list(self.pad_buttons)
     def rd16(self, a): return self.rd(a) | self.rd((a + 1) & 0xFFFF) << 8
     def rd16zp(self, a): return self.rd(a & 0xFF) | self.rd((a + 1) & 0xFF) << 8
     # -- stack / flags

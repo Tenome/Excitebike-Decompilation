@@ -11,6 +11,8 @@ typedef struct { uint16_t addr; uint8_t val; } IoWrite;
 extern IoWrite g_io_log[8192];                /* hardware-register writes in order (see excitebike.c) */
 extern int g_io_n;
 extern uint8_t g_io_reads[0x8000];            /* values returned by hardware-register reads */
+extern int g_io_model;                        /* 1 = built-in minimal hardware model (tools/fulltest.py) */
+extern uint8_t g_pad_buttons[2];              /* buttons the joypad model shifts out (bit 0 = A ... bit 7 = Right) */
 extern int g_pal;                             /* set to 1 for the European (PAL) ROM */
 extern const uint8_t *g_prg;                  /* 16 KB PRG-ROM, CPU $C000-$FFFF (supplied by the host from the user's ROM) */
 #define ROMB(addr) (g_prg[(addr) & 0x3FFF])

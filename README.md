@@ -14,8 +14,8 @@ This repository contains no game files. You need your own ROMs.
 | Code found | 11,299 of 16,384 PRG bytes in 216 routines (2,797 opcodes seen executing; the rest reached statically). The remaining 5 KB is data: tables, track pieces, text |
 | Byte identity | `python tools/build.py --version us|eu` prints `MATCH` |
 | Native build | `recomp/build_native.ps1` statically recompiles the classified code to C with [NESRecomp](https://github.com/mstan/nesrecomp); over 120,000 random-input frames the native build matched the interpreter hash for hash with 0 % of ROM cycles interpreted |
-| Lifted to C | 222 routines in `c/excitebike.c`, each differential-tested against the original 6502 code on thousands of random states (`tools/difftest.py`) |
-| Not done yet | the rest of the C lift, a PPU/APU-free runtime, the PC features (see `docs/ROADMAP.md`) |
+| Lifted to C | all game logic and hardware access (about 220 hand-lifted routines in `c/excitebike.c`, the sound engine and data-recorder code mechanically via `tools/lift6502.py`), each differential-tested against the original 6502 code (`tools/difftest.py`); the whole C game runs frame-identical to the ROM from reset (`tools/fulltest.py`) |
+| Not done yet | the platform layer (renderer, audio, input) that replaces `io_r()`/`io_w()`, turning the RAM image into named state, and the PC features (see `docs/ROADMAP.md`, `docs/PORT_FEATURES.md`) |
 
 The ByteMatch report counts **byte-exact assembly source**: instructions and `.incbin` data both count as matching, so the numbers start at 100 %. Progress from here is understanding: names, structured data, C.
 
