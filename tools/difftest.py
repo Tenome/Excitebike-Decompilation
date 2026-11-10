@@ -23,6 +23,8 @@ lib = ctypes.CDLL(dll)
 
 class Regs(ctypes.Structure): _fields_ = [('a', ctypes.c_uint8), ('x', ctypes.c_uint8), ('y', ctypes.c_uint8), ('c', ctypes.c_uint8)]
 ram_c = (ctypes.c_uint8 * 0x800).in_dll(lib, 'g_ram')
+class IoWrite(ctypes.Structure): _fields_ = [('addr', ctypes.c_uint16), ('val', ctypes.c_uint8)]
+io_log = (IoWrite * 8192).in_dll(lib, 'g_io_log'); io_n = ctypes.c_int.in_dll(lib, 'g_io_n'); io_reads_c = (ctypes.c_uint8 * 0x8000).in_dll(lib, 'g_io_reads')
 prg = bytes(ebdis.PRG); prg_buf = ctypes.create_string_buffer(prg, len(prg))
 ctypes.c_void_p.in_dll(lib, 'g_prg').value = ctypes.addressof(prg_buf)
 
@@ -183,6 +185,24 @@ TESTS = [
     ('StateDesignSaveCheck', 0xC41C, False, '', lambda r: dict(ram={0x44: r.choice([0, 1, 2]), 0x48: r.choice([0, 1, 0xFF]), 0x65: r.randint(0, 9), 0x66: r.randint(0, 9), 0x67: r.randint(0, 9), 0x68: r.randint(0, 9), 0x69: r.randint(0, 9), 0x6A: r.randint(0, 9), 0x41: r.randint(0, 12), 0x4B: r.choice([0, 1])})),
     ('ClearRaceZeroPage', 0xC869, False, '', lambda r: {}),
     ('StartRaceSetup', 0xC875, False, '', lambda r: dict(ram={0x34: r.choice([0, 0, 3]), 0x3F2: r.choice([0, 1]), 0x19: r.randint(0, 255), 0x1A: r.randint(0, 255), 0x1B: r.randint(0, 255), 0x1C: r.randint(0, 255), 0x18: r.randint(0, 255), 0x46: r.choice([0, 1]), 0x43: r.choice([0, 1, 4, 4]), 0x3F3: r.randint(0, 99), 0x41: r.randint(0, 12), 0x3F8: r.choice([1, 2, 3, 4, 0x1E]), 0x06: r.randint(0, 59), 0x05: r.randint(0, 5), 0x300: r.randint(0, 100)} | {0x580+i: r.randint(0, 99) for i in range(0x40)})),
+    ('SetPpuCtrl', 0xC333, True, 'V', lambda r: {}),
+    ('DisableNmi', 0xC32F, False, '', lambda r: dict(ram={0x10: r.randint(0, 255), 0x11: r.randint(0, 255)})),
+    ('WaitVblankEndEnableNmi', 0xC339, False, '', lambda r: dict(ram={0x10: r.randint(0, 255), 0x11: r.randint(0, 255)}, io={0x2002: r.choice([0x00, 0x40, 0x7F])})),
+    ('DisableRendering', 0xD24F, False, '', lambda r: {}),
+    ('ResetPpuScroll', 0xD1A9, False, '', lambda r: {}),
+    ('ClearNametable', 0xD260, False, '', lambda r: dict(ram={0x01: r.choice([1, 2]), 0x10: r.randint(0, 255)})),
+    ('ClearNametables', 0xD23B, False, '', lambda r: dict(ram={0x10: r.randint(0, 255), 0x11: r.randint(0, 255)})),
+    ('InitScreenState', 0xC318, False, '', lambda r: dict(ram={0x10: r.randint(0, 255), 0x11: r.randint(0, 255)})),
+    ('ApplySplitScroll', 0xD1B3, False, '', lambda r: dict(ram={0x10: r.randint(0, 255), 0x4E: r.randint(0, 3), 0x50: r.randint(0, 255), 0x51: r.randint(0, 255)})),
+    ('WaitSprite0ThenResetScroll', 0xD19B, False, '', lambda r: dict(ram={0x10: r.randint(0, 255), 0x11: r.randint(0, 255)}, io={0x2002: r.choice([0x40, 0xC0, 0x7F])})),
+    ('SplitScreenScrollHandler', 0xD14E, False, '', lambda r: dict(ram={0x10: r.randint(0, 255), 0x4E: r.randint(0, 3), 0x4D: r.randint(0, 3), 0x50: r.randint(0, 255), 0x51: r.randint(0, 255), 0x3F: r.randint(0, 255), 0x41: r.choice([9, 2, 5]), 0x12: r.randint(0, 255), 0x13: r.randint(0, 255), 0x300: r.randint(0, 0x10)} | {0x360+i: r.randint(0, 5) for i in range(4)} | {0xE0+i: r.randint(0, 63) for i in range(4)}, io={0x2002: 0})),
+    ('RunPpuWriteList', 0xD3C1, False, '', lambda r: dict(ram={0x00: 0xE0, 0x01: r.choice([0xC1, 0xC2, 0xC3, 0xD4, 0xE0, 0xF0]), 0x10: r.randint(0, 255)}, io={0x2002: 0})),
+    ('FlushPpuUpdateAt', 0xC289, True, 'V', lambda r: dict(a=r.choice([0xC1, 0xC3, 0xF0, 0xE0]), ram={0x00: r.randint(0, 255), 0x10: r.randint(0, 255)}, io={0x2002: 0})),
+    ('FlushPpuUpdate', 0xC27F, False, '', lambda r: dict(ram={0x45: r.randint(0, 6), 0x10: r.randint(0, 255)} | ({0x300+i: 0 for i in range(0x40)} if r.random() < 0.5 else {0x300: 4, 0x301: 0x23, 0x302: 0xA0, 0x303: 0x03, 0x304: 1, 0x305: 2, 0x306: 3, 0x307: 0}), io={0x2002: 0})),
+    ('InitHudSprite', 0xECE4, True, 'V', lambda r: dict(x=r.choice([0, 4, 8]), ram={0x10: r.randint(0, 255)}, io={0x2002: 0})),
+    ('ClearRiderSprites', 0xD13F, False, '', lambda r: dict(ram={0x10: r.randint(0, 255)}, io={0x2002: 0})),
+    ('ReadJoypadPort', 0xD35B, True, 'V', lambda r: dict(x=r.randint(0, 1), ram={0x14: r.randint(0, 255), 0x16: r.randint(0, 255)}, io={0x4016: r.randint(0, 255), 0x4017: r.randint(0, 255)})),
+    ('ReadJoypads', 0xD347, False, '', lambda r: dict(ram={0x14: r.randint(0, 255), 0x16: r.randint(0, 255)}, io={0x4016: r.randint(0, 255), 0x4017: r.randint(0, 255)})),
 ]
 
 def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
@@ -194,9 +214,13 @@ def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
         ram = bytearray(rnd.randrange(256) for _ in range(0x800))
         regs = dict(a=rnd.randrange(256), x=rnd.randrange(256), y=rnd.randrange(256), c=rnd.randrange(2)); regs.update(gen(rnd))
         for k, v in regs.pop('ram', {}).items(): ram[k] = v          # generators may bias RAM to reach rare branches
+        io = regs.pop('io', {})                                      # values the hardware registers return (PPU/APU/joypad), same for both sides
         ram[0x100:0x200] = bytes(0x100)                              # keep the stack page identical for both sides
         ram = bytes(ram)
-        cpu = sim6502.CPU(prg); cpu.ram[:] = ram
+        cpu = sim6502.CPU(prg); cpu.ram[:] = ram; cpu.io_reads = dict(io)
+        for k in range(0x8000): io_reads_c[k] = 0
+        for k, v in io.items(): io_reads_c[k] = v
+        io_n.value = 0
         ra = cpu.call(addr, regs['a'], regs['x'], regs['y'], regs['c'])
         for k in range(0x800): ram_c[k] = ram[k]
         rc = fn(Regs(regs['a'], regs['x'], regs['y'], regs['c'])) if takes_regs else fn()
@@ -204,6 +228,9 @@ def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
         bad = [k for k in range(0x800) if not 0x100 <= k < 0x200 and cpu.ram[k] != ram_c[k]]
         badreg = [r for r, idx in (('a', 0), ('x', 1), ('y', 2), ('c', 3)) if r in cmp_regs and rc is not None and ra[idx] != rc[idx]]
         if 'z' in cmp_regs and rc is not None and cpu.z != rc[3]: badreg.append('z')
+        c_io = [(io_log[k].addr, io_log[k].val) for k in range(min(io_n.value, 8192))]
+        io_bad = c_io != [(a_, v_) for a_, v_ in cpu.io_writes]
+        if io_bad: badreg.append(f'hardware writes asm={cpu.io_writes[:12]} c={c_io[:12]}')
         if bad or badreg:
             print(f'  FAIL {name} run {i}: src {[hex(ram[(regs["x"]+j)&0xFF]) for j in range(3)]} input {regs}  ram diffs (addr, asm, c) {[(hex(k), cpu.ram[k], ram_c[k]) for k in bad[:6]]}  reg diffs {badreg}  asm={ra} c={rc}')
             return False

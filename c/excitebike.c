@@ -3,6 +3,14 @@
 uint8_t g_ram[0x800];
 const uint8_t *g_prg;
 
+/* Hardware registers ($2000-$7FFF): writes are logged in order, reads come from g_io_reads. The tests compare the log with the
+ * writes the original code makes; the real port replaces these two functions with the PPU/APU/input layer. */
+IoWrite g_io_log[8192];
+int g_io_n;
+uint8_t g_io_reads[0x8000];
+static inline void io_w(uint16_t a, uint8_t v) { if (g_io_n < 8192) { g_io_log[g_io_n].addr = a; g_io_log[g_io_n].val = v; g_io_n++; } }
+static inline uint8_t io_r(uint16_t a) { return g_io_reads[a & 0x7FFF]; }
+
 /* ---- tiny 6502 helpers so the lifted code keeps the exact arithmetic of the original ---- */
 static inline uint8_t sbc8(uint8_t a, uint8_t m, uint8_t *c) { unsigned r = a + (uint8_t)~m + *c; *c = r > 0xFF; return (uint8_t)r; }
 static inline uint8_t rd16mem(uint16_t a) { return a < 0x2000 ? g_ram[a & 0x7FF] : (a >= 0x8000 ? ROMB(a) : 0); }
@@ -2441,4 +2449,146 @@ void StartRaceSetup(void) {                   /* $C875: initial rider positions,
     RAM(0x06) = a; RAM(0x07) = 0; RAM(0x03) = 2;
     WriteTimeDigitsToBuffer();
     WriteTimeTextSaved((Regs){ 8, 0, 0, 0 });
+}
+
+/* ---- batch 20: video and input hardware (PPU control, PPU write lists, scroll, joypads) ----
+ * These routines touch the PPU/joypad registers through io_w()/io_r(); the difftest compares the register-write sequence too. */
+#define PPU_CTRL_REG   0x2000
+#define PPU_MASK_REG   0x2001
+#define PPU_STATUS_REG 0x2002
+#define PPU_SCROLL_REG 0x2005
+#define PPU_ADDR_REG   0x2006
+#define PPU_DATA_REG   0x2007
+
+void SetPpuCtrl(Regs r) { io_w(PPU_CTRL_REG, r.a); RAM(0x10) = r.a; }                           /* $C333 */
+void DisableNmi(void) { SetPpuCtrl((Regs){ RAM(0x10) & 0x7F, 0, 0, 0 }); }                       /* $C32F */
+void WaitVblankEndEnableNmi(void) {                                                               /* $C339 */
+    while (io_r(PPU_STATUS_REG) & 0x80) { }
+    SetPpuCtrl((Regs){ RAM(0x10) | 0x80, 0, 0, 0 });
+}
+void DisableRendering(void) { io_w(PPU_MASK_REG, 0); }                                           /* $D24F */
+void ResetPpuScroll(void) { (void)io_r(PPU_STATUS_REG); io_w(PPU_SCROLL_REG, 0); io_w(PPU_SCROLL_REG, 0); }   /* $D1A9 */
+
+void ClearNametable(void) {                   /* $D260: fills nametable ($01 selects which) with tile $FC and clears its attributes */
+    uint8_t a = 0x1C, c = 0, x, y;
+    (void)io_r(PPU_STATUS_REG);
+    SetPpuCtrl((Regs){ RAM(0x10) & 0xFB, 0, 0, 0 });
+    do { a = adc8(a, 4, &c); RAM(0x01)--; } while (RAM(0x01) != 0);
+    RAM(0x02) = a;
+    io_w(PPU_ADDR_REG, a); io_w(PPU_ADDR_REG, 0);
+    for (x = 4; x != 0; x--) for (y = 0;;) { io_w(PPU_DATA_REG, 0xFC); if (--y == 0) break; }
+    a = adc8(RAM(0x02), 3, &c);
+    io_w(PPU_ADDR_REG, a); io_w(PPU_ADDR_REG, 0xC0);
+    y = 0x40;
+    do { io_w(PPU_DATA_REG, 0); } while (--y != 0);
+}
+void ClearNametables(void) {                  /* $D23B */
+    for (uint8_t x = 1; x < 3; x++) { RAM(0x01) = x; DisableRendering(); ClearNametable(); }
+}
+void InitScreenState(void) {                  /* $C318 */
+    ClearOam();
+    ClearNametables();
+    ResetPpuScroll();
+    RAM(0x12) = 0; RAM(0x50) = 0; RAM(0x13) = 0; RAM(0x51) = 0; RAM(0xFC) = 0;
+    SetPpuCtrl((Regs){ 0x10, 0, 0, 0 });
+}
+
+void ApplySplitScroll(void) {                 /* $D1B3: scroll values for the status bar below the sprite-0 hit */
+    io_w(PPU_CTRL_REG, RAM(0x10) | RAM(0x4E));
+    (void)io_r(PPU_STATUS_REG);
+    io_w(PPU_SCROLL_REG, RAM(0x50)); io_w(PPU_SCROLL_REG, RAM(0x51));
+}
+void WaitSprite0ThenResetScroll(void) {       /* $D19B */
+    while (!(io_r(PPU_STATUS_REG) & 0x40)) { }
+    SetPpuCtrl((Regs){ RAM(0x10) & 0xF0, 0, 0, 0 });
+    ResetPpuScroll();
+}
+void SplitScreenScrollHandler(void) {         /* $D14E: runs at the sprite-0 hit: status-bar scroll, then prepares the next frame's HUD */
+    while (io_r(PPU_STATUS_REG) & 0x40) { }
+    ApplySplitScroll();
+    RAM(0x4C) = RAM(0x3F) & 3;
+    InitHudBuffer();
+    if (RAM(0x41) != 9) {
+        for (uint8_t y = 0xEC; y != 0; y -= 4) RAM(0x0200 + y) = 0xF8;
+        FetchTrackWindow();
+        CopyTimeDigitsToHud();
+    }
+    io_w(PPU_CTRL_REG, RAM(0x10) | RAM(0x4D));
+    (void)io_r(PPU_STATUS_REG);
+    io_w(PPU_SCROLL_REG, RAM(0x12)); io_w(PPU_SCROLL_REG, RAM(0x13));
+}
+
+void RunPpuWriteList(void) {                  /* $D3C1: list at ($00): { addr hi, addr lo, flags(bit7 = +32, bit6 = repeat, low 6 bits = count), data... } ... 0 */
+    for (;;) {
+        uint8_t y = 0, a, v, x, rep;
+        (void)io_r(PPU_STATUS_REG);
+        a = rdp(RAM(0x00), RAM(0x01), y);
+        if (a == 0) { (void)io_r(PPU_STATUS_REG); io_w(PPU_SCROLL_REG, 0); io_w(PPU_SCROLL_REG, 0); return; }
+        io_w(PPU_ADDR_REG, a);
+        y++; io_w(PPU_ADDR_REG, rdp(RAM(0x00), RAM(0x01), y));
+        y++; v = rdp(RAM(0x00), RAM(0x01), y);
+        a = RAM(0x10) | 0x04;
+        if (!(v & 0x80)) a &= 0xFB;
+        SetPpuCtrl((Regs){ a, 0, 0, 0 });
+        rep = (v >> 6) & 1;
+        x = v & 0x3F;
+        if (rep) y++;
+        do {
+            if (!rep) y++;
+            io_w(PPU_DATA_REG, rdp(RAM(0x00), RAM(0x01), y));
+            x--;
+        } while (x != 0);
+        uint16_t p = (uint16_t)((RAM(0x00) | RAM(0x01) << 8) + y + 1);
+        RAM(0x00) = (uint8_t)p; RAM(0x01) = (uint8_t)(p >> 8);
+    }
+}
+void FlushPpuUpdateAt(Regs r) {               /* $C289: A = high byte of the list address ($00 already set) */
+    RAM(0x01) = r.a;
+    RunPpuWriteList();
+    RAM(0x0300) = 0; RAM(0x0301) = 0; RAM(0x45) = 0;
+    io_w(PPU_ADDR_REG, 0x3F); io_w(PPU_ADDR_REG, 0); io_w(PPU_ADDR_REG, 0); io_w(PPU_ADDR_REG, 0);
+}
+void FlushPpuUpdate(void) {                   /* $C27F: runs the PPU write list selected by $45 */
+    uint8_t x = RAM(0x45);
+    RAM(0x00) = ROMB(0xC0F6 + x);
+    FlushPpuUpdateAt((Regs){ ROMB(0xC111 + x), 0, 0, 0 });
+}
+
+void InitHudSprite(Regs r) {                  /* $ECE4: builds a two-nametable PPU write list at $0400 from 4 bytes at $E6A1+X and runs it */
+    uint8_t x = r.x, xx;
+    for (int8_t y = 3; y >= 0; y--) RAM(0x02 + y) = ROMB(0xE6A1 + x++);
+    RAM(0x0400) = RAM(0x05); RAM(0x0401) = RAM(0x02); RAM(0x0402) = 0x20;
+    xx = 0x20;
+    do { RAM(0x0403 + xx) = RAM(0x03); xx--; RAM(0x0403 + xx) = RAM(0x04); xx--; } while (!(xx & 0x80));
+    RAM(0x0423) = RAM(0x05) ^ 0x04; RAM(0x0424) = RAM(0x02); RAM(0x0425) = 0x20;
+    xx = 0x20;
+    do { RAM(0x0426 + xx) = RAM(0x03); xx--; RAM(0x0426 + xx) = RAM(0x04); xx--; } while (!(xx & 0x80));
+    RAM(0x0446) = 0;
+    RAM(0x00) = 0;
+    FlushPpuUpdateAt((Regs){ 4, 0, 0, 0 });
+}
+void ClearRiderSprites(void) {                /* $D13F */
+    InitHudSprite((Regs){ 0, 0, 0, 0 }); InitHudSprite((Regs){ 0, 4, 0, 0 }); InitHudSprite((Regs){ 0, 8, 0, 0 });
+}
+
+void ReadJoypadPort(Regs r) {                 /* $D35B: reads 8 bits from $4016+X, updates held/trigger bytes for that pad */
+    uint8_t x = r.x, a = 0, v, c, old, x2;
+    for (int i = 0; i < 8; i++) {
+        v = io_r((uint16_t)(0x4016 + x));
+        RAM(0x00) = v;
+        c = ((uint8_t)((v >> 1) | v)) & 1;
+        a = (uint8_t)((a << 1) | c);
+    }
+    x2 = (uint8_t)(x << 1);
+    old = RAM(0x14 + x2);
+    RAM(0x00) = old;
+    RAM(0x14 + x2) = a;
+    RAM(0x15 + x2) = a;
+    if ((a & 0x80) && (old & 0x80)) RAM(0x15 + x2) = a & 0x7F;
+}
+void ReadJoypads(void) {                      /* $D347 */
+    io_w(0x4016, 1);
+    io_w(0x4016, 0);
+    ReadJoypadPort((Regs){ 0, 0, 0, 0 });
+    ReadJoypadPort((Regs){ 0, 1, 0, 0 });
 }
