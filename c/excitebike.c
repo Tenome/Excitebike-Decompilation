@@ -12,11 +12,17 @@ uint8_t g_io_reads[0x8000];
 int g_io_model;                               /* 1 = simple hardware model for whole-game runs: $2002 toggles its bits, joypads shift out g_pad_buttons */
 uint8_t g_pad_buttons[2], g_pad_shift[2];
 static uint32_t g_ppu_status_reads;
+/* Host hooks (the PC port installs them; the tests leave them NULL): every register write and read, and timing events from the code's busy-wait loops. */
+void (*g_hal_write)(uint16_t addr, uint8_t val);
+uint8_t (*g_hal_read)(uint16_t addr);
+void (*g_hal_event)(int event, int arg);
 static inline void io_w(uint16_t a, uint8_t v) {
+    if (g_hal_write) g_hal_write(a, v);
     if (g_io_n < 8192) { g_io_log[g_io_n].addr = a; g_io_log[g_io_n].val = v; g_io_n++; }
     if (g_io_model && a == 0x4016 && !(v & 1)) { g_pad_shift[0] = g_pad_buttons[0]; g_pad_shift[1] = g_pad_buttons[1]; }   /* strobe latches the buttons */
 }
 static inline uint8_t io_r(uint16_t a) {
+    if (g_hal_read) return g_hal_read(a);
     if (g_io_model) {
         if (a == 0x2002) { uint8_t c = (uint8_t)g_ppu_status_reads++; return (uint8_t)(((c & 1) << 6) | (((c >> 1) & 1) << 7)); }
         if (a == 0x4016 || a == 0x4017) { int p = a & 1; uint8_t v = g_pad_shift[p] & 1; g_pad_shift[p] = (uint8_t)((g_pad_shift[p] >> 1) | 0x80); return v; }
@@ -2538,11 +2544,14 @@ void SplitScreenScrollHandler(void) {         /* $D14E: runs at the sprite-0 hit
     ApplySplitScroll();
     RAM(0x4C) = RAM(0x3F) & 3;
     InitHudBuffer();
+    uint8_t delay = 0x43;                       /* the original burns this many 96-cycle loops here, so the scroll change below lands a few scanlines into the frame */
     if (RAM(0x41) != 9) {
         for (uint8_t y = 0xEC; y != 0; y -= 4) RAM(0x0200 + y) = 0xF8;
         FetchTrackWindow();
         CopyTimeDigitsToHud();
+        delay = ROMB(0xD17D);
     }
+    if (g_hal_event) g_hal_event(HAL_EV_DELAY, delay * 96);
     io_w(PPU_CTRL_REG, RAM(0x10) | RAM(0x4D));
     (void)io_r(PPU_STATUS_REG);
     io_w(PPU_SCROLL_REG, RAM(0x12)); io_w(PPU_SCROLL_REG, RAM(0x13));
