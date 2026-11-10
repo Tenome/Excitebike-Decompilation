@@ -1571,3 +1571,153 @@ void RaceEndSequence(void) {                  /* $CA9B: end-of-race flashing and
     if (RAM(0x32) & 1) return;
     for (int8_t n = 6; n >= 0; n--) RAM(0x0304 + x++) = 0xFE;
 }
+
+/* ---- batch 14: results screen ---- */
+void WriteTimeTextHeader(void) {              /* $C94B: queues the PPU text block header for a time line (type in $03) */
+    uint8_t x = AdvanceBufferPos((Regs){ 0x0A, 0, 0, 0 }).x, y = RAM(0x03);
+    RAM(0x0301 + x) = ROMB(0xC0EC + y);
+    RAM(0x0302 + x) = ROMB(0xC0ED + y);
+    RAM(0x0305 + x) = 0xFB; RAM(0x0308 + x) = 0xFB;
+    RAM(0x0303 + x) = 0x07;
+    RAM(0x030B + x) = 0x00;
+}
+void WriteTimeDigitsToBuffer(void) {          /* $C935 */
+    SplitDigits3((Regs){ 0, 5, 0, 0 });
+    uint8_t x = RAM(0x0300);
+    for (uint8_t y = 0; y < 7; y++) RAM(0x0304 + x++) = RAM(0x03D1 + y);
+    WriteTimeTextHeader();
+}
+
+void ResultsDrawLine(Regs r) {                /* $CCCA: one result sprite block; X = row */
+    uint8_t x = r.x;
+    RAM(0x00) = ROMB(0xC0DA + x);
+    RAM(0x03) = 0x21;
+    RAM(0x04) = ROMB(0xC0E8 + x);
+    DrawMetasprite((Regs){ 0, x, r.y, 0 });
+}
+
+static void results_next_step(uint8_t a) { RAM(0x33) = a; RAM(0x44)++; }                 /* $CB9F */
+
+void ResultsStepInit(void) {                  /* $CB3B */
+    if (RAM(0x41) < 8) {
+        RAM(0x42) = RAM(0x03F2);
+        if (RAM(0x53) < 4) {
+            if (RAM(0x46) != 0) {
+                uint8_t t = RAM(0x43);
+                if (t == 4) {
+                    RAM(0x03F3)++;
+                    if (!(RAM(0x03F3) & 1)) {
+                        uint8_t a = RAM(0x03F8) >> 1;
+                        if (a != 0) RAM(0x03F8) = a;
+                    }
+                } else if (t < 4) RAM(0x43)++;
+            }
+            RAM(0x46) = 1; RAM(0x4B) = 1;
+        }
+    }
+    results_next_step(4);
+}
+
+void ResultsStepDrawText(void) {              /* $CB77 */
+    uint8_t y = RAM(0x33), x, a;
+    if (y != 0) return;
+    RAM(0x03) = 4;
+    x = RAM(0x0300);
+    for (y = 0; y != 7; y++) RAM(0x0304 + x++) = RAM(0x03D9 + y);
+    WriteTimeTextHeader();
+    a = RAM(0x4B) ? 0x20 : 0x31;
+    RAM(0x03AD) = a;
+    results_next_step((uint8_t)(a + 3));
+}
+
+Regs ResultsDrawRank(Regs r) {                /* $CC15: blinking rank number; returns the 6502 carry in .c */
+    uint8_t a = (uint8_t)(RAM(0x03AD) - 0x10), c = a >= RAM(0x33);
+    if (a == RAM(0x33) && RAM(0x20) == 0) {
+        a = 0x0D;
+        if ((uint8_t)(RAM(0x52) - 1) == 0) { c = 0; a = adc8(RAM(0x4B), 0x0B, &c); }
+        RAM(0x45) = a; r.c = c; return r;
+    }
+    Regs q = AdvanceBufferPos((Regs){ 7, 0, 0, 0 });
+    uint8_t x = q.x, y0 = x;
+    c = q.c;
+    RAM(0x05) = x;
+    for (int8_t y = 7; y >= 0; y--) RAM(0x0301 + x++) = ROMB(0xC134 + y);
+    if (RAM(0x3F) & 0x10) { r.c = c; return r; }
+    y0 = RAM(0x05);
+    q = DivMod10((Regs){ RAM(0x53), 0, 0, 0 });
+    RAM(0x0307 + y0) = q.a;
+    q = DivMod10((Regs){ q.x, 0, 0, 0 });
+    c = q.c;
+    RAM(0x00) = q.a;
+    if (q.x != 0) { RAM(0x0305 + y0) = q.x; RAM(0x0306 + y0) = RAM(0x00); }
+    else if (RAM(0x00) != 0) RAM(0x0306 + y0) = RAM(0x00);
+    r.c = c; return r;
+}
+
+void ResultsStepFinish(void) {                /* $CC6B */
+    GameStateAdvance();
+    if (RAM(0x4B) != 0) return;
+    RAM(0x41) = (RAM(0x41) < 9) ? 0 : 8;
+}
+
+static void results_tail(uint8_t c) {         /* $CC7D: draws the result marker and animates it with the jump-arc routine */
+    uint8_t y;
+    RAM(0x01) = RAM(0x55);
+    if (RAM(0x56) != 0) y = 0xBB;
+    else if (RAM(0x2F) != 0) {
+        RAM(0x0380) = 0x1F; RAM(0x038C) = 0x1F; RAM(0x0378) = 0xAF; RAM(0x037C) = 1; RAM(0x0384) = 0;
+        y = 0xBD;
+    } else {
+        Regs q = JumpArcStep((Regs){ 0, 0, 0, c });
+        RAM(0x55) = q.a; RAM(0x01) = q.a;
+        if (RAM(0x03F1) < RAM(0x55)) { RAM(0x55) = RAM(0x03F1); RAM(0x2F) = 0x0A; }
+        y = 0xBB;
+    }
+    RAM(0x02) = y;
+    uint8_t x = (uint8_t)(RAM(0x53) - 1);
+    if (x >= 3) x = 3;
+    RAM(0x0B) = 2;
+    ResultsDrawLine((Regs){ 0, x, 0, 0 });
+}
+
+void ResultsStepWait(void) {                  /* $CBA4 */
+    uint8_t a = RAM(0x33);
+    if (a == 0) { results_next_step(0); return; }
+    if (a == RAM(0x03AD)) {                     /* $CBC9: final pose */
+        if (RAM(0x20) != 0) return;
+        RAM(0x2F) = 3; RAM(0x0D) = 3;
+        for (int8_t x = 2; x >= 0; x--) {
+            RAM(0x01) = ROMB(0xC0DE + x); RAM(0x02) = ROMB(0xC0E2 + x); RAM(0x0B) = ROMB(0xC0E5 + x);
+            ResultsDrawLine((Regs){ 0, (uint8_t)x, 0, 0 });
+        }
+        uint8_t m = 1, x = (uint8_t)(RAM(0x53) - 1);
+        RAM(0x00) = x;
+        if (x < 3) { RAM(0x0D) = x; m = 2; }
+        RAM(0xFB) = m; RAM(0x56) = m ^ 2;
+        x = RAM(0x0D);
+        RAM(0x54) = ROMB(0xC0DA + x); RAM(0x55) = ROMB(0xC0DE + x); RAM(0x03F1) = RAM(0x55);
+        if (RAM(0x00) == 0) RAM(0x45) = 0x0A;
+        return;
+    }
+    if (a > RAM(0x03AD)) return;
+    if (RAM(0x4B) == 0 && (RAM(0x14) & 0xF0) != 0) {
+        ResultsStepFinish();
+        if (RAM(0x41) != 0) return;
+        GameStateAdvance();
+        return;
+    }
+    Regs q = ResultsDrawRank((Regs){ 0, 0, 0, 0 });
+    results_tail(q.c);
+}
+
+void StateSubStepDispatch(void) {             /* $CB2C: results sub-steps 0-3 */
+    uint8_t y = RAM(0x44);
+    RAM(0x00) = ROMB(0xC12C + y); RAM(0x01) = ROMB(0xC130 + y);
+    switch (y) {
+    case 0: ResultsStepInit(); break;
+    case 1: ResultsStepDrawText(); break;
+    case 2: ResultsStepWait(); break;
+    case 3: ResultsStepFinish(); break;
+    default: break;
+    }
+}

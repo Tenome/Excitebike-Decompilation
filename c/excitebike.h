@@ -142,3 +142,13 @@ void HudSpriteTemplate(void);        /* $CD13 */
 void OverheatMessage(void);          /* $CCDD */
 void OverheatUpdate(void);           /* $DD8D */
 void RaceEndSequence(void);          /* $CA9B */
+
+void WriteTimeTextHeader(void);      /* $C94B */
+void WriteTimeDigitsToBuffer(void);  /* $C935 */
+void ResultsDrawLine(Regs r);        /* $CCCA */
+void ResultsStepInit(void);          /* $CB3B */
+void ResultsStepDrawText(void);      /* $CB77 */
+Regs ResultsDrawRank(Regs r);        /* $CC15 */
+void ResultsStepFinish(void);        /* $CC6B */
+void ResultsStepWait(void);          /* $CBA4 */
+void StateSubStepDispatch(void);     /* $CB2C */
