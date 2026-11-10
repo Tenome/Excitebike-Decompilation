@@ -1,7 +1,7 @@
 /* ---- extra CPU riders (host feature; not part of the original game) ----
  * The game has four rider slots (arrays indexed by X). Extra riders run the game's own per-rider routines (physics, ramps, crashes, AI)
- * by swapping each extra rider's record into slot 3 around a single-rider pass, so they behave like the original CPU riders. They do not
- * collide with other riders. Drawing uses the game's own draw routine on a scratch copy of RAM, so the real game state is untouched. Included from excitebike.c. */
+ * by swapping each extra rider's record into slot 3 around a single-rider pass, so they behave like the original CPU riders. They collide with the real riders (same rule as RiderCollisions; g_extra_collide, --no-extra-collisions) but not with each other.
+ * Drawing uses the game's own draw routine on a scratch copy of RAM, so the real game state is untouched. Included from excitebike.c. */
 
 static const uint16_t EXTRA_CTX[] = {                 /* base addresses of the per-rider arrays (slot 3 = base + 3) */
     0x26, 0x2A, 0x36, 0x58, 0x5C, 0x60, 0x64, 0x6C, 0x70, 0x74, 0x78, 0x7C, 0x80, 0x84, 0x8C, 0x90, 0x94, 0x98, 0x9C, 0xA0, 0xA4, 0xA8, 0xAC,
@@ -76,6 +76,45 @@ static void extra_pass(ExtraRider *e) {                 /* one frame for the ext
     (void)e;
 }
 
+
+/* Contact between extra riders and the four real riders, the same test and result as RiderCollisions: same lane, overlapping in X (and in height when either
+ * is airborne); the rider on the left crashes, and both crash when they overlap by a body width. The extra rider's fields are read from its record. */
+int g_extra_collide = 1;                              /* host option: 0 = extra riders pass through everyone */
+static int ex_idx(uint16_t base) { for (int i = 0; i < EXTRA_CTX_N; i++) if (EXTRA_CTX[i] == base) return i; return -1; }
+typedef struct { uint8_t *xhi, *xlo, *lane, *crash, *over, *air, *sy; } RiderView;
+static void extra_collisions(void) {
+    static int ix[7] = { -2 };
+    if (ix[0] == -2) { uint16_t b[7] = { 0x84, 0x80, 0x70, 0x98, 0x03E0, 0xB0, 0x8C }; for (int i = 0; i < 7; i++) ix[i] = ex_idx(b[i]); }
+    for (int k = 0; k < g_extra_count && k < EXTRA_MAX; k++) {
+        ExtraRider *e = &g_extra[k];
+        if (!e->active) continue;
+        RiderView y = { &e->v[ix[0]], &e->v[ix[1]], &e->v[ix[2]], &e->v[ix[3]], &e->v[ix[4]], &e->v[ix[5]], &e->v[ix[6]] };
+        for (uint8_t r = 0; r < 4; r++) {
+            if (RiderActive(r) == 0 || !(RiderXHi(r) & 1) || !(*y.xhi & 1)) continue;
+            uint8_t a = RiderLane(r);
+            if (a == 0 || a != *y.lane) continue;
+            if ((RiderCrash(r) | RiderOverheated(r)) != 0 || *y.crash != 0) continue;
+            if (RiderAirborne(r) != 0 || *y.air != 0) {
+                uint8_t ax = RiderScreenY(r), ay = *y.sy;
+                if (ax >= ay) { if (AddCollisionHeight((Regs){ ay, 0, 0, 0 }).a < ax) continue; }
+                else if (AddCollisionHeight((Regs){ ax, 0, 0, 0 }).a < ay) continue;
+            }
+            uint8_t lx = RiderXLo(r), ly = *y.xlo; int crash_r = 0, crash_y = 0;
+            if (lx < ly) {
+                if (AddCollisionWidth((Regs){ lx, 0, 0, 0 }).a >= ly) crash_r = crash_y = 1;
+                else if (AddCollisionHeight((Regs){ lx, 0, 0, 0 }).a >= ly) crash_r = 1;
+            } else {
+                if (AddCollisionWidth((Regs){ ly, 0, 0, 0 }).a >= lx) crash_r = crash_y = 1;
+                else if (AddCollisionHeight((Regs){ ly, 0, 0, 0 }).a >= lx) crash_y = 1;
+            }
+            if (!crash_r && !crash_y) continue;
+            if (crash_r) RiderCrash(r) = 0xFF;
+            if (crash_y) *y.crash = 0xFF;
+            if (r == 0) SfxNoiseRequest = 1;
+        }
+    }
+}
+
 void ExtraRidersFrame(void) {                           /* call once after each game frame (the NMI) */
     if (g_extra_count <= 0 || !RaceActive || !RaceStarted || RaceEndState != 0 || PauseFlag || GameState == 9) return;
     static uint8_t keep[0x800];
@@ -99,6 +138,7 @@ void ExtraRidersFrame(void) {                           /* call once after each 
         (void)scratch;
         if (gone) { e->active = 0; e->cooldown = 90 + extra_rand(); }
     }
+    if (g_extra_collide) extra_collisions();
 }
 
 int ExtraRiderSprites(WideSprite *out, int max, int width) {   /* sprites of the extra riders on screen (x may exceed 255) */

@@ -18,7 +18,7 @@ Track designs: the design menu's SAVE and LOAD (which drive the Famicom Data Rec
 
 Higher frame rate: `--fps 120` (or 180, 240) keeps the game at its own 60 Hz and draws in-between pictures: each scanline's horizontal scroll and every sprite that is the same object in the two frames are moved part of the way (one frame of added latency). Objects that change slot or look are shown as in the newer frame.
 
-Extra riders: `--riders N` (0-4) adds CPU riders that run the game's own rider physics, ramps, crashes and AI (each is swapped into a rider slot for one pass per frame, `c/extra_riders.inc`); they do not collide with other riders and never change the game's own state. With `--widescreen`, riders (extra ones too) are drawn beyond the original screen edge.
+Extra riders: `--riders N` (0-4) adds CPU riders that run the game's own rider physics, ramps, crashes and AI (each is swapped into a rider slot for one pass per frame, `c/extra_riders.inc`); they collide with the real riders (`--no-extra-collisions` turns that off; not with each other), and otherwise never change the game's own state. With `--widescreen`, riders (extra ones too) are drawn beyond the original screen edge.
 
 Graphics mods: `python tools/chrbmp.py export orig/excitebike_us.nes tiles.bmp` writes all tiles as an editable 128x256 8-bit BMP (pixel values 0-3);
 edit it in any indexed-colour editor and run `excitebike --chr-bmp tiles.bmp` (or `--chr file.chr` for a raw 8 KB file). `--palette file.pal` replaces the 64 colours

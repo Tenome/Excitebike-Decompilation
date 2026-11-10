@@ -28,7 +28,7 @@ typedef struct {
 extern Rules g_rules;
 typedef struct { int x; uint8_t y, tile, attr; } WideSprite;
 int WideRiderSprites(WideSprite *out, int max, int width);   /* host helper: riders beyond the right edge, for widescreen */
-extern int g_extra_count;                     /* number of extra CPU riders (host feature, 0 = original) */
+extern int g_extra_count; extern int g_extra_collide;                     /* number of extra CPU riders (host feature, 0 = original) */
 void ExtraRidersFrame(void);                 /* run the extra riders for one frame (after Nmi) */
 int ExtraRiderSprites(WideSprite *out, int max, int width);
 extern int g_pal;                             /* set to 1 for the European (PAL) ROM */

@@ -145,6 +145,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--width") && i + 1 < argc) width_opt = atoi(argv[++i]);          /* picture width while racing, 256-512 (416 = 16:9) */
         else if (!strcmp(argv[i], "--fps") && i + 1 < argc) { fps_mult = (atoi(argv[++i]) + 30) / 60; if (fps_mult < 1) fps_mult = 1; if (fps_mult > 4) fps_mult = 4; }   /* output rate: 60 = original, 120/180/240 interpolate */
         else if (!strcmp(argv[i], "--widescreen")) width_opt = 416;
+        else if (!strcmp(argv[i], "--no-extra-collisions")) g_extra_collide = 0;
         else if (!strcmp(argv[i], "--riders") && i + 1 < argc) g_extra_count = atoi(argv[++i]);          /* extra CPU riders, 0-4 */
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--press") && i + 1 < argc) press = argv[++i];
