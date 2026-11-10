@@ -205,6 +205,162 @@ static void SoundMusic(void) {                          /* $FC8D */
     }
 }
 
+/* Pulse 1 effects. A request bit starts an effect; while it runs, $F0 holds its bit and $F5 counts its frames down. Music ($F4) silences them.
+ * Effects by request bit: 0 jump blip, 1 menu blip, 2 landing thump with a falling sweep, 3/4/5 short sweeps, 6 long decaying tone.
+ * The leftover X register matters in one place (effect 6 passes it through), as in the original. */
+static void pulse1_end(void) { RAM(0xF0) = 0; WR(0x4000, 0x90); }                                /* $F93E */
+static void pulse1_tail(void) { RAM(0xF5)--; if (RAM(0xF5) == 0) pulse1_end(); }                  /* $F93A */
+static void pulse1_sweep_tail(uint8_t sweep) { WR(0x4001, sweep); RAM(0xF6) = 6; pulse1_tail(); } /* $F933 */
+static void pulse1_hold_sweep(void) { if (RAM(0xF6) == 4) WR(0x4001, 0x9A); }                    /* $F95F */
+static void pulse1_short_start(uint8_t req) {                                                     /* $F94E: effects 4 and 5 share this setup */
+    rx = 0x9C; ra = 0; ry = req; SetPulse1Regs();
+    RAM(0xF6) = 4; WR(0x4001, 0x9A);
+}
+
+static void SoundPulse1Sfx(void) {                      /* $F8D4 */
+    enum { A_START, A_RUN, B_START, C_RUN, C_START, D_START, D_RUN, E_START, E_RUN, F_START, F_RUN, G_START, G_RUN } ev;
+    uint8_t y, a, c;
+    ry = RAM(0xF4); SETNZ(ry);
+    if (ry != 0) return;
+    y = RAM(0xFF); a = RAM(0xF0);
+    ry = y; SETNZ(ry);
+    if (take_request_bit(0xFF)) ev = A_START;
+    else {
+        c = a & 1; a >>= 1;
+        if (c) ev = A_RUN;
+        else if (take_request_bit(0xFF)) ev = B_START;
+        else {
+            c = a & 1; a >>= 1;
+            if (c) ev = A_RUN;                           /* effect 1 running: only the common countdown */
+            else {
+                c = a & 1; a >>= 1;
+                if (c) ev = C_RUN;
+                else if (take_request_bit(0xFF)) ev = C_START;
+                else if (take_request_bit(0xFF)) ev = D_START;
+                else {
+                    c = a & 1; a >>= 1;
+                    if (c) ev = D_RUN;
+                    else if (take_request_bit(0xFF)) ev = E_START;
+                    else {
+                        c = a & 1; a >>= 1;
+                        if (c) ev = E_RUN;
+                        else if (take_request_bit(0xFF)) ev = F_START;
+                        else {
+                            c = a & 1; a >>= 1;
+                            if (c) ev = F_RUN;
+                            else if (take_request_bit(0xFF)) ev = G_START;
+                            else {
+                                c = a & 1; a >>= 1;
+                                if (c) ev = G_RUN; else return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    switch (ev) {
+    case A_START: RAM(0xF0) = y; RAM(0xF5) = 1; rx = 0x80; ry = 0x9C; ra = 4; SetPulse1Regs(); return;
+    case A_RUN: pulse1_tail(); return;
+    case B_START: RAM(0xF0) = y; RAM(0xF5) = 0x10; rx = 0x85; ry = 0x85; ra = 0x30; SetPulse1Regs(); pulse1_tail(); return;
+    case C_START: RAM(0xF0) = y; RAM(0xF5) = 9; ra = 4; PlayPulse1Note(); /* fall through */
+    case C_RUN:
+        a = RAM(0xF5);
+        if (a == 4) { pulse1_end(); return; }
+        WR(0x4001, a >= 7 ? 0x84 : 0x8B);
+        WR(0x4000, a | 0x90);
+        pulse1_tail(); return;
+    case D_START:
+        RAM(0xF0) = y; RAM(0xF5) = 6; rx = 0x9C; ra = 0x3C; ry = y; SetPulse1Regs();
+        RAM(0xF6) = 3; WR(0x4001, 0x9A); return;
+    case D_RUN:
+        RAM(0xF6)--;
+        if (RAM(0xF6) == 0) { pulse1_sweep_tail(0x93); return; }
+        if (RAM(0xF6) == 3) WR(0x4001, 0x9A);
+        return;
+    case E_START: RAM(0xF0) = y; RAM(0xF5) = 3; pulse1_short_start(y); return;
+    case E_RUN:
+        RAM(0xF6)--;
+        if (RAM(0xF6) == 0) { pulse1_sweep_tail(0x93); return; }
+        pulse1_hold_sweep(); return;
+    case F_START: RAM(0xF0) = y; RAM(0xF5) = 2; pulse1_short_start(y); return;
+    case F_RUN:
+        RAM(0xF6)--;
+        if (RAM(0xF6) == 0) { pulse1_sweep_tail(0x94); return; }
+        pulse1_hold_sweep(); return;
+    case G_START: RAM(0xF0) = y; RAM(0xF5) = 0x21; ry = 0xBC; ra = 0x30; SetPulse1Regs(); /* fall through (X is whatever the caller left) */
+    case G_RUN: {
+        a = RAM(0xF5);
+        if (a == 0x15) WR(0x4001, 0x7F);
+        c = a & 1;
+        uint8_t v = c ? rd16mem((uint16_t)(0xF9A2 + (a >> 1))) : 0x13;
+        WR(0x4000, v);
+        if (v != 0) pulse1_tail();
+        return; }
+    }
+}
+
+/* Pulse 2 / triangle: one-shot effects (request $FE: a 21-step blip sequence from $FA24/$FA39) and the engine sound, a tone that follows the
+ * engine request ($FC, bit 7 = player's bike) with a small vibrato from $F9B3. $F3 = current pitch step, $F7 = vibrato index, $07F8 = steps until
+ * the pitch is re-evaluated, $07F3 = frames left in the blip step, $F1 = blip step. */
+static void pulse2_blip_step(uint8_t y) {              /* $FA5E */
+    uint8_t x = ROMB(0xFA24 + y), a = (x == 0x80) ? 2 : 1;
+    RAM(0x07F3) = a;
+    rx = x; ry = 0x7F; ra = ROMB(0xFA39 + y);
+    SetPulse2Pitch();
+}
+static void pulse2_silence(void) { WR(0x4004, 0x90); }                                          /* $FA8F */
+
+static void SoundPulse2TriangleSfx(void) {             /* $FA74 */
+    uint8_t y, a, d, c;
+    y = RAM(0xFE); ry = y; SETNZ(ry);
+    if (y != 0) { RAM(0xF1) = 0x15; pulse2_blip_step(0x15); return; }
+    y = RAM(0xF1);
+    if (y != 0) {
+        RAM(0x07F3)--;
+        if (RAM(0x07F3) != 0) { pulse2_silence(); return; }
+        RAM(0xF1)--;
+        if (RAM(0xF1) == 0) { pulse2_silence(); return; }
+        pulse2_blip_step(y);
+        return;
+    }
+    a = RAM(0xFC) & 0x7F;
+    if (a == 0) {                                       /* no engine sound: stop it once */
+        if (RAM(0xF3) == 0) return;
+        RAM(0xF3) = 0; RAM(0xF7) = 0; RAM(0x07F8) = 0;
+        pulse2_silence();
+        return;
+    }
+    y = RAM(0xF7); RAM(0xF7)++;
+    if (y == RAM(0x07F8)) {                             /* time to move the pitch step toward the requested speed */
+        if (a >= 0x30) { RAM(0xF3) = 0x30; goto from_table; }
+        c = a >= RAM(0xF3); d = (uint8_t)(a - RAM(0xF3));
+        if (d == 0) goto from_table;
+        if (!c) {
+            RAM(0xF3)--;
+            if (d >= 0xF8) goto short_wait;
+            RAM(0xF3)--;
+            if (RAM(0xF3) != 0) goto short_wait;
+        }
+        RAM(0xF3)++;                                    /* $FAB3 */
+        if (d >= 0x08) RAM(0xF3)++;
+    short_wait:
+        a = 1; goto set_wait;
+    from_table:
+        a = ROMB(0xF9F4 + RAM(0xF3));
+    set_wait:
+        RAM(0x07F8) = a; RAM(0xF7) = 0;
+    }
+    a = (uint8_t)(RAM(0x07FF) + 4);                     /* DMC volume ramp target */
+    if (a < 0x40) RAM(0x07FF) = a;
+    y = RAM(0xF7);
+    a = (uint8_t)(ROMB(0xF9C4 + RAM(0xF3)) + ROMB(0xF9B3 + y));
+    if (RAM(0xFC) & 0x80) { rx = ROMB(0xF9BF + y); ry = 0x89; }
+    else { rx = ROMB(0xF9B9 + y); ry = 0x7F; }
+    ra = a;
+    SetPulse2Pitch();
+}
+
 static void SoundUpdate(void) {                         /* $F844: runs every NMI */
     ra = 0xC0; SETNZ(ra);                                /* the original loads A with $C0 and keeps it: the pulse routines below read A on entry */
     WR(0x4017, ra);
@@ -224,3 +380,5 @@ void V_SetPulse1Regs(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SetPulse1
 void V_PlayPulse1Note(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; PlayPulse1Note(); }
 void V_PlayPulse2Note(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; PlayPulse2Note(); }
 void V_PlayTriangleNote(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; PlayTriangleNote(); }
+void V_SoundPulse1Sfx(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundPulse1Sfx(); }
+void V_SoundPulse2TriangleSfx(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundPulse2TriangleSfx(); }

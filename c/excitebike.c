@@ -846,7 +846,7 @@ void SpawnCpuRiders(void) {                   /* $DA9F: occasionally brings a CP
     uint8_t x = 3;
     if (RAM(0x3B) != 0) x--;                    /* first pass is skipped when $3B is set (falls to the DEX) */
     for (;;) {
-        if ((uint8_t)(x ^ RAM(0x4C) | RAM(0xA8 + x) | RAM(0x23) | RAM(0x0373) | RAM(0x03A8)) == 0 && RAM(0x18 + x) >= 0xA0) {
+        if ((uint8_t)((x ^ RAM(0x4C)) | RAM(0xA8 + x) | RAM(0x23) | RAM(0x0373) | RAM(0x03A8)) == 0 && RAM(0x18 + x) >= 0xA0) {
             uint8_t a = RAM(0x18 + x), y;
             RAM(0x00) = x;
             y = (uint8_t)((a & 3) + 1);
@@ -2886,7 +2886,6 @@ int WideRiderSprites(WideSprite *out, int max, int width) {
 /* mechanically lifted routines (tools/lift6502.py) */
 static void SetPulse2Pitch(void);                 /* hand-written (sound.inc), called from the mechanical lift */
 static void SetPulse1Regs(void); static void PlayPulse1Note(void);
-#include "auto_sound.inc"
 #include "sound.inc"
 
 #include "auto_tape.inc"
