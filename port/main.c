@@ -121,6 +121,7 @@ static void reload_graphics(void) {
 
 /* Custom tracks: `--track N=file.ebd` replaces built-in track N (1-5) or the designed track (6) with a track made by the editor (tools/editor) or by the game's own design mode.
  * Tracks may be longer than the original design limit; F6 reloads the files while the game runs (a track is read when its race starts). */
+static int width_opt = PPU_W, fps_mult = 1;                 /* picture width while racing; output frames per game frame */
 static const char *g_track_file[6];
 static int load_track_file(int slot, const char *path) {
     static uint8_t buf[0x2000 + 400]; size_t n; FILE *f = fopen(path, "rb"); if (!f) return 0;
@@ -150,6 +151,10 @@ static int set_rule(const char *kv) {
     else if (!strcmp(name, "crash_pitch")) g_rules.crash_pitch = (uint8_t)v;          /* 13 = original; higher = more forgiving wheelies */
     else if (!strcmp(name, "overheat")) g_rules.overheat = v != 0;                    /* 0 = the engine never overheats */
     else if (!strcmp(name, "max_speed")) g_rules.max_speed_pct = (uint16_t)v;         /* percent of the original top speed */
+    else if (!strcmp(name, "riders")) g_extra_count = v < 0 ? 0 : v > 4 ? 4 : v;        /* extra CPU riders */
+    else if (!strcmp(name, "extra_collisions")) g_extra_collide = v != 0;
+    else if (!strcmp(name, "width")) width_opt = v;                                     /* picture width while racing, 256-512 */
+    else if (!strcmp(name, "fps")) { fps_mult = (v + 30) / 60; if (fps_mult < 1) fps_mult = 1; if (fps_mult > 4) fps_mult = 4; }
     else return 0;
     return 1;
 }
@@ -164,14 +169,16 @@ static void load_config(const char *path) {
     fclose(f);
 }
 
+#include "menu.inc"
+
 int main(int argc, char **argv) {
     const char *audio_mod = NULL;
     load_config("excitebike.cfg");
     const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL, *record = NULL, *play = NULL, *chr_bmp = NULL, *chr_raw = NULL, *pal_file = NULL;
     FILE *rec_f = NULL, *play_f = NULL;
-    int dump_oam = 0; const char *peek = NULL, *dump_ppu = NULL;
+    int dump_oam = 0, shot_menu = 0; const char *peek = NULL, *dump_ppu = NULL;
     int16_t *wavbuf = NULL; size_t wavn = 0, wavcap = 0;
-    int scale = 3, frames_limit = -1, width_opt = PPU_W, fps_mult = 1;
+    int scale = 3, frames_limit = -1;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--frames") && i + 1 < argc) frames_limit = atoi(argv[++i]);
@@ -194,6 +201,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--palette") && i + 1 < argc) pal_file = argv[++i];
         else if (!strcmp(argv[i], "--peek") && i + 1 < argc) peek = argv[++i];         /* debug: print RAM bytes at exit, e.g. 12,4d,e8 */
         else if (!strcmp(argv[i], "--dump-ppu") && i + 1 < argc) dump_ppu = argv[++i];         /* debug/tools: 2 KB nametables + 32 palette bytes at exit */
+        else if (!strcmp(argv[i], "--shot-menu")) shot_menu = 1;                         /* debug: also save the options menu over the last picture */
         else if (!strcmp(argv[i], "--dump-oam")) dump_oam = 1;
         else if (!strcmp(argv[i], "--unlimited-sprites")) g_ppu.unlimited_sprites = 1;
         else rom_path = argv[i];
@@ -256,11 +264,20 @@ int main(int argc, char **argv) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) running = 0;
-            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) running = 0;
+            if (e.type == SDL_KEYDOWN && (e.key.keysym.sym == SDLK_TAB || e.key.keysym.sym == SDLK_F1)) { menu_open = !menu_open; if (menu_open) { menu_load(); menu_sel = 0; } }
+            else if (e.type == SDL_KEYDOWN && menu_open && e.key.keysym.sym != SDLK_ESCAPE) { int wc = 0; menu_key(e.key.keysym.sym, &wc);
+                if (wc) { g_ppu.width = width_opt & ~1; SDL_DestroyTexture(tex); tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, g_ppu.width, PPU_H); SDL_RenderSetLogicalSize(ren, g_ppu.width, PPU_H); prev_desc.valid = 0; } }
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) { if (menu_open) menu_open = 0; else running = 0; }
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F5) state_save("quicksave.sav");
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F6) { load_tracks(); reload_graphics(); if (audio_mod) audiomod_load(audio_mod); fprintf(stderr, "mods reloaded\n"); }
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F9) { if (!state_load("quicksave.sav")) fprintf(stderr, "no usable quicksave.sav\n"); }
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F11) SDL_SetWindowFullscreen(win, (SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP) ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+        }
+        if (menu_open) {                                       /* paused: the last picture dimmed, with the options on top */
+            static uint32_t mbuf[PPU_MAXW * PPU_H];
+            menu_draw(mbuf, g_ppu.frame, g_ppu.width);
+            SDL_UpdateTexture(tex, NULL, mbuf, g_ppu.width * 4); present_and_wait(ren, tex, &next, (Uint64)(freq / 60), dev);
+            continue;
         }
         while (pp && *pp) {                                    /* --press "30=8,34=0": button state from that frame on */
             int fr, b; int used = 0;
@@ -319,6 +336,12 @@ int main(int argc, char **argv) {
         ppu_render_interp(&g_ppu, &shot_prev, &g_ppu.done, 0.5, mid);
         snprintf(name, sizeof name, "%s.mid.bmp", shot);
         SDL_Surface *ms = SDL_CreateRGBSurfaceWithFormatFrom(mid, g_ppu.width, PPU_H, 32, g_ppu.width * 4, SDL_PIXELFORMAT_ARGB8888);
+        SDL_SaveBMP(ms, name); SDL_FreeSurface(ms);
+    }
+    if (shot && shot_menu) {
+        static uint32_t mb[PPU_MAXW * PPU_H]; char name[512]; menu_load(); menu_draw(mb, g_ppu.frame, g_ppu.width);
+        snprintf(name, sizeof name, "%s.menu.bmp", shot);
+        SDL_Surface *ms = SDL_CreateRGBSurfaceWithFormatFrom(mb, g_ppu.width, PPU_H, 32, g_ppu.width * 4, SDL_PIXELFORMAT_ARGB8888);
         SDL_SaveBMP(ms, name); SDL_FreeSurface(ms);
     }
     if (shot) {

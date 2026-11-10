@@ -55,3 +55,8 @@ Tracks over 255 bytes use the extended format (`EBDES2`); the original design mo
 
 `--track N=file.ebd` replaces built-in track N (1-5) or the designed track (6) in the port; F6 reloads the files while the game runs (a track is read when its race starts).
 The track script is the game's own (`tools/ebdesign.py` documents the format: laps, pieces and runs). `python tools/ebdesign.py dump file.ebd` prints a track; `export-builtin N out.ebd` writes a built-in track as a design you can edit.
+
+## In-game options menu
+
+Tab (or F1) opens a menu that pauses the game: extra riders, rider contact, top speed, jump power, crash pitch, overheating, picture width, frame rate and the sprite limit. Left/Right change a value at once;
+SAVE SETTINGS writes `excitebike.cfg` (read at the next start). F6 reloads the track, tile, palette and audio mod files while the game runs.
