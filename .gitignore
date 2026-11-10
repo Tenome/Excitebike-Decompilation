@@ -1,0 +1,14 @@
+# The ROMs and anything extracted from them (supply your own copies in orig/)
+orig/*
+!orig/README.md
+*.nes
+assets/
+
+# Build outputs
+build/
+*.o
+*.lst
+*.map
+*.exe
+diagnostics/
+__pycache__/

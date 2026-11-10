@@ -1,0 +1,1688 @@
+{
+ "measures": {
+  "fuzzy_match_percent": 100.0,
+  "total_code": "11260",
+  "matched_code": "11260",
+  "matched_code_percent": 100.0,
+  "total_data": "13316",
+  "matched_data": "13316",
+  "matched_data_percent": 100.0,
+  "total_functions": 199,
+  "matched_functions": 199,
+  "matched_functions_percent": 100.0,
+  "complete_code": "11260",
+  "complete_code_percent": 100.0,
+  "complete_data": "13316",
+  "complete_data_percent": 100.0,
+  "total_units": 2,
+  "complete_units": 2
+ },
+ "units": [
+  {
+   "name": "main/prg",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "11260",
+    "matched_code": "11260",
+    "matched_code_percent": 100.0,
+    "total_data": "5124",
+    "matched_data": "5124",
+    "matched_data_percent": 100.0,
+    "total_functions": 199,
+    "matched_functions": 199,
+    "matched_functions_percent": 100.0,
+    "complete_code": "11260",
+    "complete_code_percent": 100.0,
+    "complete_data": "5124",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "11260",
+     "fuzzy_match_percent": 100.0
+    },
+    {
+     "name": ".data",
+     "size": "5124",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "Reset",
+     "size": "121",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "404"
+     }
+    },
+    {
+     "name": "InitBackupRam",
+     "size": "130",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "525"
+     }
+    },
+    {
+     "name": "FlushPpuUpdate",
+     "size": "42",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "655"
+     }
+    },
+    {
+     "name": "GameStateDispatch",
+     "size": "111",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "697"
+     }
+    },
+    {
+     "name": "InitScreenState",
+     "size": "23",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "808"
+     }
+    },
+    {
+     "name": "DisableNmi",
+     "size": "4",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "831"
+     }
+    },
+    {
+     "name": "SetPpuCtrl",
+     "size": "6",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "835"
+     }
+    },
+    {
+     "name": "WaitVblankEndEnableNmi",
+     "size": "118",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "841"
+     }
+    },
+    {
+     "name": "Sub_C3AF",
+     "size": "2",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "959"
+     }
+    },
+    {
+     "name": "Sub_C3B1",
+     "size": "88",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "961"
+     }
+    },
+    {
+     "name": "Sub_C409",
+     "size": "52",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1049"
+     }
+    },
+    {
+     "name": "Loc_C447",
+     "size": "7",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1111"
+     }
+    },
+    {
+     "name": "Loc_C450",
+     "size": "210",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1120"
+     }
+    },
+    {
+     "name": "Sub_C522",
+     "size": "24",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1330"
+     }
+    },
+    {
+     "name": "Sub_C53A",
+     "size": "4",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1354"
+     }
+    },
+    {
+     "name": "Sub_C53E",
+     "size": "51",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1358"
+     }
+    },
+    {
+     "name": "Loc_C5A3",
+     "size": "126",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1459"
+     }
+    },
+    {
+     "name": "Sub_C621",
+     "size": "12",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1585"
+     }
+    },
+    {
+     "name": "Sub_C62D",
+     "size": "12",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1597"
+     }
+    },
+    {
+     "name": "Sub_C639",
+     "size": "21",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1609"
+     }
+    },
+    {
+     "name": "Sub_C64E",
+     "size": "5",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1630"
+     }
+    },
+    {
+     "name": "Sub_C653",
+     "size": "27",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1635"
+     }
+    },
+    {
+     "name": "Sub_C66E",
+     "size": "28",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1662"
+     }
+    },
+    {
+     "name": "Sub_C68A",
+     "size": "7",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1690"
+     }
+    },
+    {
+     "name": "Sub_C691",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1697"
+     }
+    },
+    {
+     "name": "Sub_C6A5",
+     "size": "35",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1717"
+     }
+    },
+    {
+     "name": "Sub_C6C8",
+     "size": "9",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1752"
+     }
+    },
+    {
+     "name": "Sub_C6D1",
+     "size": "69",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1761"
+     }
+    },
+    {
+     "name": "Sub_C716",
+     "size": "16",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1830"
+     }
+    },
+    {
+     "name": "Sub_C726",
+     "size": "19",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1846"
+     }
+    },
+    {
+     "name": "Sub_C739",
+     "size": "89",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1865"
+     }
+    },
+    {
+     "name": "Sub_C792",
+     "size": "76",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1954"
+     }
+    },
+    {
+     "name": "Sub_C7DE",
+     "size": "334",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2030"
+     }
+    },
+    {
+     "name": "Sub_C92C",
+     "size": "9",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2364"
+     }
+    },
+    {
+     "name": "Sub_C935",
+     "size": "22",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2373"
+     }
+    },
+    {
+     "name": "Sub_C94B",
+     "size": "38",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2395"
+     }
+    },
+    {
+     "name": "Sub_C971",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2433"
+     }
+    },
+    {
+     "name": "Loc_C997",
+     "size": "113",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2471"
+     }
+    },
+    {
+     "name": "Sub_CA08",
+     "size": "48",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2584"
+     }
+    },
+    {
+     "name": "Sub_CA38",
+     "size": "99",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2632"
+     }
+    },
+    {
+     "name": "Sub_CA9B",
+     "size": "107",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2731"
+     }
+    },
+    {
+     "name": "Sub_CB06",
+     "size": "13",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2838"
+     }
+    },
+    {
+     "name": "Sub_CB13",
+     "size": "40",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2851"
+     }
+    },
+    {
+     "name": "Sub_CB3B",
+     "size": "60",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2891"
+     }
+    },
+    {
+     "name": "Sub_CB77",
+     "size": "45",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2951"
+     }
+    },
+    {
+     "name": "Sub_CBA4",
+     "size": "113",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2996"
+     }
+    },
+    {
+     "name": "Sub_CC15",
+     "size": "86",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3109"
+     }
+    },
+    {
+     "name": "Sub_CC6B",
+     "size": "95",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3195"
+     }
+    },
+    {
+     "name": "Sub_CCCA",
+     "size": "85",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3290"
+     }
+    },
+    {
+     "name": "Sub_CD1F",
+     "size": "58",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3375"
+     }
+    },
+    {
+     "name": "Sub_CD59",
+     "size": "149",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3433"
+     }
+    },
+    {
+     "name": "Sub_CDEE",
+     "size": "59",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3582"
+     }
+    },
+    {
+     "name": "Sub_CE29",
+     "size": "47",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3641"
+     }
+    },
+    {
+     "name": "Sub_CE58",
+     "size": "4",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3688"
+     }
+    },
+    {
+     "name": "Sub_CE5C",
+     "size": "116",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3692"
+     }
+    },
+    {
+     "name": "Sub_CED0",
+     "size": "60",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3808"
+     }
+    },
+    {
+     "name": "Sub_CF0C",
+     "size": "59",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3868"
+     }
+    },
+    {
+     "name": "Sub_CF47",
+     "size": "35",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3927"
+     }
+    },
+    {
+     "name": "Sub_CF6A",
+     "size": "30",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3962"
+     }
+    },
+    {
+     "name": "Sub_CF88",
+     "size": "3",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3992"
+     }
+    },
+    {
+     "name": "Sub_CF8B",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3995"
+     }
+    },
+    {
+     "name": "Sub_CF96",
+     "size": "53",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4006"
+     }
+    },
+    {
+     "name": "Sub_CFCB",
+     "size": "16",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4059"
+     }
+    },
+    {
+     "name": "Sub_CFDB",
+     "size": "8",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4075"
+     }
+    },
+    {
+     "name": "Sub_CFE3",
+     "size": "7",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4083"
+     }
+    },
+    {
+     "name": "Sub_CFEA",
+     "size": "22",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4090"
+     }
+    },
+    {
+     "name": "Sub_D000",
+     "size": "24",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4112"
+     }
+    },
+    {
+     "name": "Sub_D018",
+     "size": "147",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4136"
+     }
+    },
+    {
+     "name": "Sub_D0AB",
+     "size": "27",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4283"
+     }
+    },
+    {
+     "name": "Sub_D0C6",
+     "size": "46",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4310"
+     }
+    },
+    {
+     "name": "Sub_D0F4",
+     "size": "43",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4356"
+     }
+    },
+    {
+     "name": "Sub_D11F",
+     "size": "32",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4399"
+     }
+    },
+    {
+     "name": "Sub_D13F",
+     "size": "15",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4431"
+     }
+    },
+    {
+     "name": "Sub_D14E",
+     "size": "77",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4446"
+     }
+    },
+    {
+     "name": "Sub_D19B",
+     "size": "14",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4523"
+     }
+    },
+    {
+     "name": "ResetPpuScroll",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4537"
+     }
+    },
+    {
+     "name": "Sub_D1B3",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4547"
+     }
+    },
+    {
+     "name": "Sub_D1C7",
+     "size": "116",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4567"
+     }
+    },
+    {
+     "name": "Sub_D23B",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4683"
+     }
+    },
+    {
+     "name": "Sub_D24F",
+     "size": "6",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4703"
+     }
+    },
+    {
+     "name": "ClearOam",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4709"
+     }
+    },
+    {
+     "name": "Sub_D260",
+     "size": "159",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4720"
+     }
+    },
+    {
+     "name": "Sub_D2FF",
+     "size": "17",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4879"
+     }
+    },
+    {
+     "name": "TickTimers",
+     "size": "22",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4896"
+     }
+    },
+    {
+     "name": "UpdateRandom",
+     "size": "33",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4918"
+     }
+    },
+    {
+     "name": "ReadJoypads",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4951"
+     }
+    },
+    {
+     "name": "ReadJoypadPort",
+     "size": "102",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4971"
+     }
+    },
+    {
+     "name": "RunPpuWriteList",
+     "size": "21",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "5073"
+     }
+    },
+    {
+     "name": "Sub_D918",
+     "size": "12",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6440"
+     }
+    },
+    {
+     "name": "Sub_D924",
+     "size": "241",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6452"
+     }
+    },
+    {
+     "name": "Sub_DA15",
+     "size": "17",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6693"
+     }
+    },
+    {
+     "name": "Sub_DA26",
+     "size": "50",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6710"
+     }
+    },
+    {
+     "name": "Sub_DA58",
+     "size": "18",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6760"
+     }
+    },
+    {
+     "name": "Sub_DA6A",
+     "size": "16",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6778"
+     }
+    },
+    {
+     "name": "Sub_DA7A",
+     "size": "37",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6794"
+     }
+    },
+    {
+     "name": "Sub_DA9F",
+     "size": "68",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6831"
+     }
+    },
+    {
+     "name": "Sub_DAE3",
+     "size": "109",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6899"
+     }
+    },
+    {
+     "name": "Sub_DB50",
+     "size": "69",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7008"
+     }
+    },
+    {
+     "name": "Sub_DB95",
+     "size": "47",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7077"
+     }
+    },
+    {
+     "name": "Sub_DBC4",
+     "size": "58",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7124"
+     }
+    },
+    {
+     "name": "Sub_DBFE",
+     "size": "28",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7182"
+     }
+    },
+    {
+     "name": "Sub_DC1A",
+     "size": "125",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7210"
+     }
+    },
+    {
+     "name": "Sub_DC97",
+     "size": "3",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7335"
+     }
+    },
+    {
+     "name": "Sub_DC9A",
+     "size": "6",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7338"
+     }
+    },
+    {
+     "name": "Sub_DCA0",
+     "size": "62",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7344"
+     }
+    },
+    {
+     "name": "Sub_DCDE",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7406"
+     }
+    },
+    {
+     "name": "Sub_DCF2",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7426"
+     }
+    },
+    {
+     "name": "Sub_DD06",
+     "size": "50",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7446"
+     }
+    },
+    {
+     "name": "Sub_DD38",
+     "size": "55",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7496"
+     }
+    },
+    {
+     "name": "Sub_DD6F",
+     "size": "30",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7551"
+     }
+    },
+    {
+     "name": "Sub_DD8D",
+     "size": "68",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7581"
+     }
+    },
+    {
+     "name": "Sub_DDD1",
+     "size": "96",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7649"
+     }
+    },
+    {
+     "name": "Sub_DE31",
+     "size": "138",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7745"
+     }
+    },
+    {
+     "name": "Sub_DEBB",
+     "size": "39",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7883"
+     }
+    },
+    {
+     "name": "Sub_DEE2",
+     "size": "78",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7922"
+     }
+    },
+    {
+     "name": "Sub_DF30",
+     "size": "79",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8000"
+     }
+    },
+    {
+     "name": "Sub_DF7F",
+     "size": "35",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8079"
+     }
+    },
+    {
+     "name": "DivMod10",
+     "size": "2",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8114"
+     }
+    },
+    {
+     "name": "DivModByX",
+     "size": "14",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8116"
+     }
+    },
+    {
+     "name": "Sub_DFB2",
+     "size": "35",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8130"
+     }
+    },
+    {
+     "name": "Sub_DFD5",
+     "size": "188",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8165"
+     }
+    },
+    {
+     "name": "Sub_E091",
+     "size": "7",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8353"
+     }
+    },
+    {
+     "name": "Sub_E098",
+     "size": "7",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8360"
+     }
+    },
+    {
+     "name": "Sub_E09F",
+     "size": "205",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8367"
+     }
+    },
+    {
+     "name": "Sub_E16C",
+     "size": "19",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8572"
+     }
+    },
+    {
+     "name": "Sub_E17F",
+     "size": "36",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8591"
+     }
+    },
+    {
+     "name": "Sub_E1A3",
+     "size": "86",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8627"
+     }
+    },
+    {
+     "name": "Sub_E1F9",
+     "size": "113",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8713"
+     }
+    },
+    {
+     "name": "Sub_E26A",
+     "size": "140",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8826"
+     }
+    },
+    {
+     "name": "Sub_E2F6",
+     "size": "99",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8966"
+     }
+    },
+    {
+     "name": "Sub_E359",
+     "size": "155",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9065"
+     }
+    },
+    {
+     "name": "Sub_E3F4",
+     "size": "98",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9220"
+     }
+    },
+    {
+     "name": "Sub_E456",
+     "size": "69",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9318"
+     }
+    },
+    {
+     "name": "Sub_E49B",
+     "size": "18",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9387"
+     }
+    },
+    {
+     "name": "Sub_E4AD",
+     "size": "27",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9405"
+     }
+    },
+    {
+     "name": "Sub_E4C8",
+     "size": "100",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9432"
+     }
+    },
+    {
+     "name": "Sub_E52C",
+     "size": "17",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9532"
+     }
+    },
+    {
+     "name": "Sub_E70B",
+     "size": "40",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10011"
+     }
+    },
+    {
+     "name": "Sub_E733",
+     "size": "8",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10051"
+     }
+    },
+    {
+     "name": "Sub_E73B",
+     "size": "89",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10059"
+     }
+    },
+    {
+     "name": "Sub_E794",
+     "size": "104",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10148"
+     }
+    },
+    {
+     "name": "Sub_E7FC",
+     "size": "3",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10252"
+     }
+    },
+    {
+     "name": "Sub_E7FF",
+     "size": "4",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10255"
+     }
+    },
+    {
+     "name": "Sub_E803",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10259"
+     }
+    },
+    {
+     "name": "Sub_E80D",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10269"
+     }
+    },
+    {
+     "name": "Sub_E818",
+     "size": "30",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10280"
+     }
+    },
+    {
+     "name": "Sub_E836",
+     "size": "15",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10310"
+     }
+    },
+    {
+     "name": "Sub_E845",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10325"
+     }
+    },
+    {
+     "name": "Sub_E84F",
+     "size": "5",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10335"
+     }
+    },
+    {
+     "name": "Sub_E854",
+     "size": "9",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10340"
+     }
+    },
+    {
+     "name": "Sub_E85D",
+     "size": "13",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10349"
+     }
+    },
+    {
+     "name": "Sub_E86A",
+     "size": "5",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10362"
+     }
+    },
+    {
+     "name": "Sub_E86F",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10367"
+     }
+    },
+    {
+     "name": "Sub_E879",
+     "size": "26",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10377"
+     }
+    },
+    {
+     "name": "Sub_E893",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10403"
+     }
+    },
+    {
+     "name": "Sub_E89D",
+     "size": "34",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10413"
+     }
+    },
+    {
+     "name": "Sub_E8BF",
+     "size": "7",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10447"
+     }
+    },
+    {
+     "name": "Sub_E8C6",
+     "size": "29",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10454"
+     }
+    },
+    {
+     "name": "Sub_E8E3",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10483"
+     }
+    },
+    {
+     "name": "Sub_E8EE",
+     "size": "12",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10494"
+     }
+    },
+    {
+     "name": "Sub_E8FA",
+     "size": "5",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10506"
+     }
+    },
+    {
+     "name": "Sub_E8FF",
+     "size": "40",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10511"
+     }
+    },
+    {
+     "name": "Sub_E927",
+     "size": "13",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10551"
+     }
+    },
+    {
+     "name": "Sub_E934",
+     "size": "34",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10564"
+     }
+    },
+    {
+     "name": "Sub_E956",
+     "size": "13",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10598"
+     }
+    },
+    {
+     "name": "Sub_E963",
+     "size": "9",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10611"
+     }
+    },
+    {
+     "name": "Sub_E96C",
+     "size": "216",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10620"
+     }
+    },
+    {
+     "name": "Sub_EA44",
+     "size": "75",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10836"
+     }
+    },
+    {
+     "name": "Sub_EA8F",
+     "size": "54",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10911"
+     }
+    },
+    {
+     "name": "Sub_EAC5",
+     "size": "352",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10965"
+     }
+    },
+    {
+     "name": "Sub_EC25",
+     "size": "22",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11317"
+     }
+    },
+    {
+     "name": "Sub_EC3B",
+     "size": "34",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11339"
+     }
+    },
+    {
+     "name": "Sub_EC5D",
+     "size": "24",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11373"
+     }
+    },
+    {
+     "name": "Sub_EC75",
+     "size": "36",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11397"
+     }
+    },
+    {
+     "name": "Sub_EC99",
+     "size": "38",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11433"
+     }
+    },
+    {
+     "name": "IncMod64",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11471"
+     }
+    },
+    {
+     "name": "Sub_ECC9",
+     "size": "27",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11481"
+     }
+    },
+    {
+     "name": "Sub_ECE4",
+     "size": "86",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11508"
+     }
+    },
+    {
+     "name": "Sub_F4FF",
+     "size": "335",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "13583"
+     }
+    },
+    {
+     "name": "Sub_F64E",
+     "size": "40",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "13918"
+     }
+    },
+    {
+     "name": "Sub_F676",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "13958"
+     }
+    },
+    {
+     "name": "Sub_F681",
+     "size": "122",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "13969"
+     }
+    },
+    {
+     "name": "Sub_F6FB",
+     "size": "294",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14091"
+     }
+    },
+    {
+     "name": "Sub_F821",
+     "size": "5",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14385"
+     }
+    },
+    {
+     "name": "Sub_F826",
+     "size": "8",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14390"
+     }
+    },
+    {
+     "name": "Sub_F82E",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14398"
+     }
+    },
+    {
+     "name": "Sub_F839",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14409"
+     }
+    },
+    {
+     "name": "Sub_F844",
+     "size": "39",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14420"
+     }
+    },
+    {
+     "name": "Sub_F86B",
+     "size": "6",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14459"
+     }
+    },
+    {
+     "name": "PlayPulseNote",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14465"
+     }
+    },
+    {
+     "name": "Sub_F885",
+     "size": "4",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14485"
+     }
+    },
+    {
+     "name": "Sub_F889",
+     "size": "75",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14489"
+     }
+    },
+    {
+     "name": "Sub_F8D4",
+     "size": "209",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14564"
+     }
+    },
+    {
+     "name": "Loc_FA4F",
+     "size": "37",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14943"
+     }
+    },
+    {
+     "name": "Sub_FA74",
+     "size": "259",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14980"
+     }
+    },
+    {
+     "name": "Loc_FBFF",
+     "size": "62",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "15375"
+     }
+    },
+    {
+     "name": "Sub_FC3D",
+     "size": "76",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "15437"
+     }
+    },
+    {
+     "name": "Sub_FC8D",
+     "size": "326",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "15517"
+     }
+    },
+    {
+     "name": "Sub_FF53",
+     "size": "17",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "16227"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/bank_0.asm"
+   }
+  },
+  {
+   "name": "main/chr",
+   "measures": {
+    "fuzzy_match_percent": 0.0,
+    "total_code": "0",
+    "matched_code": "0",
+    "matched_code_percent": 0.0,
+    "total_data": "8192",
+    "matched_data": "8192",
+    "matched_data_percent": 100.0,
+    "total_functions": 0,
+    "matched_functions": 0,
+    "matched_functions_percent": 0.0,
+    "complete_code": "0",
+    "complete_code_percent": 0.0,
+    "complete_data": "8192",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".data",
+     "size": "8192",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/excitebike.asm"
+   }
+  }
+ ],
+ "version": 2,
+ "categories": []
+}

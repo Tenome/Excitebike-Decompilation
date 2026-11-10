@@ -1,0 +1,21 @@
+{
+ "10": "PpuCtrlShadow",
+ "11": "PpuMaskShadow",
+ "12": "ScrollX",
+ "13": "ScrollY",
+ "14": "Joy1Held",
+ "15": "Joy1Trigger",
+ "16": "Joy2Held",
+ "17": "Joy2Trigger",
+ "18": "RandomState",
+ "3F": "FrameCounter",
+ "40": "GameStateActive",
+ "41": "GameState",
+ "45": "PpuUpdateIndex",
+ "4D": "PpuCtrlNametableBits",
+ "50": "SplitScrollX",
+ "51": "SplitScrollY",
+ "05CE": "BackupRamSigA5",
+ "05CF": "BackupRamSig5A",
+ "0200": "OamBuffer"
+}

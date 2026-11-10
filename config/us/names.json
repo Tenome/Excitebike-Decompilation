@@ -1,0 +1,23 @@
+{
+ "C184": "Reset",
+ "C23B": "Nmi",
+ "C1FD": "InitBackupRam",
+ "C318": "InitScreenState",
+ "C32F": "DisableNmi",
+ "C333": "SetPpuCtrl",
+ "C339": "WaitVblankEndEnableNmi",
+ "C27F": "FlushPpuUpdate",
+ "C2A9": "GameStateDispatch",
+ "D1A9": "ResetPpuScroll",
+ "D255": "ClearOam",
+ "D310": "TickTimers",
+ "D326": "UpdateRandom",
+ "D347": "ReadJoypads",
+ "D35B": "ReadJoypadPort",
+ "D3C1": "RunPpuWriteList",
+ "DFA2": "DivMod10",
+ "DFA4": "DivModByX",
+ "ECBF": "IncMod64",
+ "F871": "PlayPulseNote",
+ "FF00": "NoteTable"
+}
