@@ -674,3 +674,83 @@ void UpdateEngineSound(void) {                /* $DEE2: engine pitch request for
     }
     RAM(0xFC) = x;
 }
+
+/* ---- batch 7: AI obstacle scan and the per-frame rider update loops ---- */
+Regs AiScanObstacles(Regs r) {                /* $D018: A = obstacles found ahead (Z flag set when none); steers around them */
+    uint8_t x = r.x, a, y;
+    int8_t yb;
+    RAM(0x09) = 0; RAM(0x0D) = 0;
+    RAM(0x0A) = (uint8_t)(x << 2);
+    yb = 3;
+    for (;;) {
+        RAM(0x0B) = (uint8_t)yb;
+        a = RAM(0x03C0 + RAM(0x0A));
+        if (a == 0xC0 || a == 0xC1 || (a >= 0x70 && a < 0x74)) goto obstacle;
+        if (a >= 0x48 && a < 0x4B) { a = 9; goto done; }
+        RAM(0x0A)++;
+        yb = (int8_t)(RAM(0x0B) - 1);
+        if (yb < 0) break;
+    }
+clear:                                          /* $D04B */
+    y = 0;
+    if (RAM(0x58 + x) == 0) y = RAM(0x0368 + x);
+    a = y; goto done;
+obstacle:                                       /* $D058 */
+    RAM(0x0D)++;
+    a = (uint8_t)(((RAM(0x0A) & 3) + 1 + RAM(0xE0 + x)) & 0x3F);
+    RAM(0x08) = a; RAM(0x09) = 0x40;
+    y = RAM(0x0360 + x);
+    for (;;) {                                  /* $D06F: look toward lower lanes */
+        y--;
+        if ((uint8_t)(y - 1) & 0x80) break;
+        a = TrackPieceAt((Regs){ 0, x, y, 0 }).a;
+        y = RAM(0x07);
+        if (a == 0xFA) break;
+        if (!AiTrackPieceOpen((Regs){ a, 0, 0, 0 }).c) { AiLaneChangeUp((Regs){ 0, x, 0, 0 }); goto clear; }
+    }
+    y = RAM(0x0360 + x);
+    for (;;) {                                  /* $D08B */
+        y++;
+        if (!((uint8_t)(y - 6) & 0x80)) goto clear;
+        a = TrackPieceAt((Regs){ 0, x, y, 0 }).a;
+        y = RAM(0x07);
+        if (a == 0xE4) goto clear;
+        if (!AiTrackPieceOpen((Regs){ a, 0, 0, 0 }).c) { AiLaneChangeDown((Regs){ 0, x, 0, 0 }); goto clear; }
+    }
+done:
+    RAM(0x7C + x) = a;
+    r.a = RAM(0x0D); r.c = (r.a == 0); return r;
+}
+
+void UpdateAiRiders(void) {                   /* $CED0 */
+    uint8_t x = RAM(0x4A);
+    do {
+        RAM(0x0F) = x;
+        if (RAM(0xA8 + x) != 0 && (RAM(0x98 + x) | RAM(0x9C + x)) == 0) {
+            AiSetPitchInput((Regs){ 0, x, 0, 0 });
+            if (RAM(0xB0 + x) != 0) RAM(0x7C + x) = RAM(0x0368 + x);
+            else {
+                AiMatchTargetSpeed((Regs){ 0, x, 0, 0 });
+                if (AiScanObstacles((Regs){ 0, x, 0, 0 }).a == 0 && RAM(0x03A6) != 0) {
+                    AiJumpCheck((Regs){ 0, x, 0, 0 });
+                    if (RAM(0x52) == 0) AiConsiderLaneChange((Regs){ 0, x, 0, 0 });
+                }
+            }
+        }
+        x = (uint8_t)(RAM(0x0F) + 1);
+    } while (x < 4);
+}
+
+void UpdateRiderControls(void) {              /* $CD1F */
+    if (RAM(0x4F)) {
+        for (int i = 3; i >= 0; i--) {
+            uint8_t x = (uint8_t)i;
+            if (RAM(0xA8 + x) == 0) continue;
+            if (RAM(0x9C + x) != 5 && (RAM(0x9C + x) | RAM(0x98 + x) | RAM(0x03E0 + x)) != 0) RAM(0x5C + x) = 0;
+            RiderControlStep((Regs){ 0, x, 0, 0 });
+        }
+    }
+    if (RAM(0x34) == 0 && (RAM(0x5C) & 0xC0) != 0 && (RAM(0x03A9) | RAM(0x52)) == 0) {
+        RAM(0x03A9) = 1; RAM(0xFE) = 1;
+    }
+}

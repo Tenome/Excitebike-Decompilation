@@ -95,3 +95,7 @@ void RiderState4Release(Regs r);          /* $D9D3 */
 void RiderControlStep(Regs r);       /* $CD59 */
 void UpdateRaceClock(void);          /* $DF30 */
 void UpdateEngineSound(void);        /* $DEE2 */
+
+Regs AiScanObstacles(Regs r);        /* $D018 */
+void UpdateAiRiders(void);           /* $CED0 */
+void UpdateRiderControls(void);      /* $CD1F */
