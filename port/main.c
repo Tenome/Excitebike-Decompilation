@@ -58,6 +58,24 @@ static uint8_t read_pad(const uint8_t *keys) {            /* bit 0 = A (first bi
     return b;
 }
 
+/* Graphics mods: a 128x256 8-bit indexed BMP (see tools/chrbmp.py) or a raw 8 KB CHR file replaces the tiles; a 192-byte RGB file replaces the 64 colours. */
+static int load_chr_bmp(const char *path, uint8_t *chr) {
+    SDL_Surface *s = SDL_LoadBMP(path);
+    if (!s || s->format->BitsPerPixel != 8 || s->w != 128 || s->h != 256) { fprintf(stderr, "%s: need a 128x256 8-bit BMP\n", path); if (s) SDL_FreeSurface(s); return 0; }
+    const uint8_t *px = s->pixels;
+    for (int table = 0; table < 2; table++) for (int tile = 0; tile < 256; tile++) {
+        int base = table * 0x1000 + tile * 16, tx = tile % 16, ty = tile / 16 + table * 16;
+        for (int row = 0; row < 8; row++) {
+            int lo = 0, hi = 0;
+            for (int c = 0; c < 8; c++) { int v = px[(ty * 8 + row) * s->pitch + tx * 8 + c] & 3; lo = (lo << 1) | (v & 1); hi = (hi << 1) | (v >> 1); }
+            chr[base + row] = (uint8_t)lo; chr[base + 8 + row] = (uint8_t)hi;
+        }
+    }
+    SDL_FreeSurface(s);
+    return 1;
+}
+static int load_file(const char *path, void *dst, size_t n) { FILE *f = fopen(path, "rb"); if (!f) return 0; size_t r = fread(dst, 1, n, f); fclose(f); return r == n; }
+
 /* Rules (mutators): "name=value" from the command line (--rule) or from excitebike.cfg (one per line, # comments). Defaults are the original game. */
 static int set_rule(const char *kv) {
     char name[64]; int v;
@@ -82,7 +100,7 @@ static void load_config(const char *path) {
 
 int main(int argc, char **argv) {
     load_config("excitebike.cfg");
-    const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL, *record = NULL, *play = NULL;
+    const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL, *record = NULL, *play = NULL, *chr_bmp = NULL, *chr_raw = NULL, *pal_file = NULL;
     FILE *rec_f = NULL, *play_f = NULL;
     int dump_oam = 0; const char *peek = NULL;
     int16_t *wavbuf = NULL; size_t wavn = 0, wavcap = 0;
@@ -98,6 +116,9 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--record") && i + 1 < argc) record = argv[++i];
         else if (!strcmp(argv[i], "--play") && i + 1 < argc) play = argv[++i];
         else if (!strcmp(argv[i], "--rule") && i + 1 < argc) { if (!set_rule(argv[++i])) { fprintf(stderr, "unknown rule %s\n", argv[i]); return 1; } }
+        else if (!strcmp(argv[i], "--chr-bmp") && i + 1 < argc) chr_bmp = argv[++i];
+        else if (!strcmp(argv[i], "--chr") && i + 1 < argc) chr_raw = argv[++i];
+        else if (!strcmp(argv[i], "--palette") && i + 1 < argc) pal_file = argv[++i];
         else if (!strcmp(argv[i], "--peek") && i + 1 < argc) peek = argv[++i];         /* debug: print RAM bytes at exit, e.g. 12,4d,e8 */
         else if (!strcmp(argv[i], "--dump-oam")) dump_oam = 1;
         else if (!strcmp(argv[i], "--unlimited-sprites")) g_ppu.unlimited_sprites = 1;
@@ -113,7 +134,10 @@ int main(int argc, char **argv) {
     int vertical = rom[6] & 1, pal = (rom[12] & 1) || (rom[9] & 1);
     g_prg = rom + 16;
     g_pal = pal;
-    ppu_init(&g_ppu, rom + 16 + rom[4] * 0x4000, vertical, pal, g_ram);
+    static uint8_t chr_data[0x2000];
+    memcpy(chr_data, rom + 16 + rom[4] * 0x4000, sizeof chr_data);
+    if (chr_raw && !load_file(chr_raw, chr_data, sizeof chr_data)) { fprintf(stderr, "cannot read 8 KB CHR file %s\n", chr_raw); return 1; }
+    ppu_init(&g_ppu, chr_data, vertical, pal, g_ram);
     g_ppu.unlimited_sprites = unlimited;
     if (width_opt < PPU_W) width_opt = PPU_W;
     if (width_opt > PPU_MAXW) width_opt = PPU_MAXW;
@@ -122,6 +146,8 @@ int main(int argc, char **argv) {
     g_hal_write = hal_write; g_hal_read = hal_read; g_hal_event = hal_event;
 
     SDL_SetMainReady();
+    if (chr_bmp && !load_chr_bmp(chr_bmp, chr_data)) return 1;
+    if (pal_file) { uint8_t rgb[192]; if (!load_file(pal_file, rgb, sizeof rgb)) { fprintf(stderr, "cannot read 192-byte palette file %s\n", pal_file); return 1; } for (int i = 0; i < 64; i++) g_ppu.rgb[i] = 0xFF000000u | (uint32_t)rgb[i * 3] << 16 | (uint32_t)rgb[i * 3 + 1] << 8 | rgb[i * 3 + 2]; }
     int headless = shot != NULL && frames_limit >= 0;
     if (SDL_Init(SDL_INIT_VIDEO | (headless ? 0 : SDL_INIT_AUDIO)) != 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }
     SDL_Window *win = SDL_CreateWindow("Excitebike", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_ppu.width * scale, PPU_H * scale, headless ? SDL_WINDOW_HIDDEN : SDL_WINDOW_RESIZABLE);

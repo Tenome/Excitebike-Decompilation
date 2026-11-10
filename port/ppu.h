@@ -12,6 +12,7 @@
 typedef struct {
     uint8_t vram[2048];            /* two nametables */
     uint8_t pal[32];
+    uint32_t rgb[64];              /* colours of the 64 NES palette entries (ARGB); replaceable by a mod */
     uint8_t oam[256];
     const uint8_t *chr;            /* 8 KB pattern tables from the ROM */
     int vertical_mirroring;

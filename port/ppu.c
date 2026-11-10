@@ -16,6 +16,7 @@ static int rendering_on(const Ppu *p) { return (p->mask & 0x18) != 0; }
 void ppu_init(Ppu *p, const uint8_t *chr, int vertical_mirroring, int pal_region, const uint8_t *cpu_ram) {
     memset(p, 0, sizeof *p);
     p->chr = chr; p->vertical_mirroring = vertical_mirroring; p->pal_region = pal_region; p->cpu_ram = cpu_ram;
+    for (int i = 0; i < 64; i++) p->rgb[i] = NES_RGB[i];
     p->line = 0; p->col = 0; p->unlimited_sprites = 0; p->width = PPU_W;
 }
 
@@ -130,11 +131,11 @@ static void draw_line(Ppu *p, int L) {
     }
     uint32_t black = 0xFF000000u;
     for (int x = 0; x < stride; x++) out[x] = black;
-    uint32_t backdrop = black | NES_RGB[p->pal[0] & grey];
+    uint32_t backdrop = black | p->rgb[p->pal[0] & grey];
     for (int x = 0; x < cw; x++) {
         uint8_t ci = bg_col[x];
         if (spr_set[x] && (!spr_behind[x] || !bg_opaque[x])) ci = spr_col[x];
-        out[ox + x] = rendering_on(p) ? (black | NES_RGB[ci & grey]) : backdrop;
+        out[ox + x] = rendering_on(p) ? (black | p->rgb[ci & grey]) : backdrop;
     }
 }
 
