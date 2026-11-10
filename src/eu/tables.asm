@@ -110,4 +110,6 @@ Data_C170:
 Data_C178:
   .incbin "prg_bank_0.bin", $0178, $7  ; $C178
 Data_C17F:
-  .incbin "prg_bank_0.bin", $017F, $5  ; $C17F
+  .incbin "prg_bank_0.bin", $017F, $1  ; $C17F
+Data_C180:
+  .incbin "prg_bank_0.bin", $0180, $4  ; $C180

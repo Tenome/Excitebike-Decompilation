@@ -218,7 +218,7 @@ DrawDesignCursorSprite:
 Loc_EC3A:
   rts                          ; $EC3A
 CopyBackupToDesign:
-  ldx #$00                     ; $EC3B
+  ldx #$00                     ; $EC3B  [heuristic code]
 Loc_EC3D:
   lda TrackDesign,x            ; $EC3D
   sta TrackDesignWork,x        ; $EC40
@@ -236,7 +236,7 @@ Loc_EC47:
   sta $0237                    ; $EC59
   rts                          ; $EC5C
 DesignBlinkCursor:
-  lda #$F8                     ; $EC5D
+  lda #$F8                     ; $EC5D  [heuristic code]
   jsr DrawDesignCursorSprite   ; $EC5F
   lda z:FrameCounter           ; $EC62
   and #$10                     ; $EC64

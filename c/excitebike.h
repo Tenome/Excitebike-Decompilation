@@ -224,3 +224,30 @@ void InitHudSprite(Regs r);          /* $ECE4 */
 void ClearRiderSprites(void);        /* $D13F */
 void ReadJoypadPort(Regs r);         /* $D35B */
 void ReadJoypads(void);              /* $D347 */
+
+void ResultScreenActivate(void);     /* $C514 */
+void ResultScreenActivateKeep(void); /* $C518 */
+void SetupPpuUpdateTrack(void);      /* $C551 */
+void SetupPpuUpdate06(void);         /* $C55E */
+void SetupPpuUpdate05(void);         /* $C562 */
+void SetupPpuUpdate0E(void);         /* $C566 */
+void SetupPpuUpdate04(void);         /* $C56A */
+void SetupPpuUpdate09(void);         /* $C571 */
+void SetupPpuUpdate11(void);         /* $C582 */
+void SetupPpuUpdate17(void);         /* $C5A3 */
+void SetupMenuCursorTrack5(void);    /* $C575 */
+void SetupTimeTextSaved0(void);      /* $C5A7 */
+void SetupDesignTimes(void);         /* $C586 */
+void SetupTrackPicker(void);         /* $C5AC */
+void DesignShowSlotSprite(void);     /* $EC47 */
+void SetupDesignMode(void);          /* $C5C2 */
+void SetupTitleSubMenu(void);        /* $C3F3 */
+void SetupTitleScreen(void);         /* $C2BD */
+void SetupResultsPpu(void);          /* $C455 */
+void StateRaceEndWait(void);         /* $C465 */
+void StateTitleMenu(void);           /* $C346 */
+void HandlePause(void);              /* $CA38 */
+void RacePreUpdate(void);            /* $CA08 */
+void ClearOverlappedRiderSprites(void); /* $E42B */
+void StateDesignFrame(void);         /* $C97C */
+void StateRaceFrame(void);           /* $C99A */

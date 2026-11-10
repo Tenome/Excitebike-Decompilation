@@ -322,12 +322,36 @@ LoadSavedTimeForIndex:
 Loc_C56E:
   sta z:PpuUpdateIndex         ; $C56E
   rts                          ; $C570
-  .incbin "prg_bank_0.bin", $0571, $32  ; $C571
+  lda #$09                     ; $C571
+  bne Loc_C56E                 ; $C573
+  lda #$05                     ; $C575
+  sta z:TrackIndex             ; $C577
+  ldy #$02                     ; $C579
+  jsr SetMenuCursorSprite      ; $C57B
+  lda #$0F                     ; $C57E
+  bne Loc_C56E                 ; $C580
+  lda #$11                     ; $C582
+  bne Loc_C56E                 ; $C584
+  ldx #$03                     ; $C586
+  bne Loc_C594                 ; $C588
+Loc_C58A:
+  lda SavedTimes,x             ; $C58A
+  sta z:$65,x                  ; $C58D
+  lda $05C3,x                  ; $C58F
+  sta z:$68,x                  ; $C592
+Loc_C594:
+  lda Data_C180,x              ; $C594
+  sta z:$61,x                  ; $C597
+  dex                          ; $C599
+  bpl Loc_C58A                 ; $C59A
+  jsr CopyTrackDesignToBackup  ; $C59C
+  lda #$10                     ; $C59F
+  bne Loc_C56E                 ; $C5A1
   lda #$17                     ; $C5A3
   bne Loc_C56E                 ; $C5A5
   lda #$00                     ; $C5A7
   jmp WriteTimeTextSaved       ; $C5A9
-  lda #$12                     ; $C5AC  [heuristic code]
+  lda #$12                     ; $C5AC
   sta z:$34                    ; $C5AE
   ldx #$05                     ; $C5B0
 Loc_C5B2:
@@ -339,7 +363,7 @@ Loc_C5B2:
   inx                          ; $C5BD
   stx $0304                    ; $C5BE
   rts                          ; $C5C1
-  ldx #$01                     ; $C5C2  [heuristic code]
+  ldx #$01                     ; $C5C2
   stx z:$B7                    ; $C5C4
   jsr CopyTrackDesignToBackup  ; $C5C6
   stx z:$BD                    ; $C5C9

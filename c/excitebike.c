@@ -2592,3 +2592,210 @@ void ReadJoypads(void) {                      /* $D347 */
     ReadJoypadPort((Regs){ 0, 0, 0, 0 });
     ReadJoypadPort((Regs){ 0, 1, 0, 0 });
 }
+
+/* ---- batch 21: game states, setup-list entry points, pause, per-frame race loop ---- */
+#define APU_SND_CHN_REG 0x4015
+static void set_ppu_update(uint8_t a) { RAM(0x45) = a; }                                  /* $C56E */
+
+void ResultScreenActivate(void) {             /* $C514 (+$C518): show the results screen */
+    set_ppu_update(0x18);
+    RAM(0x49) = 1; RAM(0x40) = 1; RAM(0x44) = 0;
+}
+void ResultScreenActivateKeep(void) { RAM(0x49) = 1; RAM(0x40) = 1; RAM(0x44) = 0; }    /* $C518 */
+void SetupPpuUpdateTrack(void) {              /* $C551: PPU list $12 + track for the race screens, $12 for design screens */
+    uint8_t a = 0x12;
+    if (RAM(0x41) < 8) { a = (uint8_t)(a + RAM(0x43)); if (a == 0) a = 6; }
+    set_ppu_update(a);
+}
+void SetupPpuUpdate06(void) { set_ppu_update(0x06); }                                      /* $C55E */
+void SetupPpuUpdate05(void) { set_ppu_update(0x05); }                                      /* $C562 */
+void SetupPpuUpdate0E(void) { set_ppu_update(0x0E); }                                      /* $C566 */
+void SetupPpuUpdate04(void) { RAM(0x33) = 4; set_ppu_update(0x04); }                       /* $C56A */
+void SetupPpuUpdate09(void) { set_ppu_update(0x09); }                                      /* $C571 */
+void SetupPpuUpdate11(void) { set_ppu_update(0x11); }                                      /* $C582 */
+void SetupPpuUpdate17(void) { set_ppu_update(0x17); }                                      /* $C5A3 */
+void SetupMenuCursorTrack5(void) {            /* $C575 */
+    RAM(0x43) = 5;
+    SetMenuCursorSprite((Regs){ 0, 0, 2, 0 });
+    set_ppu_update(0x0F);
+}
+void SetupTimeTextSaved0(void) { WriteTimeTextSaved((Regs){ 0, 0, 0, 0 }); }               /* $C5A7 */
+void SetupDesignTimes(void) {                 /* $C586: copies the saved times into the working time slots and the design menu table */
+    int8_t x = 3;
+    RAM(0x61 + x) = ROMB(0xC180 + x);
+    for (x = 2; x >= 0; x--) {
+        RAM(0x65 + x) = RAM(0x05A0 + x);
+        RAM(0x68 + x) = RAM(0x05C3 + x);
+        RAM(0x61 + x) = ROMB(0xC180 + x);
+    }
+    CopyTrackDesignToBackup();
+    set_ppu_update(0x10);
+}
+void SetupTrackPicker(void) {                 /* $C5AC */
+    RAM(0x34) = 0x12;
+    for (int8_t x = 5; x >= 0; x--) RAM(0x0300 + x) = ROMB(0xC13C + x);
+    RAM(0x0304) = (uint8_t)(RAM(0x43) + 1);
+}
+void DesignShowSlotSprite(void) {             /* $EC47 */
+    RAM(0x0234) = 0xCF; RAM(0x0235) = RAM(0x05E0); RAM(0x0236) = 0; RAM(0x0237) = 0xE4;
+}
+void SetupDesignMode(void) {                  /* $C5C2: initial editor state: cursor, rider sprite, scroll positions */
+    RAM(0xB7) = 1;
+    CopyTrackDesignToBackup();
+    RAM(0xBD) = 0; RAM(0xBE) = 0; RAM(0xC4) = 0; RAM(0xC0) = 0; RAM(0x49) = 0; RAM(0xC2) = 0;
+    RAM(0x05E0) = 1;
+    RAM(0xAC) = 6; RAM(0x8C) = 0xA0; RAM(0x80) = 0x10; RAM(0x04) = 4; RAM(0x0B) = 0;
+    DrawRider((Regs){ 0, 0, 0, 0 });
+    for (int8_t x = 7; x >= 0; x--) RAM(0x0228 + x) = ROMB(0xC178 + x);
+    RAM(0xB1) = 5; RAM(0xB2) = 5; RAM(0xB0) = 0x21; RAM(0xB3) = 3;
+    RAM(0x64) = 8; RAM(0xE0) = 8; RAM(0xE0)++;
+    RAM(0xB4) = 0x7A;
+    RAM(0x40)++; RAM(0x47)++;
+    DrawDesignCursorSprite((Regs){ 0xD0, 0, 0, 0 });
+    DesignShowSlotSprite();
+}
+void SetupTitleSubMenu(void) {                /* $C3F3 */
+    RAM(0xFB) = 4; set_ppu_update(3);
+    SetMenuCursorSprite((Regs){ 0, 0, 1, 0 });
+    RAM(0x42) = 0; RAM(0x34) = 0x2D; RAM(0x0200) = 0xB0;
+}
+void SetupTitleScreen(void) {                 /* $C2BD */
+    uint8_t x;
+    RAM(0x03F8) = 4; set_ppu_update(2);
+    SetMenuCursorSprite((Regs){ 0, 0, 0, 0 });
+    x = RAM(0x03F0);
+    if (x == 0) RAM(0xFB) = 1;
+    if (!((uint8_t)(x - 2) & 0x80)) x = 0xFF;
+    RAM(0x03F0) = (uint8_t)(x + 1);
+    RAM(0x31) = 0x38;
+    io_w(APU_SND_CHN_REG, 0x0F);
+    RAM(0x0200) = ROMB(0xC080);
+}
+void SetupResultsPpu(void) {                  /* $C455 */
+    uint8_t y = 8;
+    if (RAM(0x41) < 8) { if (RAM(0x46) == 0) return; y--; }
+    RAM(0x45) = y;
+}
+void StateRaceEndWait(void) {                 /* $C465: shows the saved time for the finished race, blinking, until $34 runs out */
+    if (RAM(0x34) != 0) {
+        uint8_t x = RAM(0x0300);
+        WriteTimeTextSaved((Regs){ 6, 0, 0, 0 });
+        if (RAM(0x3F) & 0x10) return;
+        for (int8_t y = 6; y >= 0; y--) RAM(0x0304 + x++) = 0xFE;
+        return;
+    }
+    GameStateAdvance();
+    RAM(0x41) = (RAM(0x41) >= 8) ? 2 : RAM(0x41);
+}
+
+static void title_menu_chosen(void) {         /* $C36A */
+    uint8_t y = RAM(0x42);
+    RAM(0x03F7) = 0; RAM(0x43) = 0; RAM(0x42) = 0;
+    RAM(0x03F3) = 1; RAM(0x4A) = 1; RAM(0x03F0) = 1;
+    RAM(0x41) = (y == 2) ? 8 : 1;
+    RAM(0x03F2) = y;
+    GameStateClearSteps();
+    io_w(APU_SND_CHN_REG, RAM(0x03F7) ^ 0x0F);
+}
+void StateTitleMenu(void) {                   /* $C346 */
+    if (RAM(0x31) == 0) {
+        RAM(0x43) = 0; RAM(0x4A) = 0; RAM(0x03F7) = 0x0F; RAM(0x41) = 2;
+        GameStateClearSteps();
+        io_w(APU_SND_CHN_REG, RAM(0x03F7) ^ 0x0F);
+        return;
+    }
+    Regs q = MenuHandleInput((Regs){ 3, 0, 0, 0 });
+    if (q.x != 0) { title_menu_chosen(); return; }
+    RAM(0x03F2) = 0;
+    RAM(0x0200) = ROMB(0xC080 + q.y);
+}
+
+void HandlePause(void) {                      /* $CA38: Start toggles pause; the APU is muted while paused */
+    uint8_t a;
+    if (RAM(0x03B2) != 0) { RAM(0x03B2)--; return; }
+    a = RAM(0x15) & 0x10;
+    if (a != 0) {
+        a = RAM(0x03B0);
+        if (a == 0) {
+            RAM(0xFB) = 0x80; RAM(0x03B0) = 0x80; RAM(0xFC) = 0;
+            RAM(0x03B1) ^= 1;
+            if (RAM(0x03B1) == 0) io_w(APU_SND_CHN_REG, 0x0F);
+            RAM(0x03B2) = 0x28;
+            return;
+        }
+    }
+    RAM(0x03B0) = a;
+    if (RAM(0x03B1) == 0) return;
+    io_w(APU_SND_CHN_REG, 0);
+    if ((RAM(0x15) & 0x0F) == 0) return;
+    if (RAM(0x03B2) != 0) return;
+    RAM(0x03B2) = 0x28;
+}
+void RacePreUpdate(void) {                    /* $CA08 */
+    for (int8_t x = 3; x >= 0; x--) {
+        Regs q = { 0, (uint8_t)x, 0, 0 };
+        SetRiderTargetPitch(q);
+        RiderLaneFromY(q);
+    }
+    if (RAM(0x03F7) == 0) { HandlePause(); SaveInputToRider0(); return; }
+    uint8_t a = RAM(0x15);
+    if (a & 0x20) { ResetGameRam(); return; }
+    if (a & 0x10) { RAM(0x42) = 0; RAM(0x47) = 0; title_menu_chosen(); }
+}
+
+void ClearOverlappedRiderSprites(void) {      /* $E42B */
+    if (RAM(0x03A3) == 0) return;
+    for (int8_t x = 3; x >= 0; x--) {
+        uint8_t o = RAM(0x88 + x);
+        if (o == 0 || (o == 3 && RAM(0x0373) != 0)) continue;
+        RAM(0x07) = ROMB(0xD8C0 + x);
+        ClearSpriteBlock((Regs){ 0, 0, RAM(0x03B3), 0 });
+    }
+    RAM(0x03B3) ^= 2;
+}
+
+void StateDesignFrame(void) {                 /* $C97C */
+    SaveInputToRider0();
+    DesignModeUpdate();
+    ScrollWorld();
+    ScrollSplitLayer();
+    AdvanceTrackPositions();
+    TrackRenderUpdate();
+    DesignPlayback();
+    DesignCapture();
+    ResetSavedTimes();
+    WaitSprite0ThenResetScroll();
+}
+void StateRaceFrame(void) {                   /* $C99A: one frame of racing, in the original's order */
+    RacePreUpdate();
+    if ((RAM(0x03B1) | RAM(0x03B2)) != 0) { WaitSprite0ThenResetScroll(); return; }
+    UpdateRiderStates();
+    OverheatUpdate();
+    RunTrackScripts();
+    RunPendingTrackScripts();
+    if (RAM(0x52) != 0) RaceEndSequence();
+    else {
+        if (RAM(0x03F2) != 0) { SpawnCpuRiders(); HandleLostRider(); CheckTrackEdge(); }
+        UpdateRaceClock();
+        DrawFinishGate();
+        RiderCollisions();
+        BikeVsObstacleCheck();
+    }
+    RiderCrashUpdate();
+    UpdateRiderControls();
+    UpdateRiderY();
+    UpdateExhaustSprites();
+    UpdateRiderGroundDistance();
+    DrawJumpShadows();
+    TrackRenderUpdate();
+    DetectRiderOverlap();
+    UpdateEngineSound();
+    UpdateTempGauge();
+    DrawRiders();
+    ErasePassedRiderSprites();
+    MoveRiders();
+    AdvanceTrackPositions();
+    WaitSprite0ThenResetScroll();
+    UpdateAiRiders();
+    ClearOverlappedRiderSprites();
+}

@@ -28,6 +28,39 @@ io_log = (IoWrite * 8192).in_dll(lib, 'g_io_log'); io_n = ctypes.c_int.in_dll(li
 prg = bytes(ebdis.PRG); prg_buf = ctypes.create_string_buffer(prg, len(prg))
 ctypes.c_void_p.in_dll(lib, 'g_prg').value = ctypes.addressof(prg_buf)
 
+
+def RB(r):
+    """Plausible race RAM (four riders, flags, timers): keeps random states inside what the game can reach so long routines terminate."""
+    d = {}
+    for i in range(4):
+        d.update({0x80 + i: r.randint(0, 255), 0x84 + i: r.choice([0, 1, 1, 3]), 0x8C + i: r.choice([0x10, 0x60, 0x90, 0xA0, 0xA8, 0xB0, 0xE0]),
+                  0xB8 + i: r.choice([0, 1, 5, 8, 0x20, 0x30, 0x38, 0x40]), 0xBC + i: r.choice([0, 0, 2, 8]), 0x90 + i: r.randint(0, 255),
+                  0x94 + i: r.choice([0, 0, 1, 2, 3]), 0x98 + i: r.choice([0, 0, 0, 1]), 0x9C + i: r.choice([0, 0, 0, 1, 5]),
+                  0xA4 + i: r.choice([0, 1, 2]), 0xA8 + i: r.choice([0, 1, 1]), 0xAC + i: r.choice([0, 6, 6, 0x0A, 3, 8]),
+                  0xB0 + i: r.choice([0, 0, 2]), 0xB4 + i: r.randint(0, 6), 0xDC + i: r.choice([0, 1, 0xFF]), 0xD4 + i: r.choice([0, 0, 1, 3, 7]),
+                  0xCC + i: r.choice([0, 0, 1]), 0x58 + i: r.choice([0, 0, 3]), 0x70 + i: r.randint(0, 5), 0x364 + i: r.choice([0, 1]),
+                  0x368 + i: r.randint(0, 14), 0x388 + i: r.choice([0, 0, 2]), 0x374 + i: r.choice([0, 0, 2]), 0x370 + i: r.choice([0, 1]),
+                  0x390 + i: r.randint(0, 255), 0x60 + i: r.choice([0, 1, 2, 4]), 0x360 + i: r.randint(0, 5), 0xE0 + i: r.randint(0, 63),
+                  0x88 + i: r.randint(0, 3), 0x5C + i: r.choice([0, 0x40, 0x80, 0xC0, 1, 2]), 0x3E0 + i: r.choice([0, 0, 1]), 0x36 + i: r.choice([0, 0, 2]),
+                  0x26 + i: r.choice([0, 0, 5]), 0x2A + i: r.choice([0, 0, 3]), 0x6C + i: r.randint(0, 255), 0x398 + i: r.choice([0, 1, 2, 3]),
+                  0x18 + i: r.randint(0, 255),
+                  0xC0 + i: r.choice([0x10, 0x44, 0x80, 0x3F]), 0xC4 + i: r.choice([0, 0, 2]), 0xC8 + i: r.randint(0, 0x60), 0xD0 + i: r.randint(0, 0x40), 0xE4 + i: r.randint(0, 255)})
+    d.update({0x3C: r.choice([0, 0, 1]), 0x4F: r.choice([0, 1, 1]), 0x3BC: r.choice([0, 1]), 0x52: r.choice([0, 0, 1, 2]), 0x3A: r.choice([0, 0, 1]),
+              0x24: r.choice([0, 0, 1]), 0x3A0: r.choice([0, 0xF8, 5]), 0x2E: r.choice([0, 0, 1]), 0x3B9: r.randint(0, 255), 0x3BB: r.randint(0, 1),
+              0x3BD: r.randint(0, 255), 0x3BE: r.randint(0, 3), 0x20: r.choice([0, 0, 5]), 0x3F: r.randint(0, 255), 0x3F7: r.choice([0, 0, 1]),
+              0x3B1: r.choice([0, 0, 0, 1]), 0x3B2: r.choice([0, 0, 0, 3]), 0x3F2: r.choice([0, 1]), 0x14: r.choice([0, 4, 8, 0x0C, 1]),
+              0x15: r.choice([0, 0x10, 0x20, 0x30, 0x80, 0x40]), 0x41: r.choice([2, 5, 8, 9]), 0x43: r.randint(0, 5), 0x46: r.choice([0, 1]),
+              0x34: r.choice([0, 0, 5]), 0x31: r.choice([0, 3]), 0x373: r.choice([0, 1]), 0x3A3: r.choice([0, 1]), 0x3B3: r.choice([0, 2]),
+              0x6F: r.randint(0, 255), 0x393: r.randint(0, 255), 0x3F1: r.randint(0xA0, 0xFF), 0x3B6: r.randint(0, 0x1C), 0x3B5: r.randint(0, 255),
+              0x3A9: r.choice([0, 1]), 0x3A6: r.choice([0, 1]), 0x3A8: r.choice([0, 0, 1]), 0x4C: r.randint(0, 3), 0x3B0: r.choice([0, 0x80]), 0x3B4: r.randint(0, 255),
+              0x32: r.choice([0, 0x10, 3]), 0x04: 0, 0x03: 0x22, 0x4A: r.choice([0, 1])})
+    d.update({0x300: r.randint(0, 0x10)})
+    rows = {}
+    for base, choices in ((0x400, [0x3B, 0x3D, 0x10, 0x20]), (0x440, [0x3B, 0x3D, 0x10]), (0x480, [0x3D, 0x10, 0x20]), (0x4C0, [0x3B, 0x10]), (0x540, [0x3D, 0x10])):
+        for i in range(0x40): rows[base + i] = r.choice(choices)
+    d.update(rows)
+    return d
+
 # name, asm address, C symbol, takes_regs, result regs to compare, input constraints
 TESTS = [
     ('DivModByX',            0xDFA4, True,  'ax',  lambda r: dict(x=r.randint(1, 255))),
@@ -203,6 +236,32 @@ TESTS = [
     ('ClearRiderSprites', 0xD13F, False, '', lambda r: dict(ram={0x10: r.randint(0, 255)}, io={0x2002: 0})),
     ('ReadJoypadPort', 0xD35B, True, 'V', lambda r: dict(x=r.randint(0, 1), ram={0x14: r.randint(0, 255), 0x16: r.randint(0, 255)}, io={0x4016: r.randint(0, 255), 0x4017: r.randint(0, 255)})),
     ('ReadJoypads', 0xD347, False, '', lambda r: dict(ram={0x14: r.randint(0, 255), 0x16: r.randint(0, 255)}, io={0x4016: r.randint(0, 255), 0x4017: r.randint(0, 255)})),
+    ('ResultScreenActivate', 0xC514, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('ResultScreenActivateKeep', 0xC518, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupPpuUpdateTrack', 0xC551, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupPpuUpdate06', 0xC55E, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupPpuUpdate05', 0xC562, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupPpuUpdate0E', 0xC566, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupPpuUpdate04', 0xC56A, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupPpuUpdate09', 0xC571, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupPpuUpdate11', 0xC582, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupPpuUpdate17', 0xC5A3, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupMenuCursorTrack5', 0xC575, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupTimeTextSaved0', 0xC5A7, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupDesignTimes', 0xC586, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupTrackPicker', 0xC5AC, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('DesignShowSlotSprite', 0xEC47, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupDesignMode', 0xC5C2, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupTitleSubMenu', 0xC3F3, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupTitleScreen', 0xC2BD, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('SetupResultsPpu', 0xC455, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('StateRaceEndWait', 0xC465, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('StateTitleMenu', 0xC346, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('HandlePause', 0xCA38, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('RacePreUpdate', 0xCA08, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('ClearOverlappedRiderSprites', 0xE42B, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('StateDesignFrame', 0xC97C, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
+    ('StateRaceFrame', 0xC99A, False, '', lambda r: dict(ram=RB(r), io={0x2002: 0x40})),
 ]
 
 def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
