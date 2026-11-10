@@ -18,7 +18,8 @@ ROM_PATH = os.path.join(ROOT, 'orig', 'excitebike_us.nes')
 MAGIC = b'EBDES1'
 DESIGN_SIZE = 256
 
-def load_rom(path=ROM_PATH):
+def load_rom(path=None):
+    path = path or ROM_PATH
     d = open(path, 'rb').read(); return d[16:16 + 0x4000], d[16 + 0x4000:16 + 0x6000]
 
 def R(prg, a): return prg[a - 0xC000]

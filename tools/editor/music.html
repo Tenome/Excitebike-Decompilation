@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excitebike Music Editor</title>
+<style>
+:root { --bg:#f4f2ee; --panel:#fff; --ink:#1d1d1f; --mut:#6b6b70; --line:#d8d5cf; --acc:#c2410c; --acc2:#0f766e; --note:#0f766e; --noteSel:#c2410c; --key:#e9e6df; --keyb:#cfcbc2; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#1b1b1d; --panel:#26262a; --ink:#ececec; --mut:#9a9aa2; --line:#3a3a40; --acc:#fb923c; --acc2:#2dd4bf; --note:#2dd4bf; --noteSel:#fb923c; --key:#2e2e33; --keyb:#222226; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.4 system-ui, sans-serif; }
+header { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:2; }
+header h1 { font-size:16px; margin:0 12px 0 0; }
+button, select, input { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:4px 10px; }
+button { cursor:pointer; } button:hover { border-color:var(--acc); } button:disabled { opacity:.4; cursor:default; }
+button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+button.on { border-color:var(--acc); box-shadow:inset 0 0 0 1px var(--acc); }
+input[type=number] { width:64px; } input[type=text] { width:90px; }
+main { padding:12px 16px; display:grid; gap:12px; }
+section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+h2 { font-size:13px; margin:0 0 8px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+.row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0; }
+#rollwrap { overflow:auto; border:1px solid var(--line); border-radius:6px; max-height:62vh; background:var(--bg); }
+canvas { display:block; }
+.note { color:var(--mut); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Excitebike Music Editor</h1>
+  <button id="open">Open .ebm</button><input id="file" type="file" accept=".ebm,.txt" hidden>
+  <select id="rom"><option value="">ROM song…</option></select>
+  <button id="save" class="primary">Save .ebm</button>
+  <label>Request <input id="req" type="text" value="01" title="music request byte in hex: the file is saved as song_XX.ebm"></label>
+  <button id="play">▶ Play</button><button id="stop">■ Stop</button>
+  <button id="undo">Undo</button><button id="redo">Redo</button>
+  <span id="info" class="note"></span>
+</header>
+<main>
+  <section>
+    <div class="row" id="tabs"></div>
+    <div class="row">
+      <label>Duty <select id="duty"><option value="0">12.5%</option><option value="1">25%</option><option value="2">50%</option><option value="3">75%</option></select></label>
+      <label>Decay <input id="decay" type="number" min="0" max="15" title="0 = constant volume; 1-15 = decaying envelope, larger = slower"></label>
+      <label>New note length (frames) <input id="len" type="number" min="1" max="240" value="8"></label>
+      <label>Snap <select id="snap"><option>1</option><option>2</option><option selected>4</option><option>8</option></select> frames</label>
+      <label>Zoom <input id="zoom" type="range" min="2" max="16" value="6"></label>
+    </div>
+    <div id="rollwrap"><canvas id="roll"></canvas></div>
+    <div class="note">Click an empty spot to add a note, click a note to select it, drag its right edge to resize, drag its body to move it; Delete removes it, arrow keys nudge it (left/right = time, up/down = pitch). Notes in a voice cannot overlap.</div>
+  </section>
+  <section>
+    <h2>Selected note</h2>
+    <div class="row"><label>Pitch (MIDI) <input id="n_midi" type="number" min="0" max="127"></label><label>Length <input id="n_len" type="number" min="1" max="2000"></label>
+      <label>Gate <input id="n_gate" type="number" min="1" max="2000" title="frames the note actually sounds"></label><label>Decay <input id="n_decay" type="number" min="0" max="15"></label>
+      <span id="n_name" class="note"></span></div>
+    <div class="note">The port plays the saved file with <code>--audio-mod DIR</code> (the file must be named song_XX.ebm). F6 reloads it while the game runs. Frames are 1/60 s.</div>
+  </section>
+</main>
+<script src="data.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const D = window.EB_DATA || {};
+const KINDS = ['pulse1', 'pulse2', 'tri', 'noise'], FPS = 60.0988;
+let song = { name: 'new song', voices: {} }, cur = 'pulse1', selNote = null, undoS = [], redoS = [];
+KINDS.forEach(k => song.voices[k] = { on: false, duty: 2, decay: k === 'noise' ? 1 : (k === 'pulse1' ? 5 : 7), notes: [] });
+// ---- parse / write .ebm ----
+function parseEbm(text) {
+  const s = { name: '', voices: {} }; KINDS.forEach(k => s.voices[k] = { on: false, duty: 2, decay: 0, notes: [] }); let v = null, t = 0;
+  for (let ln of text.split(/\r?\n/)) { ln = ln.split('#')[0].trim(); if (!ln || ln === 'EBM1') continue; const w = ln.split(/\s+/);
+    if (w[0] === 'name') s.name = ln.slice(5);
+    else if (w[0] === 'voice') { v = s.voices[w[1]]; if (!v) { v = null; continue; } v.on = true; t = 0; for (let i = 2; i + 1 < w.length; i += 2) v[w[i]] = +w[i + 1]; }
+    else if (w[0] === 'r' && v) t += +w[1];
+    else if (w[0] === 'n' && v) { const n = { start: t, midi: +w[1], frames: +w[2], gate: +w[2], decay: v.decay }; for (let i = 3; i + 1 < w.length; i += 2) { if (w[i] === 'gate') n.gate = +w[i + 1]; else if (w[i] === 'decay') n.decay = +w[i + 1]; } v.notes.push(n); t += n.frames; } }
+  return s;
+}
+function toEbm() {
+  const out = ['EBM1', 'name ' + song.name];
+  for (const k of KINDS) { const v = song.voices[k]; if (!v.on && !v.notes.length) continue; out.push(`voice ${k}` + (k.startsWith('pulse') ? ` duty ${v.duty} decay ${v.decay}` : k === 'noise' ? ` decay ${v.decay}` : ''));
+    let t = 0; for (const n of [...v.notes].sort((a, b) => a.start - b.start)) { if (n.start > t) out.push('r ' + (n.start - t)); let s = `n ${n.midi} ${n.frames}`; if (n.gate !== n.frames) s += ` gate ${n.gate}`; if (k.startsWith('pulse') && n.decay !== v.decay) s += ` decay ${n.decay}`; out.push(s); t = n.start + n.frames; } }
+  return out.join('\n') + '\n';
+}
+// ---- model helpers ----
+const snap = () => JSON.stringify(song);
+function push() { undoS.push(snap()); if (undoS.length > 100) undoS.shift(); redoS = []; }
+$('undo').onclick = () => { if (undoS.length) { redoS.push(snap()); song = JSON.parse(undoS.pop()); selNote = null; refresh(); } };
+$('redo').onclick = () => { if (redoS.length) { undoS.push(snap()); song = JSON.parse(redoS.pop()); selNote = null; refresh(); } };
+function setSong(s) { song = s; cur = KINDS.find(k => song.voices[k].notes.length) || 'pulse1'; selNote = null; undoS = []; redoS = []; refresh(); }
+const range = k => k === 'noise' ? [0, 15] : k === 'tri' ? [24, 84] : [36, 96];
+const noteName = m => ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][m % 12] + (Math.floor(m / 12) - 1);
+function removeOverlap(v, n) { v.notes = v.notes.filter(o => o === n || o.start + o.frames <= n.start || o.start >= n.start + n.frames); }
+// ---- roll ----
+const cv = $('roll'), ctx = cv.getContext('2d'); const ROWH = 12, KEYW = 44;
+let pxPerFrame = 6, geom = null;
+function totalFrames() { let m = 240; for (const k of KINDS) for (const n of song.voices[k].notes) m = Math.max(m, n.start + n.frames + 60); return m; }
+function draw() {
+  pxPerFrame = +$('zoom').value; const [lo, hi] = range(cur), rows = hi - lo + 1, W = KEYW + totalFrames() * pxPerFrame, H = rows * ROWH;
+  cv.width = W; cv.height = H; const css = getComputedStyle(document.documentElement); const c = n => css.getPropertyValue(n).trim();
+  ctx.fillStyle = c('--bg'); ctx.fillRect(0, 0, W, H);
+  for (let r = 0; r < rows; r++) { const m = hi - r, y = r * ROWH, black = cur !== 'noise' && [1, 3, 6, 8, 10].includes(m % 12);
+    ctx.fillStyle = black ? c('--keyb') : c('--key'); ctx.fillRect(0, y, KEYW, ROWH); ctx.fillStyle = black ? c('--keyb') : 'transparent';
+    ctx.fillStyle = (m % 2 === 0 && cur === 'noise') || black ? 'rgba(128,128,128,.10)' : 'transparent'; ctx.fillRect(KEYW, y, W, ROWH);
+    ctx.strokeStyle = 'rgba(128,128,128,.18)'; ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(W, y + .5); ctx.stroke();
+    if (cur === 'noise' || m % 12 === 0) { ctx.fillStyle = c('--mut'); ctx.font = '10px system-ui'; ctx.fillText(cur === 'noise' ? String(m) : noteName(m), 4, y + 10); } }
+  for (let f = 0; f * pxPerFrame < W; f += 4) { const x = KEYW + f * pxPerFrame; ctx.strokeStyle = f % 60 === 0 ? 'rgba(128,128,128,.5)' : f % 16 === 0 ? 'rgba(128,128,128,.28)' : 'rgba(128,128,128,.10)'; ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, H); ctx.stroke(); }
+  for (const k of KINDS) { if (k === cur) continue; const [l2, h2] = range(k); for (const n of song.voices[k].notes) { if (cur === 'noise' || k === 'noise') continue; const y = (hi - n.midi) * ROWH; if (n.midi < lo || n.midi > hi) continue;
+    ctx.fillStyle = 'rgba(128,128,128,.25)'; ctx.fillRect(KEYW + n.start * pxPerFrame, y + 2, n.frames * pxPerFrame - 1, ROWH - 4); } }
+  for (const n of song.voices[cur].notes) { if (n.midi < lo || n.midi > hi) continue; const y = (hi - n.midi) * ROWH, x = KEYW + n.start * pxPerFrame;
+    ctx.fillStyle = n === selNote ? c('--noteSel') : c('--note'); ctx.fillRect(x, y + 1, n.frames * pxPerFrame - 1, ROWH - 2);
+    if (n.gate < n.frames) { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(x + n.gate * pxPerFrame, y + 1, (n.frames - n.gate) * pxPerFrame - 1, ROWH - 2); } }
+  if (playing) { const x = KEYW + playFrame * pxPerFrame; ctx.strokeStyle = c('--acc'); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); ctx.lineWidth = 1; }
+  geom = { lo, hi };
+}
+function hit(e) { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; return { x, y, frame: (x - KEYW) / pxPerFrame, midi: geom.hi - Math.floor(y / ROWH) }; }
+let drag = null;
+cv.onmousedown = e => { const h = hit(e); if (h.x < KEYW) { preview(h.midi); return; } const v = song.voices[cur];
+  const n = v.notes.find(n => h.midi === n.midi && h.frame >= n.start && h.frame < n.start + n.frames);
+  const sn = +$('snap').value;
+  if (n) { selNote = n; const edge = h.x > KEYW + (n.start + n.frames) * pxPerFrame - 6; push(); drag = { n, mode: edge ? 'size' : 'move', f0: h.frame, start0: n.start, len0: n.frames, midi0: n.midi }; preview(n.midi); }
+  else { push(); const s = Math.max(0, Math.floor(h.frame / sn) * sn); const nn = { start: s, midi: h.midi, frames: Math.max(1, +$('len').value | 0), gate: 0, decay: v.decay }; nn.gate = nn.frames; v.notes.push(nn); v.on = true; removeOverlap(v, nn); selNote = nn; preview(nn.midi); }
+  refresh(); };
+cv.onmousemove = e => { if (!drag) return; const h = hit(e), sn = +$('snap').value, n = drag.n;
+  if (drag.mode === 'size') { const nl = Math.max(1, Math.round((h.frame - n.start) / sn) * sn || 1); n.frames = nl; n.gate = Math.min(n.gate, nl) || nl; if (n.gate > nl) n.gate = nl; }
+  else { n.start = Math.max(0, Math.round((drag.start0 + h.frame - drag.f0) / sn) * sn); const nm = Math.max(geom.lo, Math.min(geom.hi, h.midi)); if (nm !== n.midi) { n.midi = nm; preview(nm); } }
+  draw(); };
+window.onmouseup = () => { if (drag) { removeOverlap(song.voices[cur], drag.n); drag = null; refresh(); } };
+function refresh() {
+  $('tabs').innerHTML = ''; KINDS.forEach(k => { const b = document.createElement('button'); b.textContent = k + (song.voices[k].notes.length ? ` (${song.voices[k].notes.length})` : ''); if (k === cur) b.className = 'on'; b.onclick = () => { cur = k; selNote = null; refresh(); }; $('tabs').appendChild(b); });
+  const v = song.voices[cur]; $('duty').value = v.duty; $('decay').value = v.decay; $('duty').disabled = cur === 'tri' || cur === 'noise'; $('decay').disabled = cur === 'tri';
+  $('undo').disabled = !undoS.length; $('redo').disabled = !redoS.length;
+  const n = selNote; $('n_midi').value = n ? n.midi : ''; $('n_len').value = n ? n.frames : ''; $('n_gate').value = n ? n.gate : ''; $('n_decay').value = n ? n.decay : ''; $('n_name').textContent = n && cur !== 'noise' ? noteName(n.midi) + `, starts at frame ${n.start} (${(n.start / FPS).toFixed(2)} s)` : '';
+  let tot = 0; for (const k of KINDS) for (const m of song.voices[k].notes) tot = Math.max(tot, m.start + m.frames); $('info').textContent = `${(tot / FPS).toFixed(1)} s, ${tot} frames`;
+  draw(); }
+$('duty').onchange = () => { push(); song.voices[cur].duty = +$('duty').value; refresh(); };
+$('decay').onchange = () => { push(); const v = song.voices[cur], d = Math.max(0, Math.min(15, +$('decay').value | 0)); song.voices[cur].notes.forEach(n => { if (n.decay === v.decay) n.decay = d; }); v.decay = d; refresh(); };
+$('zoom').oninput = draw;
+const edit = (id, f) => $(id).onchange = () => { if (!selNote) return; push(); f(selNote, +$(id).value | 0); removeOverlap(song.voices[cur], selNote); refresh(); };
+edit('n_midi', (n, v) => n.midi = Math.max(0, Math.min(127, v))); edit('n_len', (n, v) => { n.frames = Math.max(1, v); n.gate = Math.min(n.gate, n.frames); }); edit('n_gate', (n, v) => n.gate = Math.max(1, Math.min(n.frames, v))); edit('n_decay', (n, v) => n.decay = Math.max(0, Math.min(15, v)));
+document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || !selNote) { if (e.ctrlKey && e.key === 'z') $('undo').click(); return; } const sn = +$('snap').value, n = selNote;
+  if (e.key === 'Delete') { push(); const v = song.voices[cur]; v.notes = v.notes.filter(x => x !== n); selNote = null; }
+  else if (e.key === 'ArrowRight') { push(); n.start += sn; removeOverlap(song.voices[cur], n); } else if (e.key === 'ArrowLeft') { push(); n.start = Math.max(0, n.start - sn); removeOverlap(song.voices[cur], n); }
+  else if (e.key === 'ArrowUp') { push(); n.midi = Math.min(geom.hi, n.midi + 1); preview(n.midi); } else if (e.key === 'ArrowDown') { push(); n.midi = Math.max(geom.lo, n.midi - 1); preview(n.midi); } else return;
+  e.preventDefault(); refresh(); });
+// ---- sound (a rough preview of what the APU makes) ----
+let ac = null, playing = false, playFrame = 0, timer = null, nodes = [];
+function audio() { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); return ac; }
+function wave(duty) { const a = audio(), N = 32, re = new Float32Array(N), im = new Float32Array(N); for (let n = 1; n < N; n++) im[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * duty); return a.createPeriodicWave(re, im); }
+function voiceSound(kind, v, n, when) {
+  const a = audio(), dur = Math.max(0.02, n.gate / FPS), g = a.createGain(); g.connect(a.destination); let src;
+  if (kind === 'noise') { const buf = a.createBuffer(1, a.sampleRate * 0.5, a.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; src = a.createBufferSource(); src.buffer = buf; src.loop = true; src.playbackRate.value = 1 / (1 + (n.midi & 15) * 0.6); }
+  else { src = a.createOscillator(); const f = 440 * Math.pow(2, (n.midi - 69) / 12); src.frequency.value = f;
+    if (kind === 'tri') src.type = 'triangle'; else src.setPeriodicWave(wave([0.125, 0.25, 0.5, 0.75][v.duty])); }
+  const vol = kind === 'tri' ? 0.22 : kind === 'noise' ? 0.12 : 0.1, d = kind === 'noise' ? Math.max(1, n.decay || v.decay) : n.decay;
+  g.gain.setValueAtTime(vol, when); if (kind !== 'tri' && d > 0) g.gain.exponentialRampToValueAtTime(0.0005, when + Math.min(dur, (d + 1) * 16 / 240 / (kind === 'noise' ? 3 : 1))); else g.gain.setValueAtTime(vol, when + dur - 0.005);
+  g.gain.linearRampToValueAtTime(0, when + dur); src.connect(g); src.start(when); src.stop(when + dur + 0.02); nodes.push(src); return src;
+}
+function preview(midi) { if (!ac && !window.AudioContext && !window.webkitAudioContext) return; const v = song.voices[cur]; voiceSound(cur, v, { midi, gate: 8, frames: 8, decay: v.decay }, audio().currentTime); }
+$('play').onclick = () => { stop(); const a = audio(); a.resume(); const t0 = a.currentTime + 0.05; playing = true;
+  for (const k of KINDS) { const v = song.voices[k]; if (!v.on && !v.notes.length) continue; for (const n of v.notes) voiceSound(k, v, n, t0 + n.start / FPS); }
+  const tick = () => { if (!playing) return; playFrame = (a.currentTime - t0) * FPS; if (playFrame < 0) playFrame = 0; draw(); if (playFrame > totalFrames()) { stop(); return; } timer = requestAnimationFrame(tick); }; tick(); };
+function stop() { playing = false; cancelAnimationFrame(timer); nodes.forEach(n => { try { n.stop(); } catch (e) {} }); nodes = []; draw(); }
+$('stop').onclick = stop;
+// ---- files ----
+$('open').onclick = () => $('file').click();
+$('file').onchange = async () => { const f = $('file').files[0]; if (!f) return; const m = f.name.match(/song_([0-9a-f]{2})\.ebm$/i); if (m) $('req').value = m[1].toLowerCase(); setSong(parseEbm(await f.text())); $('file').value = ''; };
+Object.keys(D.songs || {}).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = 'ROM song ' + k.toUpperCase(); $('rom').appendChild(o); });
+$('rom').onchange = () => { const k = $('rom').value; $('rom').value = ''; if (k) { $('req').value = k; setSong(parseEbm(D.songs[k])); } };
+$('save').onclick = () => { const r = ($('req').value || '01').trim().toLowerCase().padStart(2, '0'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([toEbm()], { type: 'text/plain' })); a.download = `song_${r}.ebm`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+if (D.songs && D.songs['01']) setSong(parseEbm(D.songs['01'])); else refresh();
+</script>
+</body>
+</html>

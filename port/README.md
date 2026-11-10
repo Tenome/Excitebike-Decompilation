@@ -66,3 +66,9 @@ SAVE SETTINGS writes `excitebike.cfg` (read at the next start). F6 reloads the t
 Besides WAV files, `--audio-mod DIR` plays `song_XX.ebm` songs (XX = the music request byte in hex) through the APU, so the port's own synthesizer plays them: four voices (two pulses, triangle, noise) with free
 pitch and note lengths. `python tools/ebmusic.py export DIR` writes the ROM's eight songs as editable .ebm text (the exported title song matches the original's pitches note for note);
 `tools/editor/music.html` is a piano-roll editor for them. While a custom song plays, the game's sound effects keep pulse 1 and pulse 2 when they fire. Format: see `tools/ebmusic.py`.
+
+## Editors
+
+`python tools/editor/serve.py excitebike.nes` (or `editors.bat` in the packaged folder) opens three browser editors that read your own ROM and write the files the port loads:
+`index.html` the track editor (`.ebd`), `tiles.html` the tile and palette editor (`.chr`, `.bmp`, `.pal`), `music.html` the piano-roll music editor (`song_XX.ebm`).
+Start the port with `--track N=file.ebd --chr-bmp tiles.bmp --palette colors.pal --audio-mod DIR` (or just the ones you use) and press F6 to reload them without restarting.
