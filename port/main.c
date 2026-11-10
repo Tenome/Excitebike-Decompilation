@@ -29,6 +29,22 @@ static uint8_t hal_read(uint16_t a) {
 }
 static void hal_event(int ev, int arg) { if (ev == HAL_EV_DELAY) ppu_advance(&g_ppu, arg); }
 
+typedef struct { char magic[8]; uint8_t ram[0x800]; Ppu ppu; Apu apu; uint8_t latch[2], bits[2]; int pal; } SaveState;
+static void state_save(const char *path) {
+    static SaveState st; memcpy(st.magic, "EBSAVE1", 8); memcpy(st.ram, g_ram, sizeof st.ram); st.ppu = g_ppu; st.apu = g_apu;
+    memcpy(st.latch, g_pad_latch, 2); memcpy(st.bits, g_pad_bits, 2); st.pal = g_pal;
+    FILE *f = fopen(path, "wb"); if (f) { fwrite(&st, sizeof st, 1, f); fclose(f); fprintf(stderr, "state saved to %s\n", path); }
+}
+static int state_load(const char *path) {
+    static SaveState st; FILE *f = fopen(path, "rb"); if (!f) return 0;
+    size_t n = fread(&st, sizeof st, 1, f); fclose(f);
+    if (n != 1 || memcmp(st.magic, "EBSAVE1", 8) || st.pal != g_pal) return 0;
+    const uint8_t *chr = g_ppu.chr; int unl = g_ppu.unlimited_sprites;
+    memcpy(g_ram, st.ram, sizeof st.ram); g_ppu = st.ppu; g_apu = st.apu; g_ppu.chr = chr; g_ppu.cpu_ram = g_ram; g_ppu.unlimited_sprites = unl;
+    memcpy(g_pad_latch, st.latch, 2); memcpy(g_pad_bits, st.bits, 2);
+    return 1;
+}
+
 static uint8_t read_pad(const uint8_t *keys) {            /* bit 0 = A (first bit shifted out) ... bit 7 = Right */
     uint8_t b = 0;
     if (keys[SDL_SCANCODE_Z]) b |= 0x01;                  /* A: accelerate */
@@ -43,7 +59,8 @@ static uint8_t read_pad(const uint8_t *keys) {            /* bit 0 = A (first bi
 }
 
 int main(int argc, char **argv) {
-    const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL;
+    const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL, *record = NULL, *play = NULL;
+    FILE *rec_f = NULL, *play_f = NULL;
     int16_t *wavbuf = NULL; size_t wavn = 0, wavcap = 0;
     int scale = 3, frames_limit = -1;
     for (int i = 1; i < argc; i++) {
@@ -52,6 +69,8 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--press") && i + 1 < argc) press = argv[++i];
         else if (!strcmp(argv[i], "--wav") && i + 1 < argc) wav = argv[++i];
+        else if (!strcmp(argv[i], "--record") && i + 1 < argc) record = argv[++i];
+        else if (!strcmp(argv[i], "--play") && i + 1 < argc) play = argv[++i];
         else if (!strcmp(argv[i], "--unlimited-sprites")) g_ppu.unlimited_sprites = 1;
         else rom_path = argv[i];
     }
@@ -86,6 +105,12 @@ int main(int argc, char **argv) {
     }
 
     ResetInit();
+    if (record) { rec_f = fopen(record, "wb"); if (rec_f) fwrite("EBREC1\n\0", 1, 8, rec_f); }
+    if (play) {
+        play_f = fopen(play, "rb");
+        if (play_f) { char h[8]; if (fread(h, 1, 8, play_f) != 8 || memcmp(h, "EBREC1\n", 7)) { fclose(play_f); play_f = NULL; } }
+        if (!play_f) { fprintf(stderr, "cannot read replay %s\n", play); return 1; }
+    }
     int running = 1, frame = 0;
     double frame_ms = pal ? 1000.0 / 50.0 : 1000.0 / 60.0988, audio_acc = 0, samples_per_frame = 44100.0 * frame_ms / 1000.0;
     Uint64 freq = SDL_GetPerformanceFrequency(), next = SDL_GetPerformanceCounter();
@@ -96,6 +121,8 @@ int main(int argc, char **argv) {
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) running = 0;
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) running = 0;
+            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F5) state_save("quicksave.sav");
+            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F9) { if (!state_load("quicksave.sav")) fprintf(stderr, "no usable quicksave.sav\n"); }
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F11) SDL_SetWindowFullscreen(win, (SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP) ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
         }
         while (pp && *pp) {                                    /* --press "30=8,34=0": button state from that frame on */
@@ -105,6 +132,8 @@ int main(int argc, char **argv) {
             scripted = (uint8_t)b; pp += used; if (*pp == ',') pp++;
         }
         uint8_t pad = press ? scripted : read_pad(SDL_GetKeyboardState(NULL));
+        if (play_f) { int c = fgetc(play_f); if (c == EOF) break; pad = (uint8_t)c; }
+        if (rec_f) fputc(pad, rec_f);
         g_pad_bits[0] = pad;
         ppu_run_to_vblank(&g_ppu);                             /* the picture for this frame is complete; vblank starts */
         if (g_ppu.frames_done > 1) { SDL_UpdateTexture(tex, NULL, g_ppu.frame, PPU_W * 4); }
@@ -144,6 +173,13 @@ int main(int argc, char **argv) {
             fwrite(&sr, 4, 1, w); fwrite(&br, 4, 1, w); fwrite(&ba, 2, 1, w); fwrite(&bits, 2, 1, w); fwrite("data", 1, 4, w); fwrite(&dl, 4, 1, w);
             fwrite(wavbuf, 2, wavn, w); fclose(w); printf("saved %s (%zu samples)\n", wav, wavn);
         }
+    }
+    if (rec_f) fclose(rec_f);
+    if (play_f) fclose(play_f);
+    {
+        uint32_t h = 2166136261u;                              /* checksum of the game's RAM: equal for equal replays */
+        for (int i = 0; i < 0x800; i++) { h ^= g_ram[i]; h *= 16777619u; }
+        printf("final: frame %d, game state %d, RAM checksum %08x\n", frame, g_ram[0x41], h);
     }
     if (dev) SDL_CloseAudioDevice(dev);
     SDL_Quit();
