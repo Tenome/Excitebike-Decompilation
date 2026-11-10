@@ -1,0 +1,21 @@
+name: native port
+on: [push, pull_request]
+jobs:
+  build:
+    strategy:
+      matrix: { os: [ubuntu-latest, windows-latest] }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: SDL2 (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: make
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          curl -sL https://github.com/libsdl-org/SDL/releases/download/release-2.30.9/SDL2-devel-2.30.9-mingw.tar.gz | tar xz
+          gcc -O2 -std=gnu11 -Wno-unused-label -Wno-unused-function -o excitebike.exe port/main.c port/ppu.c port/apu.c port/audiomod.c c/excitebike.c -ISDL2-2.30.9/x86_64-w64-mingw32/include/SDL2 -LSDL2-2.30.9/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main -lSDL2 -lm
