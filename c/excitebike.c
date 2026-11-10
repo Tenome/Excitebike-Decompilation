@@ -537,3 +537,47 @@ void RiderState5Finish(Regs r) {              /* $D9F6 */
     if (x != 0 && RAM(0xB8 + x) < 8) return;
     RAM(0x9C + x) = 0;
 }
+
+/* ---- batch 5: reset, time-table indexing, release state ---- */
+void ResetGameRam(void) {                     /* $CA85: clears zero page $21-$FF, keeps the menu cursor */
+    uint8_t cur = RAM(0x42);
+    for (int i = 0x21; i <= 0xFF; i++) RAM(i) = 0;
+    RAM(0xFC) = 0;
+    RAM(0x49)++;
+    RAM(0x42) = cur;
+}
+
+Regs TimeTableIndexForTrack(Regs r) {         /* $CB13: best-time table slot for track number $02 */
+    uint8_t y = RAM(0x02), a = 0x20, c = y >= 5;
+    if (y == 5) { r.a = a; r.y = y; r.c = c; return r; }
+    a = 0;
+    for (;;) {
+        y--;
+        if (y & 0x80) break;
+        c = 0; a = adc8(a, 3, &c);
+    }
+    y = RAM(0x46);
+    if (y) a |= 0x10;
+    r.a = a; r.y = y; r.c = c; return r;
+}
+Regs TimeTableIndexForSelection(Regs r) {     /* $CB06 */
+    r = TimeTableIndexForTrack(r);
+    uint8_t c = r.c, a = r.a;
+    if (RAM(0x03F2) != 0) { c = 0; a = adc8(a, 0x23, &c); }
+    r.a = r.y = a; r.c = c; return r;
+}
+
+void SaveInputToRider0(void) { RAM(0x5C) = RAM(0x14); }   /* $CA1B */
+
+void RiderState4Release(Regs r) {             /* $D9D3 */
+    uint8_t x = r.x;
+    if (RAM(0x36 + x) != 0) return;
+    if (x == 0) {
+        if (RAM(0x03E0) != 0) { RAM(0x9C) = 0; return; }
+        if (RAM(0x03F7) != 0) { ResetGameRam(); return; }
+    } else {
+        if (RAM(0x22) != 0) return;
+        RAM(0xDC + x) = 1; RAM(0x22) = 0x18;
+    }
+    RAM(0x9C + x)++;
+}

@@ -85,3 +85,9 @@ void RiderState1Gate(Regs r);        /* $D933 */
 void RiderState2MoveToLane(Regs r);  /* $D953 */
 void RiderState3Wait(Regs r);        /* $D983 */
 void RiderState5Finish(Regs r);      /* $D9F6 */
+
+void ResetGameRam(void);                  /* $CA85 */
+Regs TimeTableIndexForTrack(Regs r);      /* $CB13 */
+Regs TimeTableIndexForSelection(Regs r);  /* $CB06 */
+void SaveInputToRider0(void);             /* $CA1B */
+void RiderState4Release(Regs r);          /* $D9D3 */

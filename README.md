@@ -14,7 +14,7 @@ This repository contains no game files. You need your own ROMs.
 | Code found | 11,299 of 16,384 PRG bytes in 216 routines (2,797 opcodes seen executing; the rest reached statically). The remaining 5 KB is data: tables, track pieces, text |
 | Byte identity | `python tools/build.py --version us|eu` prints `MATCH` |
 | Native build | `recomp/build_native.ps1` statically recompiles the classified code to C with [NESRecomp](https://github.com/mstan/nesrecomp); over 120,000 random-input frames the native build matched the interpreter hash for hash with 0 % of ROM cycles interpreted |
-| Lifted to C | 54 routines in `c/excitebike.c`, each differential-tested against the original 6502 code on thousands of random states (`tools/difftest.py`) |
+| Lifted to C | 59 routines in `c/excitebike.c`, each differential-tested against the original 6502 code on thousands of random states (`tools/difftest.py`) |
 | Not done yet | the rest of the C lift, a PPU/APU-free runtime, the PC features (see `docs/ROADMAP.md`) |
 
 The ByteMatch report counts **byte-exact assembly source**: instructions and `.incbin` data both count as matching, so the numbers start at 100 %. Progress from here is understanding: names, structured data, C.
@@ -42,3 +42,5 @@ cc65 is found through `--cc65 DIR`, `$CC65_DIR` or `PATH`. Edit `config/<ver>/*.
 | `progress/<ver>/report.json` | objdiff-format report for ByteMatch (published by `.github/workflows/report.yml` as `us_report` / `eu_report`) |
 | `recomp/` | native Windows build script |
 | `docs/` | `NOTES.md` findings, `ROADMAP.md` port plan |
+
+See [docs/PORT_FEATURES.md](docs/PORT_FEATURES.md) for the planned options (widescreen, more CPU riders, mutators, mods).
