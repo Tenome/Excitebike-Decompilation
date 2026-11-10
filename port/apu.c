@@ -126,6 +126,8 @@ void apu_run(Apu *a, int16_t *out, int samples, int sample_rate) {
         double tnd_in = tri / 8227.0 + noi / 12241.0 + a->dmc_level / 22638.0;
         double tnd_out = tnd_in > 0 ? 159.79 / (1.0 / tnd_in + 100.0) : 0.0;
         double m = pulse_out + tnd_out;
-        out[s] = (int16_t)(m * 24000.0);
+        double y = m - a->hp_in + 0.9996 * a->hp_out;                  /* the console's output stage blocks DC */
+        a->hp_in = m; a->hp_out = y;
+        out[s] = (int16_t)(y * 24000.0);
     }
 }

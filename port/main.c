@@ -43,13 +43,15 @@ static uint8_t read_pad(const uint8_t *keys) {            /* bit 0 = A (first bi
 }
 
 int main(int argc, char **argv) {
-    const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL;
+    const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL;
+    int16_t *wavbuf = NULL; size_t wavn = 0, wavcap = 0;
     int scale = 3, frames_limit = -1;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--frames") && i + 1 < argc) frames_limit = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--press") && i + 1 < argc) press = argv[++i];
+        else if (!strcmp(argv[i], "--wav") && i + 1 < argc) wav = argv[++i];
         else if (!strcmp(argv[i], "--unlimited-sprites")) g_ppu.unlimited_sprites = 1;
         else rom_path = argv[i];
     }
@@ -115,6 +117,7 @@ int main(int argc, char **argv) {
             int chunk = ns > 2048 ? 2048 : ns;
             apu_run(&g_apu, abuf, chunk, 44100);
             if (dev) SDL_QueueAudio(dev, abuf, (Uint32)chunk * 2);
+            if (wav) { if (wavn + chunk > wavcap) { wavcap = (wavn + chunk) * 2; wavbuf = realloc(wavbuf, wavcap * 2); } memcpy(wavbuf + wavn, abuf, (size_t)chunk * 2); wavn += chunk; }
             ns -= chunk;
         }
         frame++;
@@ -132,6 +135,15 @@ int main(int argc, char **argv) {
         SDL_Surface *s = SDL_CreateRGBSurfaceWithFormatFrom(g_ppu.frame, PPU_W, PPU_H, 32, PPU_W * 4, SDL_PIXELFORMAT_ARGB8888);
         SDL_SaveBMP(s, shot); SDL_FreeSurface(s);
         printf("saved %s (game state %d, frame %d)\n", shot, g_ram[0x41], frame);
+    }
+    if (wav && wavbuf) {                                       /* 16-bit mono 44.1 kHz WAV of everything the game played */
+        FILE *w = fopen(wav, "wb");
+        if (w) {
+            uint32_t dl = (uint32_t)(wavn * 2), rl = 36 + dl, sr = 44100, br = 88200; uint16_t one = 1, bits = 16, ba = 2; uint32_t fmt = 16;
+            fwrite("RIFF", 1, 4, w); fwrite(&rl, 4, 1, w); fwrite("WAVEfmt ", 1, 8, w); fwrite(&fmt, 4, 1, w); fwrite(&one, 2, 1, w); fwrite(&one, 2, 1, w);
+            fwrite(&sr, 4, 1, w); fwrite(&br, 4, 1, w); fwrite(&ba, 2, 1, w); fwrite(&bits, 2, 1, w); fwrite("data", 1, 4, w); fwrite(&dl, 4, 1, w);
+            fwrite(wavbuf, 2, wavn, w); fclose(w); printf("saved %s (%zu samples)\n", wav, wavn);
+        }
     }
     if (dev) SDL_CloseAudioDevice(dev);
     SDL_Quit();
