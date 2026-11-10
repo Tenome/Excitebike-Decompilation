@@ -1515,3 +1515,59 @@ store:
     RAM(0x42) = y;
     RAM(0x49)++;
 }
+
+/* ---- batch 13: overheating, race end, game-state advance ---- */
+void GameStateClearSteps(void) { RAM(0x40) = 0; RAM(0x44) = 0; }          /* $C3B1 */
+void GameStateAdvance(void) { RAM(0x41)++; GameStateClearSteps(); }       /* $C3AF */
+
+void HudSpriteTemplate(void) {                /* $CD13: copies the 8-byte template to sprite slots $02C0 */
+    for (int8_t x = 7; x >= 0; x--) RAM(0x02C0 + x) = ROMB(0xC150 + x);
+}
+void OverheatMessage(void) {                  /* $CCDD: flashing "overheat" letters while $3C is odd */
+    if (!(RAM(0x3C) & 1)) return;
+    RAM(0xFB) = 0x40;
+    RAM(0x00) = 0x58;
+    for (int8_t x = 8; x >= 0; x--) {
+        uint8_t y = (uint8_t)(x << 2);
+        RAM(0x02C0 + y) = 0x44;
+        RAM(0x02C1 + y) = ROMB(0xC147 + x);
+        RAM(0x02C2 + y) = 0;
+        RAM(0x02C3 + y) = RAM(0x00);
+        RAM(0x00) += 0x0A;
+    }
+    RAM(0x02D0) = 0xF8;
+}
+void OverheatUpdate(void) {                   /* $DD8D: engine overheat stall for rider 0 */
+    uint8_t a = RAM(0x3C);
+    if ((a | RAM(0x03E0)) == 0) return;
+    if (a == 8) { RAM(0x03E0) = 0; RAM(0x03B6) = 5; RAM(0x9C) = 5; RAM(0x0374) = 5; HudSpriteTemplate(); return; }
+    if (a < 8) { HudSpriteTemplate(); return; }
+    if ((RAM(0x94) | RAM(0x98) | RAM(0x9C)) == 0) {
+        if (RAM(0x58) != 0) RAM(0x90) = 0xC0;
+        else { RAM(0x90) = 0; RAM(0xDC) = (RAM(0xB8) == ROMB(0xD8C4)) ? 0 : 1; }
+    }
+    OverheatMessage();
+}
+
+void RaceEndSequence(void) {                  /* $CA9B: end-of-race flashing and screen advance */
+    uint8_t a, y, x;
+    if (RAM(0x32) == 0) {
+        GameStateAdvance();
+        if (RAM(0x03F7) != 0) { ResetGameRam(); return; }
+        RAM(0x47) = 0; return;
+    }
+    RAM(0xFC) = 0; RAM(0x03A9) = 0; RAM(0x03E0) = 0; RAM(0x3C) = 0;
+    if ((uint8_t)(RAM(0x52) - 1) != 0) return;
+    a = RAM(0x3F);
+    if (!(a & 1) && !(a & 2)) {
+        y = (a >> 2) & 3;
+        RAM(0x0312) = 0x3F; RAM(0x0313) = 0; RAM(0x0319) = 0; RAM(0x0314) = 4;
+        RAM(0x0316) = ROMB(0xC166 + y); RAM(0x0318) = ROMB(0xC170 + y);
+        y = RAM(0x43);
+        RAM(0x0315) = ROMB(0xC160 + y); RAM(0x0317) = ROMB(0xC16A + y);
+        return;
+    }
+    x = 0x11;
+    if (RAM(0x32) & 1) return;
+    for (int8_t n = 6; n >= 0; n--) RAM(0x0304 + x++) = 0xFE;
+}

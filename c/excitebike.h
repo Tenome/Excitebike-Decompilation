@@ -135,3 +135,10 @@ void UpdateRiderY(void);             /* $E96C */
 void RiderStateDispatch(Regs r);     /* $D924 */
 void UpdateRiderStates(void);        /* $D918 */
 void MenuHandleInput(Regs r);        /* $C7DE */
+
+void GameStateClearSteps(void);      /* $C3B1 */
+void GameStateAdvance(void);         /* $C3AF */
+void HudSpriteTemplate(void);        /* $CD13 */
+void OverheatMessage(void);          /* $CCDD */
+void OverheatUpdate(void);           /* $DD8D */
+void RaceEndSequence(void);          /* $CA9B */
