@@ -58,6 +58,16 @@ TESTS = [
     ('RiderYOverlapTest',    0xE52C, True,  'ac',  lambda r: dict(x=r.randint(0, 3), y=r.randint(0, 3))),
     ('ClearRider',           0xDB95, True,  'a',   lambda r: dict(x=r.randint(0, 3))),
     ('AdvanceBufferPos',     0xC971, True,  'axc', lambda r: {}),
+    ('SetRiderTargetSpeed',  0xDB50, True,  'V',   lambda r: dict(x=r.choice([3, 3, 0, 1, 2]), y=r.randint(0, 2), ram={0x52: r.choice([0, 0, 0, 1]), 0x84+3: r.randint(0, 3) * r.choice([0, 1]), 0x94: r.choice([0, 1, 2]), 0x83: r.choice([0x00, 0x10, 0x70]) + r.randint(0, 255) % 64 * 0, 0x70: 5, 0x73: r.choice([5, 6])})),
+    ('AiJumpCheck',          0xD000, True,  'V',   lambda r: dict(x=r.randint(0, 3))),
+    ('AiClearPitchBits',     0xCFE3, True,  'V',   lambda r: dict(x=r.randint(0, 3))),
+    ('AiSetPitchInput',      0xCFEA, True,  'V',   lambda r: dict(x=r.randint(0, 3))),
+    ('SetRiderTargetPitch',  0xDCA0, True,  'V',   lambda r: dict(x=r.randint(0, 3))),
+    ('RiderPitchAdjust',     0xDCC7, True,  'V',   lambda r: dict(x=r.randint(0, 3), y=r.randint(0, 255))),
+    ('RiderJumpSetup',       0xDD38, True,  'V',   lambda r: dict(x=r.randint(0, 3))),
+    ('RiderStartJump',       0xDD06, True,  'V',   lambda r: dict(x=r.randint(0, 3))),
+    ('RiderLaunchUpdate',    0xDCF2, True,  'V',   lambda r: dict(x=r.randint(0, 3))),
+    ('ClearOam',             0xD255, False, '',    lambda r: {}),
 ]
 
 def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
@@ -66,8 +76,10 @@ def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
     fn.restype = Regs if returns else None
     if takes_regs: fn.argtypes = [Regs]
     for i in range(runs):
-        ram = bytes(rnd.randrange(256) for _ in range(0x800))
+        ram = bytearray(rnd.randrange(256) for _ in range(0x800))
         regs = dict(a=rnd.randrange(256), x=rnd.randrange(256), y=rnd.randrange(256), c=rnd.randrange(2)); regs.update(gen(rnd))
+        for k, v in regs.pop('ram', {}).items(): ram[k] = v          # generators may bias RAM to reach rare branches
+        ram = bytes(ram)
         cpu = sim6502.CPU(prg); cpu.ram[:] = ram
         ra = cpu.call(addr, regs['a'], regs['x'], regs['y'], regs['c'])
         for k in range(0x800): ram_c[k] = ram[k]

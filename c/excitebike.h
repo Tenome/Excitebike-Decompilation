@@ -58,3 +58,14 @@ Regs TrackPieceAtRiderLane(Regs r);/* $E7FC */
 Regs RiderYOverlapTest(Regs r);    /* $E52C */
 Regs ClearRider(Regs r);           /* $DB95 */
 Regs AdvanceBufferPos(Regs r);     /* $C971 */
+
+void SetRiderTargetSpeed(Regs r);  /* $DB50 */
+void AiJumpCheck(Regs r);          /* $D000 */
+void AiClearPitchBits(Regs r);     /* $CFE3 */
+void AiSetPitchInput(Regs r);      /* $CFEA */
+void SetRiderTargetPitch(Regs r);  /* $DCA0 */
+void RiderPitchAdjust(Regs r);     /* $DCC7 */
+void RiderJumpSetup(Regs r);       /* $DD38 */
+void RiderStartJump(Regs r);       /* $DD06 */
+void RiderLaunchUpdate(Regs r);    /* $DCF2 */
+void ClearOam(void);               /* $D255 */

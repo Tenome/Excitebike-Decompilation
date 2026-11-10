@@ -239,3 +239,114 @@ Regs AdvanceBufferPos(Regs r) {               /* $C971: X = old PPU buffer lengt
     r.a = adc8(r.a, RAM(0x0300), &c);
     RAM(0x0300) = r.a; r.c = c; return r;
 }
+
+/* ---- batch 2: rider jump/launch, target speed/pitch, AI input bits ---- */
+void SetRiderTargetSpeed(Regs r) {            /* $DB50: Y = speed class from the AI */
+    uint8_t x = r.x, y = r.y, a;
+    if (RAM(0x52)) a = 3;
+    else {
+        if (x == 3) {                          /* $DB6C: the pace-setter copies the player's speed when close by */
+            uint8_t go_table = 0;
+            if ((RAM(0x84 + x) >> 1) & 1) go_table = 1;
+            else if (RAM(0x94) == 0) go_table = 1;
+            else {
+                RAM(0x78 + x) = RAM(0x94); RAM(0x74 + x) = RAM(0x90);
+                if (RAM(0x84 + x) != 0) {
+                    if (RAM(0x80 + x) >= 0x40) go_table = 1;
+                    else if (RAM(0x70) == RAM(0x73)) return;
+                }
+                if (!go_table) { if (RAM(0x78 + x) < 4) RAM(0x78 + x)++; return; }
+            }
+            (void)go_table;
+        }
+        a = ROMB(0xD8D5 + y);
+    }
+    RAM(0x78 + x) = a;
+    y = RAM(0x1B + x) & 0x0F;
+    RAM(0x74 + x) = ROMB(0xD8CD + y);
+}
+
+void AiJumpCheck(Regs r) {                    /* $D000 */
+    uint8_t x = r.x; r.y = 0;
+    if (x != 3) {
+        if ((RAM(0x80 + x) & 0x10) == 0) return;
+        uint8_t a = RAM(0x1A + x);
+        if (a < 0xC0) return;
+        if (a == 0xC0) r.y = 1;
+    }
+    SetRiderTargetSpeed(r);
+}
+
+void AiClearPitchBits(Regs r) { RAM(0x5C + r.x) &= 0xF0; }           /* $CFE3 */
+void AiSetPitchInput(Regs r) {                /* $CFEA */
+    uint8_t x = r.x;
+    AiClearPitchBits(r);
+    uint8_t y = 1, t = RAM(0x7C + x), p = RAM(0xAC + x);
+    if (t == 0 || t == p) return;
+    if (t > p) y = 2;
+    RAM(0x5C + x) |= y;
+}
+
+void SetRiderTargetPitch(Regs r) {            /* $DCA0 */
+    uint8_t x = r.x, y = RAM(0xD4 + x), a;
+    if (RAM(0x52) == 1 && (uint8_t)(x | RAM(0x98) | RAM(0x9C) | RAM(0x58)) == 0) a = 0x0A;
+    else a = ROMB(0xD88B + y);
+    RAM(0x0368 + x) = a;
+    if (RAM(0xA4 + x) == 1) RAM(0x0368 + x) = 6;
+}
+
+void RiderPitchAdjust(Regs r) {               /* $DCC7: step pitch one notch toward A, at most once per Y-latched period */
+    uint8_t x = r.x;
+    RAM(0x00) = r.a;
+    if (RAM(0x2A + x) != 0) return;
+    RAM(0x2A + x) = r.y;
+    uint8_t p = RAM(0xAC + x);
+    if (p == RAM(0x00)) return;
+    if (p < RAM(0x00)) RAM(0xAC + x) = p + 1; else RAM(0xAC + x) = p - 1;
+}
+
+static uint8_t jump_setup(uint8_t x) {         /* $DD38 body; returns carry as the 6502 leaves it */
+    uint8_t c = 0;
+    RAM(0xB0 + x) = 2; RAM(0x0380 + x) = 0x0F;
+    RAM(0x0378 + x) = adc8(RAM(0x90 + x), 0xAF, &c);
+    RAM(0x037C + x) = adc8(RAM(0x94 + x), 0, &c);
+    uint8_t v = RAM(0x0388 + x);
+    c = v >= 2;
+    if (v == 2) {
+        c = RAM(0x037C + x) & 1; RAM(0x037C + x) >>= 1;
+        uint8_t o = RAM(0x0378 + x); RAM(0x0378 + x) = (uint8_t)((o >> 1) | (c << 7)); c = o & 1;
+    }
+    if (x == 0) {
+        uint8_t t = RAM(0x94); c = (t >> 4) & 1;
+        uint8_t a = (uint8_t)((t << 4) ^ 0x30);
+        RAM(0xFF) = a ? a : 0x08;
+    }
+    return c;
+}
+void RiderJumpSetup(Regs r) { jump_setup(r.x); }
+
+static void launch_tail(uint8_t x, uint8_t c) {   /* $DD1A */
+    uint8_t y = RAM(0x5C + x) & 3;
+    RAM(0x038C + x) = ROMB(0xD868 + y);
+    RAM(0x01) = RAM(0x8C + x);
+    Regs q = JumpArcStep((Regs){ 0, x, y, c });
+    RAM(0x8C + x) = q.a;
+    if (RAM(0xCC + x) == 0) RAM(0x0364 + x) = 1;
+}
+void RiderStartJump(Regs r) {                 /* $DD06 */
+    uint8_t x = r.x;
+    RAM(0x0384 + x) = RAM(0x94 + x);
+    launch_tail(x, jump_setup(x));
+}
+void RiderLaunchUpdate(Regs r) {              /* $DCF2 */
+    uint8_t x = r.x, a = RAM(0xB0 + x);
+    if (a == 0) return;
+    if (a != 2) {                              /* $DCFA */
+        RAM(0x0384 + x) = 0; launch_tail(x, jump_setup(x)); return;
+    }
+    uint8_t in = RAM(0x5C + x);
+    if (in & 1) { if (RAM(0x4C) == 0) return; launch_tail(x, 1); }
+    else launch_tail(x, 0);
+}
+
+void ClearOam(void) { for (int i = 0; i < 256; i++) RAM(0x0200 + i) = 0xF8; }   /* $D255 */
