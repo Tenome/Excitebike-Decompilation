@@ -2206,3 +2206,162 @@ ebf6:
     RAM(0xFF) = 1; RAM(0x49) = 0;
     DrawDesignCursorSprite((Regs){ 0xD0, 0, 0, 0 });
 }
+
+/* ---- batch 18: HUD buffers, scrolling objects, per-frame rider movement ---- */
+void FetchTrackWindow(void) {                 /* $D0C6: copies the 4 track pieces ahead of each rider into $03C0 (for the AI) */
+    for (int8_t i = 3; i >= 0; i--) {
+        uint8_t x = (uint8_t)i, y, a;
+        RAM(0x0C) = (uint8_t)(x << 2);
+        RAM(0x0B) = 4;
+        Regs q = TrackPieceAtRiderLane((Regs){ 0, x, 0, 0 });
+        RAM(0xC0 + x) = q.a; a = q.a; y = q.y;
+        for (;;) {
+            y++;
+            RAM(0x08) = y & 0x3F;
+            RAM(0x03C0 + RAM(0x0C)) = a;
+            RAM(0x0C)++;
+            RAM(0x0B)--;
+            if (RAM(0x0B) == 0) break;
+            y = RAM(0x08);
+            a = rdp(RAM(0x03), RAM(0x04), y);
+        }
+    }
+}
+
+/* PpuBufferAdvance ($D2FF): X++; when X reaches $3F the original pops two return addresses (the buffer is full), which returns to a garbage
+ * address; the C code just terminates the buffer and stops. The game never queues that much text, so the case is not reachable in play. */
+static int ppu_buffer_advance(uint8_t *x) {
+    (*x)++;
+    if (*x < 0x3F) return 0;
+    *x = RAM(0x0300); RAM(0x0301 + *x) = 0;
+    return 1;
+}
+void QueueNametableRect(void) {               /* $D2A3: queues a w*h nametable rectangle; $00/$01 = PPU address, ($02) = data (first byte: h<<4 | w) */
+    uint8_t y = 0, x, hdr;
+    hdr = rd16mem((uint16_t)(RAM(0x02) | RAM(0x03) << 8));
+    RAM(0x05) = hdr & 0x0F;
+    RAM(0x04) = hdr >> 4;
+    x = RAM(0x0300);
+    do {
+        RAM(0x0301 + x) = RAM(0x01);
+        if (ppu_buffer_advance(&x)) return;
+        RAM(0x0301 + x) = RAM(0x00);
+        if (ppu_buffer_advance(&x)) return;
+        RAM(0x06) = RAM(0x05);
+        RAM(0x0301 + x) = RAM(0x05);
+        do {
+            if (ppu_buffer_advance(&x)) return;
+            y++;
+            RAM(0x0301 + x) = rdp(RAM(0x02), RAM(0x03), y);
+            RAM(0x06)--;
+        } while (RAM(0x06) != 0);
+        if (ppu_buffer_advance(&x)) return;
+        RAM(0x0300) = x;
+        uint16_t lo = (uint16_t)(0x20 + RAM(0x00));
+        RAM(0x00) = (uint8_t)lo;
+        RAM(0x01) = (uint8_t)(RAM(0x01) + (lo >> 8));
+        RAM(0x04)--;
+    } while (RAM(0x04) != 0);
+    RAM(0x0301 + x) = 0;
+}
+void CopyTimeDigitsToHud(void) {              /* $D0F4 */
+    for (int8_t x = 6; x >= 0; x--) RAM(0x03D1 + x) = RAM(0x03D9 + x);
+    RAM(0x00) = 0x56; RAM(0x01) = 0x23;
+    RAM(0x03D0) = 0x17;
+    RAM(0x02) = 0xD0; RAM(0x03) = 0x03;
+    RAM(0x03D2) = 0xFB; RAM(0x03D5) = 0xFB;
+    QueueNametableRect();
+}
+void InitHudBuffer(void) {                    /* $D11F: resets the PPU buffer to the attribute-table update at $23A0 */
+    RAM(0x0300) = 0x11; RAM(0x0301) = 0x23; RAM(0x0302) = 0xA0;
+    RAM(0x0303) = 0x0E;
+    for (uint8_t x = 0x0E; x != 0; x--) RAM(0x0303 + x) = 0xFE;
+    RAM(0x0312) = 0;
+}
+
+void DrawFinishGate(void) {                   /* $EAC5: countdown banner sprites ($3A) at the finish line */
+    uint8_t a, x = 0, y = 3;
+    if ((RAM(0x52) | RAM(0x3C)) != 0) { RAM(0x3A) = 0; return; }
+    a = RAM(0x3A);
+    if (a == 0) return;
+    if (a >= 0x0D) {
+        if (!(a & 1)) return;
+        RAM(0xFB) = 0x40;
+    }
+    do {
+        RAM(0x02B4 + x++) = 0x42;
+        RAM(0x02B4 + x++) = ROMB(0xE540 + y);
+        RAM(0x02B4 + x++) = 0;
+        RAM(0x02B4 + x++) = ROMB(0xE543 + y);
+        y--;
+    } while (y != 0);
+    for (int8_t i = 6; i >= 0; i--) {
+        RAM(0x02C0 + y++) = 0x4A;
+        y++;
+        RAM(0x02C0 + y++) = 0;
+        RAM(0x02C0 + y++) = ROMB(0xE547 + i);
+    }
+}
+
+static void obstacle_wheels(void) {           /* $E16C */
+    for (int8_t y = 6; y >= 0; y -= 4) {
+        OAM_AT(y) = 0x60;
+        OAM_AT(y - 1) = RAM(0x00);
+        RAM(0x00)--;
+    }
+}
+void UpdateTrackObstacle(void) {              /* $E0E6: the scrolling obstacle sprite that BikeVsObstacleCheck tests against */
+    if ((RAM(0x3A) | RAM(0x52) | RAM(0x24)) != 0) return;
+    if (RAM(0x03A0) == 0) {
+        if (RAM(0x2E) != 0) return;
+        RAM(0x03A1) = ROMB(0xD8F3 + (RAM(0x18) & 3));
+        RAM(0x03B9) = 0xF8; RAM(0x03A0) = 0xF8;
+    }
+    RAM(0x01) = 0x50;
+    RAM(0x03B9) = (uint8_t)(RAM(0x03B9) - RAM(0x60));
+    if (RAM(0x60) != 0 && (RAM(0x3F) & 0x0F) == 0) RAM(0x03B9)--;
+    RAM(0x00) = RAM(0x03B9);
+    if (RAM(0x03B9) >= 0xFC) { RAM(0x2E) = RAM(0x18) & 0xA0; RAM(0x03A0) = 0; return; }
+    RAM(0x02) = RAM(0x03A1); RAM(0x03) = 0x22; RAM(0x04) = 0xC0; RAM(0x0B) = 0x20;
+    DrawMetasprite((Regs){ 0x20, 0, 0, 0 });
+    if (RAM(0x03B9) >= 0x60) return;
+    RAM(0x00) = (uint8_t)(RAM(0x03A1) + 3);
+    obstacle_wheels();
+    RAM(0x00) = (uint8_t)(RAM(0x03A1) + 1);
+    RAM(0x04) += 8;
+    obstacle_wheels();
+}
+void UpdateScrollingBanner(void) {            /* $E2AF */
+    uint8_t v = RAM(0x03BD), y;
+    RAM(0x03BD) = (uint8_t)(v - RAM(0x60));
+    if (v < RAM(0x60)) RAM(0x03BE)--;
+    y = RAM(0x52);
+    if (y != 0) {
+        if ((uint8_t)(y - 1) != 0) return;
+        if (RAM(0x20) == 0) RAM(0x03BB) ^= 1;
+    }
+    if ((uint8_t)(RAM(0x03BE) - 1) != 0) return;
+    RAM(0x00) = RAM(0x03BD); RAM(0x01) = 0x50;
+    RAM(0x02) = ROMB(0xD8E5 + RAM(0x03BB));
+    RAM(0x03) = 0x32; RAM(0x04) = 0xC0; RAM(0x0B) = 0;
+    DrawMetasprite((Regs){ 0, 0, 0, 0 });
+}
+
+void MoveRiders(void) {                       /* $DA26: per-frame movement of the four riders and the world */
+    if (RAM(0x4F) == 0) return;
+    for (int8_t i = 3; i >= 0; i--) {
+        Regs q = { 0, (uint8_t)i, 0, 0 };
+        AccumulateRiderMove(q);
+        RiderLandingCheck(q);
+        RiderLaunchUpdate(q);
+        RiderPitchTimer(q);
+    }
+    ScrollWorld();
+    ShiftRidersByScroll();
+    ScrollSplitLayer();
+    if (RAM(0x3C) != 0) return;
+    uint8_t y = RAM(0x03BC);
+    RAM(0x00) = ROMB(0xD8EF + y); RAM(0x01) = ROMB(0xD8F1 + y);        /* jump-table pointer, as the original leaves it in $00/$01 */
+    if (y == 0) UpdateTrackObstacle();
+    else if (y == 1) UpdateScrollingBanner();
+}

@@ -181,3 +181,12 @@ void TrackRenderUpdate(void);        /* $F4FF */
 void DesignPlayback(void);           /* $F68D */
 void DesignCapture(void);            /* $F755 */
 void DesignModeUpdate(void);         /* $EB17 */
+
+void FetchTrackWindow(void);         /* $D0C6 */
+void QueueNametableRect(void);       /* $D2A3 */
+void CopyTimeDigitsToHud(void);      /* $D0F4 */
+void InitHudBuffer(void);            /* $D11F */
+void DrawFinishGate(void);           /* $EAC5 */
+void UpdateTrackObstacle(void);      /* $E0E6 */
+void UpdateScrollingBanner(void);    /* $E2AF */
+void MoveRiders(void);               /* $DA26 */
