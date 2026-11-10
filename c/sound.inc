@@ -110,6 +110,101 @@ static void SetPulse2Pitch(void) {                      /* $FAF7 */
     }
 }
 
+/* Note output. A = pitch index (even numbers 0-$3E): the period comes from two tables ($FF01 low byte, $FF00 high byte + length trigger).
+ * A zero low byte means a rest: nothing is written and Z stays set (the callers test it). The channel is selected by the register offset
+ * (0 = pulse 1 at $4002, 4 = pulse 2 at $4006, 8 = triangle at $400A). The table addresses are 16-bit sums, so large indices wrap into RAM. */
+static void play_note_on(uint8_t chan) {
+    uint8_t idx = ra;
+    rx = chan; ry = idx;
+    ra = rd16mem((uint16_t)(0xFF01 + idx)); SETNZ(ra);
+    if (ra == 0) return;
+    WR((uint16_t)(0x4002 + chan), ra);
+    ra = (uint8_t)(rd16mem((uint16_t)(0xFF00 + idx)) | 0x08); SETNZ(ra);
+    WR((uint16_t)(0x4003 + chan), ra);
+}
+static void PlayPulse1Note(void) { play_note_on(0); }                    /* $F871 */
+static void PlayPulse2Note(void) { play_note_on(4); }                    /* $F885 */
+static void PlayTriangleNote(void) { play_note_on(8); }                  /* $F889 */
+static void SetPulse1Regs(void) { WR(0x4000, rx); WR(0x4001, ry); PlayPulse1Note(); }   /* $F86B: X = volume/duty, Y = sweep, then the note in A */
+
+/* Music player. Songs are streams of one-byte notes in ROM; the byte holds the pitch (bits 1-5) and a length class (bit 0 and bits 6-7)
+ * that is turned into a frame count through a table, offset by the song's tempo ($07F0). Four voices share one stream pointer ($F8/$F9):
+ * pulse 1 (melody, index $07E0), pulse 2 (harmony, index $07E4), triangle (bass, index $FA) and noise (percussion, index $07EC);
+ * the voices read the stream at different positions, so each song table entry gives the start index of every voice. $F4 = song (request bit) playing. */
+static uint8_t music_length(uint8_t note) {            /* Sub_FF53: frames the note lasts */
+    uint8_t cls = (uint8_t)(((note & 1) << 2) | (note >> 6));
+    return rd16mem((uint16_t)(0xFF3E + (uint8_t)(cls + RAM(0x07F0))));      /* 16-bit address: a large tempo offset wraps into RAM, as on the console */
+}
+static uint8_t music_byte(uint8_t index) { return rdp(RAM(0xF8), RAM(0xF9), index); }
+static int play_note(void (*voice)(void), uint8_t note) { ra = note & 0x3E; voice(); return !fz; }   /* 1 when the pitch exists (not a rest) */
+
+static void SoundMusic(void) {                          /* $FC8D */
+    uint8_t a = RAM(0xFB), y, v, x;
+    if (a != 0) {                                        /* a new song starts */
+        RAM(0xF4) = a;
+        y = 0; do { y++; } while (!((a >> (y - 1)) & 1));
+        y = ROMB(0xFDD2 + y);
+        RAM(0x07F0) = ROMB(0xFDD3 + y); RAM(0xF8) = ROMB(0xFDD4 + y); RAM(0xF9) = ROMB(0xFDD5 + y);
+        RAM(0x07E0) = ROMB(0xFDD6 + y); RAM(0xFA) = ROMB(0xFDD7 + y); RAM(0x07EC) = ROMB(0xFDD8 + y);
+        RAM(0x07E5) = RAM(0x07E1) = RAM(0x07E9) = RAM(0x07ED) = 1;
+        RAM(0x07E4) = 0;
+        RAM(0x07FB)++;
+    } else if (RAM(0xF4) == 0) return;
+
+    y = RAM(0x07E0);                                     /* pulse 1: melody */
+    if (y != 0) {
+        RAM(0x07E1)--;
+        if (RAM(0x07E1) == 0) {
+            RAM(0x07E0)++;
+            v = music_byte(y);
+            RAM(0x07E1) = music_length(v);
+            if (!play_note(PlayPulse1Note, v)) x = 0x10;
+            else x = (RAM(0xF4) & 0x60) ? 0x4F : 0x05;
+            WR(0x4000, x);
+            y = 0x7F;
+            if (RAM(0xF4) & 1) y = ROMB(0xFC89 + (RAM(0x07FB) & 3));
+            WR(0x4001, y);
+        }
+    }
+    RAM(0x07E5)--;                                       /* pulse 2: harmony */
+    if (RAM(0x07E5) == 0) {
+        y = RAM(0x07E4); RAM(0x07E4)++;
+        v = music_byte(y);
+        if (v == 0) { RAM(0xFA) = 0; RAM(0xF4) = 0; WR(0x4000, 0x90); return; }      /* end of the song: silence pulse 1 and stop */
+        RAM(0x07E5) = music_length(v);
+        if ((RAM(0xF4) & 0x60) == 0) {
+            if (!play_note(PlayPulse2Note, v)) x = 0x10;
+            else x = RAM(0x07E5) >= 0x10 ? 0x87 : (RAM(0x07E5) >= 0x08 ? 0x84 : 0x82);
+            WR(0x4004, x); WR(0x4005, 0x7F);
+        }
+    }
+    y = RAM(0xFA);                                       /* triangle: bass */
+    if (y != 0) {
+        RAM(0x07E9)--;
+        if (RAM(0x07E9) == 0) {
+            RAM(0xFA)++;
+            v = music_byte(y);
+            RAM(0x07E9) = music_length(v);
+            a = (uint8_t)(RAM(0x07E9) - 1);
+            if (a >= 0x0C) a = 0x0C;
+            a = (uint8_t)(a << 2);
+            if (RAM(0xF4) == 0x20) a = 0x81;
+            WR(0x4008, a);
+            if (!play_note(PlayTriangleNote, v)) WR(0x4008, 0);
+        }
+    }
+    if ((RAM(0xF4) & 0x1B) != 0) {                       /* noise: percussion */
+        RAM(0x07ED)--;
+        if (RAM(0x07ED) == 0) {
+            y = RAM(0x07EC); RAM(0x07EC)++;
+            v = music_byte(y);
+            RAM(0x07ED) = music_length(v);
+            a = v & 0x3E;
+            if (a != 0) { WR(SND_NOISE_VOL, 0); WR(SND_NOISE_LO, a == 0x20 ? 2 : 0); WR(SND_NOISE_HI, 8); }
+        }
+    }
+}
+
 static void SoundUpdate(void) {                         /* $F844: runs every NMI */
     ra = 0xC0; SETNZ(ra);                                /* the original loads A with $C0 and keeps it: the pulse routines below read A on entry */
     WR(0x4017, ra);
@@ -123,3 +218,9 @@ static void SoundUpdate(void) {                         /* $F844: runs every NMI
 void V_SoundUpdate(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundUpdate(); }
 void V_SoundNoiseSfx(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundNoiseSfx(); }
 void V_SetPulse2Pitch(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SetPulse2Pitch(); }
+void V_SoundMusic(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundMusic(); }
+
+void V_SetPulse1Regs(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SetPulse1Regs(); }
+void V_PlayPulse1Note(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; PlayPulse1Note(); }
+void V_PlayPulse2Note(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; PlayPulse2Note(); }
+void V_PlayTriangleNote(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; PlayTriangleNote(); }
