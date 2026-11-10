@@ -16,7 +16,7 @@ extern uint8_t g_pad_buttons[2];              /* buttons the joypad model shifts
 extern void (*g_hal_write)(uint16_t addr, uint8_t val);   /* host hooks for the PC port (NULL in the tests) */
 extern uint8_t (*g_hal_read)(uint16_t addr);
 extern void (*g_hal_event)(int event, int arg);
-enum { SND_MUSIC = 0, SND_NOISE = 1, SND_PULSE2 = 2, SND_PULSE1 = 3 };
+enum { SND_MUSIC = 0, SND_NOISE = 1, SND_PULSE2 = 2, SND_PULSE1 = 3, SND_ENGINE = 4 };
 extern int (*g_hal_sound)(int chan, int value);   /* a sound request is about to run; return nonzero to replace it (audio mods) */
 enum { HAL_EV_DELAY = 1 };                    /* the code busy-waits for `arg` CPU cycles */
 typedef struct {

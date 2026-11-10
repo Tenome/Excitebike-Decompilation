@@ -368,12 +368,15 @@ static void SoundUpdate(void) {                         /* $F844: runs every NMI
         if (SfxPulse2Request && g_hal_sound(SND_PULSE2, SfxPulse2Request)) SfxPulse2Request = 0;
         if (SfxPulse1Request && g_hal_sound(SND_PULSE1, SfxPulse1Request)) SfxPulse1Request = 0;
     }
+    uint8_t engine_req = RAM(0xFC); int engine_taken = 0;
+    if (g_hal_sound && (engine_req & 0x7F) && g_hal_sound(SND_ENGINE, engine_req)) { RAM(0xFC) = 0; engine_taken = 1; }   /* engine tone replaced by a file: the original tone stays silent */
     ra = 0xC0; SETNZ(ra);                                /* the original loads A with $C0 and keeps it: the pulse routines below read A on entry */
     WR(0x4017, ra);
     SoundPulse1Sfx();
     SoundPulse2TriangleSfx();
     SoundNoiseSfx();
     SoundMusic();
+    if (engine_taken) RAM(0xFC) = engine_req;
     SfxPulse1Request = 0; SfxPulse2Request = 0; SfxNoiseRequest = 0; MusicRequest = 0;      /* the requests last one pass */
     if (RAM(0x07FF) != 0) { WR(0x4011, RAM(0x07FF)); RAM(0x07FF)--; }  /* DMC volume ramp */
 }

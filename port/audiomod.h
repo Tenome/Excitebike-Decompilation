@@ -6,3 +6,4 @@
 int audiomod_load(const char *dir);                       /* returns the number of files found */
 int audiomod_request(int chan, int value);                /* hook for g_hal_sound: nonzero when a file replaces the request */
 void audiomod_mix(int16_t *buf, int n);                   /* adds the playing files into 44.1 kHz mono samples */
+void audiomod_frame(void);                              /* call before each game frame: the engine tone plays only while the game requests it */

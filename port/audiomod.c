@@ -9,6 +9,7 @@ typedef struct { int16_t *s; int n; } Clip;
 static Clip g_clip[4][256];
 static const char *CH[4] = { "music", "noise", "pulse2", "pulse1" };
 typedef struct { const Clip *c; int pos, loop; } Voice;
+static Clip g_engine; static double g_engine_pos, g_engine_rate; static int g_engine_on;     /* engine.wav: looped, pitch follows the engine request */
 static Voice g_voice[MAXV];
 
 static uint32_t rd32(const uint8_t *p) { return p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24; }
@@ -50,11 +51,17 @@ int audiomod_load(const char *dir) {
         FILE *f = fopen(path, "rb"); if (!f) continue; fclose(f);
         if (load_wav(path, &g_clip[c][v])) found++;
     }
+    snprintf(path, sizeof path, "%s/engine.wav", dir);
+    { FILE *f = fopen(path, "rb"); if (f) { fclose(f); if (load_wav(path, &g_engine)) found++; } }
     if (found) g_hal_sound = audiomod_request;
     return found;
 }
 
 int audiomod_request(int chan, int value) {
+    if (chan == SND_ENGINE) {                                  /* every frame while an engine runs: value = pitch step (0-48), bit 7 = the player's bike */
+        if (!g_engine.s || g_engine.n < 2) return 0;
+        g_engine_on = 1; g_engine_rate = 0.5 + (value & 0x7F) / 48.0 * 1.2; return 1;
+    }
     const Clip *c = &g_clip[chan][value & 255]; if (!c->s) return 0;
     if (chan == SND_MUSIC) for (int i = 0; i < MAXV; i++) if (g_voice[i].loop) g_voice[i].c = NULL;      /* a new song replaces the old one */
     for (int i = 0; i < MAXV; i++) if (!g_voice[i].c) { g_voice[i] = (Voice){ c, 0, chan == SND_MUSIC }; return 1; }
@@ -62,6 +69,14 @@ int audiomod_request(int chan, int value) {
 }
 
 void audiomod_mix(int16_t *buf, int n) {
+    if (g_engine_on) {
+        for (int k = 0; k < n; k++) {
+            int i = (int)g_engine_pos; double fr = g_engine_pos - i; int j = (i + 1) % g_engine.n;
+            int s = buf[k] + (int)(g_engine.s[i] * (1 - fr) + g_engine.s[j] * fr);
+            buf[k] = (int16_t)(s > 32767 ? 32767 : s < -32768 ? -32768 : s);
+            g_engine_pos += g_engine_rate; if (g_engine_pos >= g_engine.n) g_engine_pos -= g_engine.n;
+        }
+    }
     for (int i = 0; i < MAXV; i++) {
         Voice *v = &g_voice[i]; if (!v->c) continue;
         for (int k = 0; k < n; k++) {
@@ -71,3 +86,5 @@ void audiomod_mix(int16_t *buf, int n) {
         }
     }
 }
+
+void audiomod_frame(void) { g_engine_on = 0; }

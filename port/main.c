@@ -236,6 +236,7 @@ int main(int argc, char **argv) {
         g_ppu.wide_active = g_ram[0x47] != 0;                  /* widen the picture only while racing / editing a track */
         ppu_run_to_vblank(&g_ppu);                             /* the picture for this frame is complete; vblank starts */
         for (int i = 0; i < 150; i++) UpdateRandom();          /* the idle loop between frames */
+        audiomod_frame();
         if (g_ppu.ctrl & 0x80) Nmi();
         ExtraRidersFrame();
         g_ppu.extra_n = 0;

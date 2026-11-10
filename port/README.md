@@ -43,3 +43,6 @@ game state as named structures and a renderer that reads them directly instead o
 with the channel `music`, `pulse1`, `pulse2` or `noise` and the request byte the game sends in two hex digits (`music_01.wav`, `pulse1_04.wav`; see the request
 bytes in `c/sound.inc`). A request that has a file is played from it instead of the original sound code; `music_*` files loop until the next music request.
 Requests without a file still use the original synthesized sound. The engine tone (a continuous state, not a one-shot request) is not replaceable yet.
+
+`engine.wav` in the same folder replaces the engine tone: it loops while an engine is running and its pitch follows the game's engine request (0.5x to 1.7x speed).
+The original tone is silenced while the file is in use. Because the sound variables then differ, replays recorded with an audio mod are not comparable with replays recorded without it.
