@@ -2,6 +2,15 @@
 #include "excitebike.h"
 
 uint8_t g_ram[0x800];
+uint8_t g_track_ext[0x2000]; uint16_t g_track_ext_base[6], g_track_ext_len[6];    /* host tracks, see rd16mem */
+int TrackExtSet(int slot, const uint8_t *stream, int len) {                      /* slot 0-4 = tracks 1-5, 5 = the designed track; returns 0 if it does not fit */
+    if (slot < 0 || slot > 5 || len < 2) return 0;
+    int used = 0; for (int i = 0; i < 6; i++) if (i != slot) used += g_track_ext_len[i];
+    if (used + len > 0x2000) return 0;
+    int base = 0; for (int i = 0; i < 6; i++) { if (i == slot) continue; if (g_track_ext_len[i] && g_track_ext_base[i] + g_track_ext_len[i] > base) base = g_track_ext_base[i] + g_track_ext_len[i]; }
+    memcpy(g_track_ext + base, stream, len); g_track_ext_base[slot] = (uint16_t)base; g_track_ext_len[slot] = (uint16_t)len; return 1;
+}
+void TrackExtClear(int slot) { if (slot >= 0 && slot < 6) g_track_ext_len[slot] = 0; }
 const uint8_t *g_prg;
 /* Game rules the port can change (mutators); the defaults are the original game's values, so the lifted code stays identical to it. */
 Rules g_rules = { 0xAF, 0x0D, 1, 100 };
@@ -54,7 +63,7 @@ static inline uint8_t PULL(void) { return g_stk[++g_sp]; }
 
 /* ---- tiny 6502 helpers so the lifted code keeps the exact arithmetic of the original ---- */
 static inline uint8_t sbc8(uint8_t a, uint8_t m, uint8_t *c) { unsigned r = a + (uint8_t)~m + *c; *c = r > 0xFF; return (uint8_t)r; }
-static inline uint8_t rd16mem(uint16_t a) { return a < 0x2000 ? g_ram[a & 0x7FF] : (a >= 0x8000 ? ROMB(a) : 0); }
+static inline uint8_t rd16mem(uint16_t a) { return a < 0x2000 ? g_ram[a & 0x7FF] : (a >= 0x8000 ? ROMB(a) : (a >= 0x6000 ? g_track_ext[a - 0x6000] : 0)); }   /* $6000-$7FFF: host track window (PRG-RAM area of the NES, unused by the cartridge) */
 static inline uint8_t adc8(uint8_t a, uint8_t m, uint8_t *c) { unsigned r = a + m + *c; *c = r > 0xFF; return (uint8_t)r; }
 #define RAM(a) g_ram[(a) & 0x7FF]
 #define NEG(v) (((v) & 0x80) != 0)
@@ -1959,37 +1968,44 @@ void DesignBlinkCursor(void) {                /* $EC5D */
 
 /* ---- batch 17: track streaming (TrackRenderUpdate) and the track editor (design mode) ---- */
 #define P07(y) rdp(RAM(0x07), RAM(0x08), (y))
+#define P07W(i) rd16mem((uint16_t)((RAM(0x07) | RAM(0x08) << 8) + (uint16_t)(i)))          /* 16-bit stream index (host tracks longer than 255 bytes) */
+static int ed_wide;                                                                       /* 1 while a host track is streamed: the position then has a high byte */
+#define ED16 ((uint16_t)(RAM(0xED) | (ed_wide ? TrackScriptPosHi << 8 : 0)))
+#define ED_SET(v) do { uint16_t ed_v_ = (v); RAM(0xED) = (uint8_t)ed_v_; if (ed_wide) TrackScriptPosHi = (uint8_t)(ed_v_ >> 8); } while (0)
 #define P05(y) rdp(RAM(0x05), RAM(0x06), (y))
 
 void TrackRenderUpdate(void) {                /* $F4FF: streams the next column of the track (script at ROM $ED3A,X) into the PPU buffer and the row tables */
     uint8_t x, y, a;
     x = TrackIndex;
-    RAM(0x07) = ROMB(0xED3A + x); RAM(0x08) = ROMB(0xED40 + x);
+    ed_wide = x < 6 && g_track_ext_len[x] != 0;
+    uint16_t ed;                                                  /* script position: RAM $ED plus a high byte, so host tracks can be longer than 255 bytes */
+    if (x < 6 && g_track_ext_len[x] != 0) { uint16_t base = 0x6000 + g_track_ext_base[x]; RAM(0x07) = (uint8_t)base; RAM(0x08) = (uint8_t)(base >> 8); }
+    else { RAM(0x07) = ROMB(0xED3A + x); RAM(0x08) = ROMB(0xED40 + x); }
     if (RAM(0xEB) != RiderTrackPos(0)) return;
     if (RAM(0xEC) != 0) goto f591;
     if (RAM(0xEF) != 0) goto f597;
 f51a:
-    y = RAM(0xED);
-    if (y == 0) { RAM(0x57) = P07(y); RAM(0x03A4)++; }
+    ed = ED16;
+    if (ed == 0) { RAM(0x57) = P07W(0); RAM(0x03A4)++; }
 f525:
-    if (GameState == 9 && SceneObjectKind != 0) { RAM(0xEE) = 0; RAM(0xED) = 0; a = 0x7F; goto f58d; }
-    RAM(0xED)++;
-    y = RAM(0xED);
-    a = P07(y);
+    if (GameState == 9 && SceneObjectKind != 0) { RAM(0xEE) = 0; ED_SET(0); a = 0x7F; goto f58d; }
+    ED_SET(ED16 + 1);
+    ed = ED16;
+    a = P07W(ed);
     if (a == 0) return;
     if ((a & ROMB(0xF3D8)) != 0 && ModeFlagB == 0) goto f51a;
-    a = P07(y);
+    a = P07W(ed);
     if ((a & ROMB(0xF0B5)) == 0) goto f576;
     x = a & 0x0F;
     RAM(0xEE) = ROMB(0xF4C6 + x);
-    RAM(0xED)++;
-    y++;
-    if (GameState == 9 && y == 2) {
+    ED_SET(ED16 + 1);
+    ed++;
+    if (GameState == 9 && ed == 2) {
         RAM(0x57) = 1;
-        a = (uint8_t)(P07(y) - 0x3D);
+        a = (uint8_t)(P07W(ed) - 0x3D);
         if (a != 0) goto f58d;
     }
-    a = P07(y);
+    a = P07W(ed);
     if (a != 0) goto f58d;
 f576:
     x = 1;
@@ -2017,7 +2033,7 @@ f597:
         RAM(0x03A4)++;
         RAM(0x57)--;
         if (RAM(0x57) == 0) SceneObjectKind = 1;
-        RAM(0xED) = 0; RAM(0x03A5) = 0;
+        ED_SET(0); RAM(0x03A5) = 0;
         goto f525;
     }
     ClearColumnBuffer();

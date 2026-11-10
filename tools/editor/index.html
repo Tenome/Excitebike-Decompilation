@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excitebike Track Editor</title>
+<style>
+:root { --bg:#f4f2ee; --panel:#fff; --ink:#1d1d1f; --mut:#6b6b70; --line:#d8d5cf; --acc:#c2410c; --acc2:#0f766e; --sel:#fde68a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#1b1b1d; --panel:#26262a; --ink:#ececec; --mut:#9a9aa2; --line:#3a3a40; --acc:#fb923c; --acc2:#2dd4bf; --sel:#5b4a10; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.4 system-ui, sans-serif; }
+header { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:2; }
+header h1 { font-size:16px; margin:0 12px 0 0; }
+button, select, input { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:4px 10px; }
+button { cursor:pointer; } button:hover { border-color:var(--acc); } button:disabled { opacity:.4; cursor:default; }
+button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+input[type=number] { width:64px; }
+main { padding:12px 16px; display:grid; gap:12px; }
+section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+h2 { font-size:13px; margin:0 0 8px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+#strip { overflow-x:auto; border:1px solid var(--line); border-radius:6px; background:#000; }
+#strip canvas { display:block; image-rendering:pixelated; cursor:pointer; }
+#pal { display:flex; flex-wrap:wrap; gap:6px; }
+.pp { border:1px solid var(--line); border-radius:6px; padding:3px; cursor:pointer; background:var(--bg); text-align:center; font-size:11px; color:var(--mut); }
+.pp:hover { border-color:var(--acc); }
+.pp canvas { display:block; image-rendering:pixelated; margin:0 auto 2px; }
+table { border-collapse:collapse; width:100%; }
+th, td { text-align:left; padding:3px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
+tr.sel td { background:var(--sel); }
+tr { cursor:pointer; }
+.meter { height:8px; background:var(--line); border-radius:4px; overflow:hidden; min-width:160px; }
+.meter div { height:100%; background:var(--acc2); }
+.meter.warn div { background:var(--acc); }
+.row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.note { color:var(--mut); font-size:12px; }
+#msg { color:var(--acc); font-weight:600; }
+#tokscroll { max-height:340px; overflow:auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Excitebike Track Editor</h1>
+  <button id="open">Open .ebd</button><input id="file" type="file" accept=".ebd" hidden>
+  <button id="save" class="primary">Save .ebd</button>
+  <select id="tpl"><option value="">New from…</option><option value="b0">Built-in track 1</option><option value="b1">Built-in track 2</option><option value="b2">Built-in track 3</option><option value="b3">Built-in track 4</option><option value="b4">Built-in track 5</option><option value="flat">Flat track</option></select>
+  <button id="undo">Undo</button><button id="redo">Redo</button>
+  <label>Laps <input id="laps" type="number" min="1" max="9" value="1"></label>
+  <span class="meter" id="meter"><div></div></span><span id="size" class="note"></span>
+  <span id="msg"></span>
+</header>
+<main>
+  <section><h2>Track</h2><div id="strip"><canvas id="cv"></canvas></div>
+    <div class="note">Click the track to select a piece. Each piece below is one token of the game's track script; “run” tokens repeat a piece N times.</div></section>
+  <section><h2>Add</h2>
+    <div class="row"><label>Run length <input id="runlen" type="number" min="1" max="127" value="8"></label>
+    <label>Single piece # <input id="pnum" type="number" min="0" max="63" value="7"></label><button id="addp">Add piece</button>
+    <label><input type="checkbox" id="bonly"> Selection B only</label></div>
+    <div id="pal" style="margin-top:8px"></div></section>
+  <section><h2>Pieces in order</h2><div id="tokscroll"><table id="toks"><thead><tr><th>#</th><th>Kind</th><th>Piece</th><th>Count</th><th>B only</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="row" style="margin-top:8px"><button id="up">Move up</button><button id="down">Move down</button><button id="dup">Duplicate</button><button id="del">Delete</button></div></section>
+  <section><h2>Playing your track</h2>
+    <div class="note">Save the file as <b>designs.ebd</b> next to the game, start <code>excitebike</code>, choose DESIGN, then LOAD, and run the track. Tracks over 255 bytes are saved in the extended format
+    (the port plays them with no length limit; the original game's 236-byte limit does not apply). The port can also reload the file while it runs (F6).</div></section>
+</main>
+<script src="data.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const D = window.EB_DATA;
+if (!D) { document.querySelector('main').innerHTML = '<section><b>data.js is missing.</b> Run <code>python tools/ebdesign.py editor-data</code> (it reads your own ROM) and reload.</section>'; throw new Error('no data'); }
+const NES = [[84,84,84],[0,30,116],[8,16,144],[48,0,136],[68,0,100],[92,0,48],[84,4,0],[60,24,0],[32,42,0],[8,58,0],[0,64,0],[0,60,0],[0,50,60],[0,0,0],[0,0,0],[0,0,0],[152,150,152],[8,76,196],[48,50,236],[92,30,228],[136,20,176],[160,20,100],[152,34,32],[120,60,0],[84,90,0],[40,114,0],[8,124,0],[0,118,40],[0,102,120],[0,0,0],[0,0,0],[0,0,0],[236,238,236],[76,154,236],[120,124,236],[176,98,236],[228,84,236],[236,88,180],[236,106,100],[212,136,32],[160,170,0],[116,196,0],[76,208,32],[56,204,108],[56,180,204],[60,60,60],[0,0,0],[0,0,0],[236,238,236],[168,204,236],[188,188,236],[212,178,236],[236,174,236],[236,174,212],[236,180,176],[228,196,144],[204,210,120],[180,222,120],[168,226,144],[152,226,180],[160,214,228],[160,162,160],[0,0,0],[0,0,0]];
+const CHR = Uint8Array.from(atob(D.chr), c => c.charCodeAt(0));
+const BASE = 0x1000, ROWS = 12, TS = 16, S = TS / 8;
+const tileCache = new Map();
+function tileCanvas(t) {                                   // one 8x8 tile in its track palette, drawn at TS x TS
+  if (tileCache.has(t)) return tileCache.get(t);
+  const pi = D.tilepal[String(t)] | 0, c = document.createElement('canvas'); c.width = c.height = 8;
+  const x = c.getContext('2d'), im = x.createImageData(8, 8);
+  for (let r = 0; r < 8; r++) { const lo = CHR[BASE + t * 16 + r], hi = CHR[BASE + t * 16 + 8 + r];
+    for (let k = 0; k < 8; k++) { const v = ((lo >> (7 - k)) & 1) | (((hi >> (7 - k)) & 1) << 1);
+      const col = NES[D.pal[v ? pi * 4 + v : 0] & 63], o = (r * 8 + k) * 4; im.data.set([col[0], col[1], col[2], v ? 255 : 0], o); } }
+  x.putImageData(im, 0, 0); tileCache.set(t, c); return c;
+}
+const bg = NES[D.pal[0] & 63], bgCss = `rgb(${bg[0]},${bg[1]},${bg[2]})`;
+function drawColumns(ctx, cols, x0, y0, tsz) {
+  cols.forEach((col, i) => { const [st, tiles] = col;
+    tiles.forEach((t, k) => { if (t !== 252) ctx.drawImage(tileCanvas(t), x0 + i * tsz, y0 + (st + k - 3) * tsz, tsz, tsz); }); });
+}
+// ---- model ----
+let laps = 1, toks = [], sel = 0, zp = new Uint8Array(64), undoS = [], redoS = [];
+const piecesOf = t => t.t === 'run' ? (D.pieces[D.runs[t.k]] || []) : (t.p < D.pieces.length ? D.pieces[t.p] : []);
+function parse(bytes) {
+  const out = []; let i = 1;
+  while (i < bytes.length) { const b = bytes[i++];
+    if (b === 0) break;
+    if (b === 9) { out.push({ t: 'piece', p: 9, b: false }); break; }
+    if (b & 0x40) { out.push({ t: 'run', k: b & 15, n: bytes[i++] & 0x7F }); } else out.push({ t: 'piece', p: b & 0x3F, b: !!(b & 0x80) }); }
+  return { laps: bytes[0] || 1, toks: out };
+}
+function serialize() {
+  const o = [laps];
+  for (const t of toks) { if (t.t === 'run') o.push(0x40 | t.k, t.n); else o.push(t.p | (t.b ? 0x80 : 0)); }
+  if (!toks.length || toks[toks.length - 1].p !== 9) o.push(9);
+  o.push(0); return Uint8Array.from(o);
+}
+function runIndexForPiece(p) { const k = D.runs.indexOf(p); return k; }
+// ---- UI ----
+const cv = $('cv'), ctx = cv.getContext('2d');
+function render() {
+  const cols = []; const starts = [];
+  toks.forEach(t => { starts.push(cols.length); const pc = piecesOf(t); if (t.t === 'run') for (let i = 0; i < t.n; i++) cols.push(...pc); else cols.push(...pc); });
+  starts.push(cols.length);
+  cv.width = Math.max(cols.length * TS, 64); cv.height = ROWS * TS;
+  ctx.imageSmoothingEnabled = false; ctx.fillStyle = bgCss; ctx.fillRect(0, 0, cv.width, cv.height);
+  drawColumns(ctx, cols, 0, 0, TS);
+  if (toks[sel]) { ctx.fillStyle = 'rgba(253,230,138,.28)'; ctx.fillRect(starts[sel] * TS, 0, (starts[sel + 1] - starts[sel]) * TS, cv.height); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.strokeRect(starts[sel] * TS + 1, 1, (starts[sel + 1] - starts[sel]) * TS - 2, cv.height - 2); }
+  cv._starts = starts;
+  const tb = $('toks').tBodies[0]; tb.innerHTML = '';
+  toks.forEach((t, i) => { const tr = document.createElement('tr'); if (i === sel) tr.className = 'sel';
+    const piece = t.t === 'run' ? `${D.runs[t.k]} <span class="note">(run kind ${t.k})</span>` : `${t.p}${t.p === 9 ? ' <span class="note">finish line</span>' : t.p >= 48 ? ' <span class="note">marker</span>' : ''}`;
+    tr.innerHTML = `<td>${i + 1}</td><td>${t.t}</td><td>${piece}</td><td>${t.t === 'run' ? `<input type="number" min="1" max="127" value="${t.n}" data-i="${i}" class="cnt">` : ''}</td><td><input type="checkbox" ${t.b ? 'checked' : ''} data-i="${i}" class="bchk" ${t.t === 'run' ? 'disabled' : ''}></td><td></td>`;
+    tr.onclick = e => { if (e.target.tagName !== 'INPUT') { sel = i; render(); } }; tb.appendChild(tr); });
+  tb.querySelectorAll('.cnt').forEach(el => el.onchange = () => { push(); toks[+el.dataset.i].n = Math.max(1, Math.min(127, +el.value | 0)); render(); });
+  tb.querySelectorAll('.bchk').forEach(el => el.onchange = () => { push(); toks[+el.dataset.i].b = el.checked; render(); });
+  const bytes = serialize().length - 1, lim = 255; $('size').textContent = `${bytes} bytes` + (bytes > 236 ? ' (over the original editor limit of 236)' : '');
+  $('meter').className = 'meter' + (bytes > 236 ? ' warn' : ''); $('meter').firstElementChild.style.width = Math.min(100, bytes / lim * 100) + '%';
+  $('laps').value = laps; $('undo').disabled = !undoS.length; $('redo').disabled = !redoS.length;
+  const fin = toks.length && toks[toks.length - 1].p === 9; $('msg').textContent = fin ? '' : 'No finish line at the end (piece 9): one will be added when saving.';
+}
+cv.onclick = e => { const x = Math.floor((e.clientX - cv.getBoundingClientRect().left) / TS), st = cv._starts; for (let i = 0; i < toks.length; i++) if (x >= st[i] && x < st[i + 1]) { sel = i; break; } render(); };
+function snap() { return JSON.stringify({ laps, toks, sel }); }
+function push() { undoS.push(snap()); if (undoS.length > 200) undoS.shift(); redoS = []; }
+function restore(s) { const o = JSON.parse(s); laps = o.laps; toks = o.toks; sel = Math.min(o.sel, Math.max(0, toks.length - 1)); }
+$('undo').onclick = () => { if (undoS.length) { redoS.push(snap()); restore(undoS.pop()); render(); } };
+$('redo').onclick = () => { if (redoS.length) { undoS.push(snap()); restore(redoS.pop()); render(); } };
+function insertTok(t) { push(); let at = toks.length && toks[toks.length - 1].p === 9 && sel >= toks.length - 1 ? toks.length - 1 : Math.min(sel + 1, toks.length); if (!toks.length) at = 0; toks.splice(at, 0, t); sel = at; render(); }
+$('laps').onchange = () => { push(); laps = Math.max(1, Math.min(9, +$('laps').value | 0)); render(); };
+$('addp').onclick = () => insertTok({ t: 'piece', p: Math.max(0, Math.min(63, +$('pnum').value | 0)), b: $('bonly').checked });
+$('del').onclick = () => { if (!toks.length) return; push(); toks.splice(sel, 1); sel = Math.min(sel, toks.length - 1); render(); };
+$('dup').onclick = () => { if (!toks.length) return; push(); toks.splice(sel + 1, 0, JSON.parse(JSON.stringify(toks[sel]))); sel++; render(); };
+$('up').onclick = () => { if (sel > 0) { push(); [toks[sel - 1], toks[sel]] = [toks[sel], toks[sel - 1]]; sel--; render(); } };
+$('down').onclick = () => { if (sel < toks.length - 1) { push(); [toks[sel + 1], toks[sel]] = [toks[sel], toks[sel + 1]]; sel++; render(); } };
+document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'Delete') $('del').click(); else if (e.ctrlKey && e.key === 'z') $('undo').click(); else if (e.ctrlKey && e.key === 'y') $('redo').click();
+  else if (e.key === 'ArrowRight' && sel < toks.length - 1) { sel++; render(); } else if (e.key === 'ArrowLeft' && sel > 0) { sel--; render(); } });
+function buildPalette() {
+  const pal = $('pal'); pal.innerHTML = '';
+  const add = (label, cols, fn) => { const d = document.createElement('div'); d.className = 'pp'; const c = document.createElement('canvas'); const w = Math.max(1, Math.min(cols.length, 8));
+    c.width = w * 8; c.height = ROWS * 8; c.style.width = (w * 8 * 1.5) + 'px'; c.style.height = (ROWS * 8 * 1.5) + 'px'; const x = c.getContext('2d'); x.fillStyle = bgCss; x.fillRect(0, 0, c.width, c.height); drawColumns(x, cols.slice(0, w), 0, 0, 8);
+    d.appendChild(c); d.appendChild(document.createTextNode(label)); d.onclick = fn; pal.appendChild(d); };
+  const seen = new Set();
+  for (let p = 0; p < D.pieces.length; p++) { if (p === 9) continue; if (!D.pieces[p].length) continue;
+    add('piece ' + p, D.pieces[p], () => insertTok({ t: 'piece', p, b: $('bonly').checked })); }
+  add('finish (9)', D.pieces[9], () => insertTok({ t: 'piece', p: 9, b: false }));
+  for (let k = 0; k < D.runs.length; k++) { const p = D.runs[k]; if (!D.pieces[p] || !D.pieces[p].length || seen.has(k)) continue; if (k > 9 && D.runs[k] === 0) continue;
+    add(`run ${k} (piece ${p})`, D.pieces[p], () => insertTok({ t: 'run', k, n: Math.max(1, Math.min(127, +$('runlen').value | 0)) })); }
+  [0x30, 0x31, 0x32, 0x33].forEach(p => add('marker 0x' + p.toString(16), [], () => insertTok({ t: 'piece', p, b: false })));
+}
+function setStream(bytes) { const o = parse(bytes); laps = o.laps; toks = o.toks; sel = 0; undoS = []; redoS = []; render(); }
+$('tpl').onchange = () => { const v = $('tpl').value; $('tpl').value = ''; if (!v) return;
+  if (v === 'flat') setStream(Uint8Array.from([1, 0x40, 0x40, 0x40, 0x40, 9, 0])); else setStream(Uint8Array.from(D.builtin[+v[1]])); };
+$('open').onclick = () => $('file').click();
+$('file').onchange = async () => { const f = $('file').files[0]; if (!f) return; const b = new Uint8Array(await f.arrayBuffer()); const m = String.fromCharCode(...b.slice(0, 6));
+  if (m === 'EBDES1' && b.length >= 326) { zp = b.slice(6, 70); setStream(b.slice(70, 326)); }
+  else if (m === 'EBDES2' && b.length >= 8) { const n = b[6] | b[7] << 8; zp = new Uint8Array(64); setStream(b.slice(8, 8 + n)); }
+  else alert('Not an Excitebike design file.'); $('file').value = ''; };
+$('save').onclick = () => {
+  const s = serialize(); let out;
+  if (s.length <= 256) { out = new Uint8Array(6 + 64 + 256); out.set([...'EBDES1'].map(c => c.charCodeAt(0))); out.set(zp, 6); out.set(s, 70); }
+  else { out = new Uint8Array(8 + s.length); out.set([...'EBDES2'].map(c => c.charCodeAt(0))); out[6] = s.length & 255; out[7] = s.length >> 8; out.set(s, 8); }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out])); a.download = 'designs.ebd'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+buildPalette(); setStream(Uint8Array.from(D.builtin[0]));
+</script>
+</body>
+</html>

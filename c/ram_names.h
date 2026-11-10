@@ -120,3 +120,4 @@
 #define BackupRamSig5A RAM(0x05CF)
 #define TrackDesign(i) RAM(0x05E0 + (i))
 #define TrackDesignWork(i) RAM(0x06E0 + (i))
+#define TrackScriptPosHi RAM(0x07FD)

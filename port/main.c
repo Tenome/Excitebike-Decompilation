@@ -109,6 +109,29 @@ static int load_chr_bmp(const char *path, uint8_t *chr) {
 }
 static int load_file(const char *path, void *dst, size_t n) { FILE *f = fopen(path, "rb"); if (!f) return 0; size_t r = fread(dst, 1, n, f); fclose(f); return r == n; }
 
+/* Custom tracks: `--track N=file.ebd` replaces built-in track N (1-5) or the designed track (6) with a track made by the editor (tools/editor) or by the game's own design mode.
+ * Tracks may be longer than the original design limit; F6 reloads the files while the game runs (a track is read when its race starts). */
+static const char *g_track_file[6];
+static int load_track_file(int slot, const char *path) {
+    static uint8_t buf[0x2000 + 400]; size_t n; FILE *f = fopen(path, "rb"); if (!f) return 0;
+    n = fread(buf, 1, sizeof buf, f); fclose(f);
+    const uint8_t *st; size_t avail;
+    if (n >= 326 && !memcmp(buf, "EBDES1", 6)) { st = buf + 70; avail = 256; }
+    else if (n >= 8 && !memcmp(buf, "EBDES2", 6)) { st = buf + 8; avail = n - 8; if (avail > (size_t)(buf[6] | buf[7] << 8)) avail = (size_t)(buf[6] | buf[7] << 8); }
+    else return 0;
+    size_t i = 1;                                        /* walk the script to its end: piece 9 (finish line) or 0 */
+    while (i < avail) { uint8_t b = st[i++]; if (b == 0 || b == 9) break; if (b & 0x40) i++; }
+    if (i > avail) return 0;
+    static uint8_t out[0x2000 + 2]; memcpy(out, st, i); out[i] = 0;
+    return TrackExtSet(slot, out, (int)i + 1);
+}
+static void load_tracks(void) {
+    for (int k = 0; k < 6; k++) if (g_track_file[k]) {
+        if (load_track_file(k, g_track_file[k])) fprintf(stderr, "track %d: %s\n", k + 1, g_track_file[k]);
+        else { fprintf(stderr, "track %d: cannot use %s (need an EBDES1/EBDES2 design file)\n", k + 1, g_track_file[k]); TrackExtClear(k); }
+    }
+}
+
 /* Rules (mutators): "name=value" from the command line (--rule) or from excitebike.cfg (one per line, # comments). Defaults are the original game. */
 static int set_rule(const char *kv) {
     char name[64]; int v;
@@ -136,7 +159,7 @@ int main(int argc, char **argv) {
     load_config("excitebike.cfg");
     const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL, *record = NULL, *play = NULL, *chr_bmp = NULL, *chr_raw = NULL, *pal_file = NULL;
     FILE *rec_f = NULL, *play_f = NULL;
-    int dump_oam = 0; const char *peek = NULL;
+    int dump_oam = 0; const char *peek = NULL, *dump_ppu = NULL;
     int16_t *wavbuf = NULL; size_t wavn = 0, wavcap = 0;
     int scale = 3, frames_limit = -1, width_opt = PPU_W, fps_mult = 1;
     for (int i = 1; i < argc; i++) {
@@ -154,11 +177,13 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--play") && i + 1 < argc) play = argv[++i];
         else if (!strcmp(argv[i], "--rule") && i + 1 < argc) { if (!set_rule(argv[++i])) { fprintf(stderr, "unknown rule %s\n", argv[i]); return 1; } }
         else if (!strcmp(argv[i], "--designs") && i + 1 < argc) designs_path = argv[++i];
+        else if (!strcmp(argv[i], "--track") && i + 1 < argc) { int k; char *eq = strchr(argv[++i], '='); if (eq && (k = atoi(argv[i])) >= 1 && k <= 6) g_track_file[k - 1] = eq + 1; else fprintf(stderr, "--track N=file (N = 1-6)\n"); }
         else if (!strcmp(argv[i], "--audio-mod") && i + 1 < argc) audio_mod = argv[++i];
         else if (!strcmp(argv[i], "--chr-bmp") && i + 1 < argc) chr_bmp = argv[++i];
         else if (!strcmp(argv[i], "--chr") && i + 1 < argc) chr_raw = argv[++i];
         else if (!strcmp(argv[i], "--palette") && i + 1 < argc) pal_file = argv[++i];
         else if (!strcmp(argv[i], "--peek") && i + 1 < argc) peek = argv[++i];         /* debug: print RAM bytes at exit, e.g. 12,4d,e8 */
+        else if (!strcmp(argv[i], "--dump-ppu") && i + 1 < argc) dump_ppu = argv[++i];         /* debug/tools: 2 KB nametables + 32 palette bytes at exit */
         else if (!strcmp(argv[i], "--dump-oam")) dump_oam = 1;
         else if (!strcmp(argv[i], "--unlimited-sprites")) g_ppu.unlimited_sprites = 1;
         else rom_path = argv[i];
@@ -188,6 +213,7 @@ int main(int argc, char **argv) {
     SDL_SetMainReady();
     if (chr_bmp && !load_chr_bmp(chr_bmp, chr_data)) return 1;
     if (pal_file) { uint8_t rgb[192]; if (!load_file(pal_file, rgb, sizeof rgb)) { fprintf(stderr, "cannot read 192-byte palette file %s\n", pal_file); return 1; } for (int i = 0; i < 64; i++) g_ppu.rgb[i] = 0xFF000000u | (uint32_t)rgb[i * 3] << 16 | (uint32_t)rgb[i * 3 + 1] << 8 | rgb[i * 3 + 2]; }
+    load_tracks();
     int headless = shot != NULL && frames_limit >= 0;
     if (SDL_Init(SDL_INIT_VIDEO | (headless ? 0 : SDL_INIT_AUDIO)) != 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }
     SDL_Window *win = SDL_CreateWindow("Excitebike", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_ppu.width * scale, PPU_H * scale, headless ? SDL_WINDOW_HIDDEN : SDL_WINDOW_RESIZABLE);
@@ -221,6 +247,7 @@ int main(int argc, char **argv) {
             if (e.type == SDL_QUIT) running = 0;
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) running = 0;
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F5) state_save("quicksave.sav");
+            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F6) load_tracks();
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F9) { if (!state_load("quicksave.sav")) fprintf(stderr, "no usable quicksave.sav\n"); }
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F11) SDL_SetWindowFullscreen(win, (SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP) ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
         }
@@ -297,6 +324,7 @@ int main(int argc, char **argv) {
             fwrite(wavbuf, 2, wavn, w); fclose(w); printf("saved %s (%zu samples)\n", wav, wavn);
         }
     }
+    if (dump_ppu) { FILE *pf = fopen(dump_ppu, "wb"); if (pf) { fwrite(g_ppu.vram, 1, 2048, pf); fwrite(g_ppu.pal, 1, 32, pf); fclose(pf); } }
     if (dump_oam) for (int i = 0; i < 64; i++) { const uint8_t *o = &g_ppu.oam[i * 4]; if (o[0] < 0xEF) printf("sprite %2d: y=%3d tile=%02X attr=%02X x=%3d\n", i, o[0], o[1], o[2], o[3]); }
     for (const char *q = peek; q && *q;) { unsigned a; int used = 0; if (sscanf(q, "%x%n", &a, &used) < 1) break; printf("ram[%03X] = %02X\n", a, g_ram[a & 0x7FF]); q += used; if (*q == ',') q++; }
     if (rec_f) fclose(rec_f);

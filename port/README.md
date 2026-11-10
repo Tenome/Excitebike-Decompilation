@@ -46,3 +46,12 @@ Requests without a file still use the original synthesized sound. The engine ton
 
 `engine.wav` in the same folder replaces the engine tone: it loops while an engine is running and its pitch follows the game's engine request (0.5x to 1.7x speed).
 The original tone is silenced while the file is in use. Because the sound variables then differ, replays recorded with an audio mod are not comparable with replays recorded without it.
+
+## Custom tracks and the track editor
+
+`tools/editor/index.html` is a browser editor for track designs (open it through any local web server, e.g. `python -m http.server` in `tools/editor`; first run `python tools/ebdesign.py editor-data`, which reads your own ROM and writes the data file the editor needs, `data.js`).
+It shows the track as the game draws it, lets you add, delete, reorder and repeat pieces, edit laps and Selection-B-only pieces, start from any built-in track, and saves `.ebd` files.
+Tracks over 255 bytes use the extended format (`EBDES2`); the original design mode cannot hold them but the port plays them.
+
+`--track N=file.ebd` replaces built-in track N (1-5) or the designed track (6) in the port; F6 reloads the files while the game runs (a track is read when its race starts).
+The track script is the game's own (`tools/ebdesign.py` documents the format: laps, pieces and runs). `python tools/ebdesign.py dump file.ebd` prints a track; `export-builtin N out.ebd` writes a built-in track as a design you can edit.

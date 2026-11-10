@@ -119,5 +119,6 @@
  "03A1": "ObstacleTile",
  "03B9": "ObstacleX",
  "03BC": "SceneObjectKind",
- "34": "MenuHintTimer"
+ "34": "MenuHintTimer",
+ "07FD": "TrackScriptPosHi"
 }
