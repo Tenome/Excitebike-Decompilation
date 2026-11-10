@@ -18,7 +18,7 @@ open(os.path.join(a.out, 'editors.bat'), 'w', newline='\r\n').write('\n'.join(ba
 open(os.path.join(a.out, 'mods', 'audio', 'README.txt'), 'w').write(
     'Put WAV files here named <channel>_<request hex>.wav (music_01.wav, pulse1_04.wav, pulse2_01.wav, noise_02.wav) and start with --audio-mod mods/audio.\n')
 tools = os.path.join(a.out, 'tools'); os.makedirs(os.path.join(tools, 'editor'))
-for f in ('ebdesign.py', 'ebmusic.py', 'chrbmp.py'): shutil.copy(os.path.join(ROOT, 'tools', f), tools)
+for f in ('ebdesign.py', 'ebmusic.py', 'chrbmp.py', 'levelpack.py'): shutil.copy(os.path.join(ROOT, 'tools', f), tools)
 for f in ('index.html', 'tiles.html', 'music.html', 'serve.py'): shutil.copy(os.path.join(ROOT, 'tools', 'editor', f), os.path.join(tools, 'editor'))
 exe = os.path.basename(a.exe)
 open(os.path.join(a.out, 'run.bat'), 'w', newline='\r\n').write(
