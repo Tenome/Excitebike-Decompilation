@@ -16,6 +16,8 @@ Widescreen: `--widescreen` (416 px, about 16:9) or `--width N` (256-512) draws t
 
 Track designs: the design menu's SAVE and LOAD (which drive the Famicom Data Recorder on the real console) read and write a file, `designs.ebd` or `--designs file`; the file holds the 256-byte track design plus its header, so designs can be shared.
 
+Higher frame rate: `--fps 120` (or 180, 240) keeps the game at its own 60 Hz and draws in-between pictures: each scanline's horizontal scroll and every sprite that is the same object in the two frames are moved part of the way (one frame of added latency). Objects that change slot or look are shown as in the newer frame.
+
 Extra riders: `--riders N` (0-4) adds CPU riders that run the game's own rider physics, ramps, crashes and AI (each is swapped into a rider slot for one pass per frame, `c/extra_riders.inc`); they do not collide with other riders and never change the game's own state. With `--widescreen`, riders (extra ones too) are drawn beyond the original screen edge.
 
 Graphics mods: `python tools/chrbmp.py export orig/excitebike_us.nes tiles.bmp` writes all tiles as an editable 128x256 8-bit BMP (pixel values 0-3);

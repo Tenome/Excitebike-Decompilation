@@ -81,7 +81,7 @@ static void draw_line(Ppu *p, int L) {
     int hud = wide && p->hud_start > 0 && L >= p->hud_start;       /* the status bar stays 256 wide, centred */
     int cw = (wide && !hud) ? stride : PPU_W;                       /* canvas width for this line */
     int ox = (cw < stride) ? (stride - cw) / 2 : 0;
-    uint32_t *out = &p->work[L * stride];
+    uint32_t *out = (p->target ? p->target : p->work) + L * stride;
     uint8_t bg_opaque[PPU_MAXW], bg_col[PPU_MAXW];
     int on_bg = (p->mask & 0x08) != 0, on_spr = (p->mask & 0x10) != 0;
     uint8_t grey = (p->mask & 1) ? 0x30 : 0x3F;
@@ -153,7 +153,7 @@ static void draw_line(Ppu *p, int L) {
 static void enter_line(Ppu *p, int L) {                       /* the PPU starts scanline L */
     int total = total_lines(p);
     if (L == 241) {                                           /* picture complete, vblank begins */
-        memcpy(p->frame, p->work, sizeof(uint32_t) * (size_t)p->width * PPU_H); p->frames_done++; p->vblank_flag = 1;
+        memcpy(p->frame, p->work, sizeof(uint32_t) * (size_t)p->width * PPU_H); p->done = p->build; p->done.valid = 1; p->frames_done++; p->vblank_flag = 1;
     } else if (L == total - 1) {                              /* pre-render line */
         p->vblank_flag = 0; p->sprite0_flag = 0;
         if (rendering_on(p)) p->v = (uint16_t)((p->v & ~0x7BE0) | (p->t & 0x7BE0));
@@ -161,6 +161,13 @@ static void enter_line(Ppu *p, int L) {                       /* the PPU starts 
     if (L < 240) {
         if (L > 0 && rendering_on(p)) p->v = (uint16_t)((p->v & ~0x041F) | (p->t & 0x041F));
         if (L == 0 && rendering_on(p)) p->v = (uint16_t)((p->v & ~0x041F) | (p->t & 0x041F));
+        p->build.v[L] = p->v; p->build.x[L] = p->x; p->build.ctrl[L] = p->ctrl; p->build.mask[L] = p->mask;
+        if (L == 0) {
+            memcpy(p->build.oam, p->oam, 256);
+            p->build.extra_n = p->extra_n; memcpy(p->build.extra, p->extra, sizeof p->extra);
+            p->build.wide = p->width > PPU_W && p->wide_active;
+        }
+        p->build.hud_start = p->hud_start;
         draw_line(p, L);
         int s0 = sprite0_line(p);
         if (s0 >= 0 && (p->mask & 0x18) == 0x18) p->hud_start = s0 + 1; else p->hud_start = 0;
@@ -208,4 +215,46 @@ uint8_t ppu_read(Ppu *p, uint16_t reg) {
 void ppu_run_to_vblank(Ppu *p) {
     int f = p->frames_done;
     while (p->frames_done == f) ppu_advance(p, cycles_per_line(p));
+}
+
+/* A picture between two finished frames: each scanline's horizontal scroll and each sprite that is the same object in both frames
+ * (same slot, tile and attributes, moved less than 64 pixels) is moved by t of the way; anything else is shown as in frame b. */
+void ppu_render_interp(Ppu *p, const FrameDesc *a, const FrameDesc *b, double t, uint32_t *out) {
+    uint16_t sv = p->v; uint8_t sx = p->x, sc = p->ctrl, sm = p->mask, soam[256], shud = (uint8_t)0; int shud_i = p->hud_start, sextra_n = p->extra_n, swide = p->wide_active;
+    uint8_t saved_oam[256]; memcpy(saved_oam, p->oam, 256); (void)soam; (void)shud;
+    static struct { int x; uint8_t y, tile, attr; } saved_extra[64]; memcpy(saved_extra, p->extra, sizeof saved_extra);
+    uint32_t *old_target = p->target;
+    p->target = out;
+    memcpy(p->oam, b->oam, 256);
+    for (int i = 0; i < 64; i++) {
+        uint8_t *ob = &p->oam[i * 4]; const uint8_t *oa = &a->oam[i * 4];
+        if (ob[0] >= 0xEF || oa[0] >= 0xEF || ob[1] != oa[1] || ob[2] != oa[2]) continue;
+        int dy = (int)ob[0] - oa[0], dx = (int)ob[3] - oa[3];
+        if (dy > 64 || dy < -64 || dx > 64 || dx < -64) continue;
+        ob[0] = (uint8_t)(oa[0] + (int)(dy * t + (dy < 0 ? -0.5 : 0.5)));
+        ob[3] = (uint8_t)(oa[3] + (int)(dx * t + (dx < 0 ? -0.5 : 0.5)));
+    }
+    p->extra_n = b->extra_n; memcpy(p->extra, b->extra, sizeof p->extra);
+    for (int i = 0; i < b->extra_n && i < a->extra_n; i++) {
+        if (b->extra[i].tile != a->extra[i].tile || b->extra[i].attr != a->extra[i].attr) continue;
+        int dy = (int)b->extra[i].y - a->extra[i].y, dx = b->extra[i].x - a->extra[i].x;
+        if (dy > 64 || dy < -64 || dx > 64 || dx < -64) continue;
+        p->extra[i].y = (uint8_t)(a->extra[i].y + (int)(dy * t + (dy < 0 ? -0.5 : 0.5)));
+        p->extra[i].x = a->extra[i].x + (int)(dx * t + (dx < 0 ? -0.5 : 0.5));
+    }
+    p->hud_start = b->hud_start; p->wide_active = b->wide;
+    for (int L = 0; L < PPU_H; L++) {
+        int ax = ((a->v[L] >> 10) & 1) * 256 + (a->v[L] & 31) * 8 + a->x[L];
+        int bx = ((b->v[L] >> 10) & 1) * 256 + (b->v[L] & 31) * 8 + b->x[L];
+        int d = bx - ax;
+        if (d > 256) d -= 512; else if (d < -256) d += 512;
+        int nx = bx;
+        if (d >= -128 && d <= 128) nx = ((ax + (int)(d * t + (d < 0 ? -0.5 : 0.5))) % 512 + 512) % 512;
+        p->v = (uint16_t)((b->v[L] & ~0x041F) | ((nx >> 3) & 31) | (((nx >> 8) & 1) << 10));
+        p->x = (uint8_t)(nx & 7); p->ctrl = b->ctrl[L]; p->mask = b->mask[L];
+        draw_line(p, L);
+    }
+    p->target = old_target;
+    p->v = sv; p->x = sx; p->ctrl = sc; p->mask = sm; p->hud_start = shud_i; p->extra_n = sextra_n; p->wide_active = swide;
+    memcpy(p->oam, saved_oam, 256); memcpy(p->extra, saved_extra, sizeof saved_extra);
 }

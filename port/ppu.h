@@ -9,6 +9,13 @@
 #define PPU_MAXW 512           /* widest picture the port can produce */
 #define PPU_H 240
 
+typedef struct {                   /* everything that decides how one picture looks, kept per frame for interpolation */
+    uint16_t v[240]; uint8_t x[240], ctrl[240], mask[240];     /* scroll registers each scanline was drawn with */
+    uint8_t oam[256];
+    int extra_n; struct { int x; uint8_t y, tile, attr; } extra[64];
+    int hud_start, wide, valid;
+} FrameDesc;
+
 typedef struct {
     uint8_t vram[2048];            /* two nametables */
     uint8_t pal[32];
@@ -31,6 +38,8 @@ typedef struct {
     int frames_done;               /* increments each time a picture is completed */
     int extra_n;                   /* extra sprites with 9-bit x (widescreen: riders beyond the old edge), set by the host each frame */
     struct { int x; uint8_t y, tile, attr; } extra[64];
+    FrameDesc build, done;         /* the picture being drawn / the last finished one */
+    uint32_t *target;              /* where draw_line writes (NULL = work) */
     int unlimited_sprites;         /* 1 = lift the 8 sprites per scanline limit */
     const uint8_t *cpu_ram;        /* for $4014 sprite DMA */
 } Ppu;
@@ -40,4 +49,5 @@ void ppu_write(Ppu *p, uint16_t reg, uint8_t v);       /* $2000-$2007 and $4014 
 uint8_t ppu_read(Ppu *p, uint16_t reg);                /* $2002 and $2004/$2007 */
 void ppu_advance(Ppu *p, double cpu_cycles);           /* time passes: draws the visible lines it crosses */
 void ppu_run_to_vblank(Ppu *p);                        /* finish this picture (idle time until the next vblank) */
+void ppu_render_interp(Ppu *p, const FrameDesc *a, const FrameDesc *b, double t, uint32_t *out);   /* picture between two finished frames, t = 0..1 */
 void ppu_begin_nmi(Ppu *p);                            /* vblank starts: position = first line of vblank */

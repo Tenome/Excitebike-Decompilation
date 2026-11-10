@@ -45,6 +45,16 @@ static int state_load(const char *path) {
     return 1;
 }
 
+static void present_and_wait(SDL_Renderer *ren, SDL_Texture *tex, Uint64 *next, Uint64 slice, SDL_AudioDeviceID dev) {
+    Uint64 freq = SDL_GetPerformanceFrequency();
+    SDL_RenderClear(ren); SDL_RenderCopy(ren, tex, NULL, NULL); SDL_RenderPresent(ren);
+    *next += slice;
+    Uint64 now = SDL_GetPerformanceCounter();
+    while (dev && SDL_GetQueuedAudioSize(dev) > 44100 / 8 * 2) SDL_Delay(1);
+    if (now < *next) { Uint64 wait = *next - now; if (wait > freq / 200) SDL_Delay((Uint32)(wait * 1000 / freq) - 1); while (SDL_GetPerformanceCounter() < *next) { } }
+    else *next = now;
+}
+
 static uint8_t read_pad(const uint8_t *keys) {            /* bit 0 = A (first bit shifted out) ... bit 7 = Right */
     uint8_t b = 0;
     if (keys[SDL_SCANCODE_Z]) b |= 0x01;                  /* A: accelerate */
@@ -126,11 +136,12 @@ int main(int argc, char **argv) {
     FILE *rec_f = NULL, *play_f = NULL;
     int dump_oam = 0; const char *peek = NULL;
     int16_t *wavbuf = NULL; size_t wavn = 0, wavcap = 0;
-    int scale = 3, frames_limit = -1, width_opt = PPU_W;
+    int scale = 3, frames_limit = -1, width_opt = PPU_W, fps_mult = 1;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--frames") && i + 1 < argc) frames_limit = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--width") && i + 1 < argc) width_opt = atoi(argv[++i]);          /* picture width while racing, 256-512 (416 = 16:9) */
+        else if (!strcmp(argv[i], "--fps") && i + 1 < argc) { fps_mult = (atoi(argv[++i]) + 30) / 60; if (fps_mult < 1) fps_mult = 1; if (fps_mult > 4) fps_mult = 4; }   /* output rate: 60 = original, 120/180/240 interpolate */
         else if (!strcmp(argv[i], "--widescreen")) width_opt = 416;
         else if (!strcmp(argv[i], "--riders") && i + 1 < argc) g_extra_count = atoi(argv[++i]);          /* extra CPU riders, 0-4 */
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
@@ -197,6 +208,7 @@ int main(int argc, char **argv) {
     double frame_ms = pal ? 1000.0 / 50.0 : 1000.0 / 60.0988, audio_acc = 0, samples_per_frame = 44100.0 * frame_ms / 1000.0;
     Uint64 freq = SDL_GetPerformanceFrequency(), next = SDL_GetPerformanceCounter();
     int16_t abuf[2048];
+    static FrameDesc prev_desc, shot_prev; static uint32_t interp_buf[PPU_MAXW * PPU_H];
     uint8_t scripted = 0; const char *pp = press;
     while (running) {
         SDL_Event e;
@@ -219,7 +231,6 @@ int main(int argc, char **argv) {
         g_pad_bits[0] = pad;
         g_ppu.wide_active = g_ram[0x47] != 0;                  /* widen the picture only while racing / editing a track */
         ppu_run_to_vblank(&g_ppu);                             /* the picture for this frame is complete; vblank starts */
-        if (g_ppu.frames_done > 1) { SDL_UpdateTexture(tex, NULL, g_ppu.frame, g_ppu.width * 4); }
         for (int i = 0; i < 150; i++) UpdateRandom();          /* the idle loop between frames */
         if (g_ppu.ctrl & 0x80) Nmi();
         ExtraRidersFrame();
@@ -244,14 +255,26 @@ int main(int argc, char **argv) {
         }
         frame++;
         if (!headless) {
-            SDL_RenderClear(ren); SDL_RenderCopy(ren, tex, NULL, NULL); SDL_RenderPresent(ren);
-            next += (Uint64)(frame_ms / 1000.0 * (double)freq);
-            Uint64 now = SDL_GetPerformanceCounter();
-            while (dev && SDL_GetQueuedAudioSize(dev) > 44100 / 8 * 2) SDL_Delay(1);
-            if (now < next) { Uint64 wait = next - now; if (wait > freq / 200) SDL_Delay((Uint32)(wait * 1000 / freq) - 1); while (SDL_GetPerformanceCounter() < next) { } }
-            else next = now;
+            Uint64 slice = (Uint64)(frame_ms / 1000.0 * (double)freq / fps_mult);
+            if (fps_mult > 1 && prev_desc.valid && g_ppu.done.valid) {      /* in-between pictures: scroll and sprites moved part of the way */
+                for (int i = 1; i < fps_mult; i++) {
+                    ppu_render_interp(&g_ppu, &prev_desc, &g_ppu.done, (double)i / fps_mult, interp_buf);
+                    SDL_UpdateTexture(tex, NULL, interp_buf, g_ppu.width * 4);
+                    present_and_wait(ren, tex, &next, slice, dev);
+                }
+            }
+            SDL_UpdateTexture(tex, NULL, g_ppu.frame, g_ppu.width * 4);
+            present_and_wait(ren, tex, &next, slice, dev);
         }
+        shot_prev = prev_desc; prev_desc = g_ppu.done;
         if (frames_limit >= 0 && frame >= frames_limit) running = 0;
+    }
+    if (shot && fps_mult > 1 && shot_prev.valid) {            /* debug: also save the in-between picture of the last two frames */
+        static uint32_t mid[PPU_MAXW * PPU_H]; char name[512];
+        ppu_render_interp(&g_ppu, &shot_prev, &g_ppu.done, 0.5, mid);
+        snprintf(name, sizeof name, "%s.mid.bmp", shot);
+        SDL_Surface *ms = SDL_CreateRGBSurfaceWithFormatFrom(mid, g_ppu.width, PPU_H, 32, g_ppu.width * 4, SDL_PIXELFORMAT_ARGB8888);
+        SDL_SaveBMP(ms, name); SDL_FreeSurface(ms);
     }
     if (shot) {
         SDL_Surface *s = SDL_CreateRGBSurfaceWithFormatFrom(g_ppu.frame, g_ppu.width, PPU_H, 32, g_ppu.width * 4, SDL_PIXELFORMAT_ARGB8888);

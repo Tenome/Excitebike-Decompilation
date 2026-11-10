@@ -2,7 +2,7 @@
 
 Status: the native runtime (`port/`) plays the game; the `Rules` mutators below exist for four values (jump power, crash pitch,
 overheating, top speed; `port/excitebike.cfg.example`), replays and quick saves work. Widescreen works for the background (`--widescreen`, 416 px: the track streamer already writes about 20 tiles beyond the screen edge);
-sprites beyond the old edge, more riders, interpolation, custom tracks/graphics/music are still design.
+sprites beyond the old edge, extra riders, frame-rate interpolation, graphics mods and design files work; custom music and named game state are still design.
 
 ## Architecture the options depend on
 
