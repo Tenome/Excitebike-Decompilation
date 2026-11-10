@@ -821,3 +821,171 @@ void HandleLostRider(void) {                  /* $DBC4: clears rider 3 when it f
     RAM(0x97) = 0; RAM(0x8F) = 0x92; RAM(0x0373) = 0x92;
     RAM(0x9B) = 0xFF;
 }
+
+/* ---- batch 9: track script interpreter ----
+ * Each track piece can start a script (tables at $E559/$E56E): pairs of (position, opcode/operand). The opcode byte
+ * indexes the jump table at $E6B7. Handlers set rider height, bump/terrain state and launch jumps. */
+static uint8_t ts_set_height(uint8_t x, uint8_t a) {      /* $E893: returns A = distance into the piece */
+    RAM(0xD4 + x) = a; RAM(0xB4 + x) = a;
+    return (uint8_t)(RAM(0xC8 + x) - RAM(0xD0 + x));
+}
+static void ts_height_abs(uint8_t x, uint8_t a) { RAM(0xBC + x) = a; RAM(0xE4 + x) = a; }       /* $E84F */
+static void ts_height_rel(uint8_t x, uint8_t a) { RAM(0x00) = a; RAM(0xBC + x) = (uint8_t)(RAM(0xE4 + x) - a); }   /* $E86F */
+
+void RiderLaunchFromRest(Regs r) {            /* $DCFA path: start a jump with no speed bonus */
+    uint8_t x = r.x;
+    RAM(0x0384 + x) = 0; launch_tail(x, jump_setup(x));
+}
+
+static void ts_op_E963(uint8_t x) { RAM(0xCC + x) = 0; RAM(0xD4 + x) = 0; RAM(0xB4 + x) = 0; }
+static void ts_op_E8E3(uint8_t x) { RAM(0xA0 + x) = 1; }
+static void ts_op_E85D(uint8_t x) { ts_height_abs(x, ts_set_height(x, 6)); RAM(0xD8 + x) = 0x60; }
+static void ts_op_E86A(uint8_t x) { ts_height_rel(x, ts_set_height(x, 1)); }
+static void ts_op_E845(uint8_t x) { RAM(0xD8 + x) = 0x80; ts_height_abs(x, ts_set_height(x, 5) >> 1); }
+static void ts_op_E854(uint8_t x) { ts_height_rel(x, ts_set_height(x, 2) >> 1); }
+static void ts_op_E934(uint8_t x) {
+    if (RAM(0xB0 + x) != 0) return;
+    uint8_t y = 0, a = RAM(0x94 + x);
+    if (a == 0) return;
+    if (a < 2 && RAM(0x90 + x) < RAM(0xD8 + x)) y = 1;
+    RAM(0x0388 + x) = y;
+    if (RAM(0xA0 + x) == 2) RiderStartJump((Regs){ 0, x, 0, 0 });
+    else RiderLaunchFromRest((Regs){ 0, x, 0, 0 });
+}
+static void ts_op_E818(uint8_t x) {
+    if (RAM(0xB0 + x) != 0) return;
+    if (!((uint8_t)(RAM(0xAC + x) - 7) & 0x80)) return;
+    uint8_t hi = RAM(0x94 + x);
+    if (hi < 3) {
+        if (hi != 2) return;
+        if (!(RAM(0x90 + x) & 0x80)) return;
+    }
+    RAM(0x98 + x) = 0xFF;
+}
+static void ts_op_EA8F(uint8_t x) {            /* finish line: rider 0 copies the time digits to the sprite block, or starts the end sequence */
+    if (x != 0) return;
+    RAM(0x3A) = 0x1D;
+    if (RAM(0x57) == 0) { RAM(0x32) = 0x10; RAM(0xFD) = 2; RAM(0x52) = 1; RAM(0x3A) = 0; return; }
+    if (RAM(0x3C) != 0) { RAM(0x3A) = 0; return; }
+    RAM(0x0D) = x;
+    uint8_t y = 0x19;
+    for (int i = 6; i >= 0; i--) { RAM(0x02C0 + y) = RAM(0x03D9 + i); y -= 4; }
+}
+static void ts_op_E879(uint8_t x) {
+    ts_height_abs(x, (uint8_t)(ts_set_height(x, 4) << 1));
+    if (RAM(0xA0 + x) != 0) ts_height_abs(x, RAM(0xBC + x) + 0x10);
+    RAM(0xD8 + x) = 0x40;
+}
+static void ts_op_E89D(uint8_t x) {
+    uint8_t s = RAM(0xA4 + x);
+    if (s == 1) return;
+    ts_height_rel(x, (uint8_t)(ts_set_height(x, 3) << 1));
+    if (RAM(0xA4 + x) == 4) {
+        RiderStartJump((Regs){ 0, x, 0, 0 });
+        RAM(0xA4 + x) = 2; RAM(0x0364 + x) = 2;
+    }
+}
+static void ts_op_E8EE(uint8_t x) { RAM(0xA0 + x) = 2; RAM(0xD8 + x) = 1; ts_height_abs(x, 0x30); }
+static void ts_op_E8FF(uint8_t x, uint8_t y) {
+    if (RAM(0xB0 + x) != 0) return;
+    uint8_t s = RAM(0xA4 + x);
+    if (s != 0 && !((s >> 1) & 1)) return;
+    RAM(0x01) = y;
+    if (RAM(0x94 + x) != 0) {
+        uint8_t yy = (RAM(0x5C + x) & 0x40) ? 3 : 4;
+        RAM(0x036C + x) = 1;
+        RiderDecelerateBy((Regs){ 0, x, (uint8_t)(yy + 2), 0 });
+    }
+}
+static void ts_op_E956(uint8_t x) {
+    if (RAM(0xA4 + x) != 1) return;
+    RAM(0xBC + x) = 0;
+    RiderStartJump((Regs){ 0, x, 0, 0 });
+}
+static void ts_op_E8BF(uint8_t x) { RAM(0xA4 + x) = 0; RAM(0xA0 + x) = 0; }
+static void ts_op_E8C6(uint8_t x) { RAM(0xA4 + x) = 1; if (RAM(0xB8 + x) < 0x20) RAM(0xA4 + x) = 2; }
+static void ts_op_E8FA(uint8_t x) { ts_height_abs(x, 0x10); }
+static void ts_op_E8D3(uint8_t x) { if ((uint8_t)(x | RAM(0xB0 + x) | RAM(0x03E0) | RAM(0x3C)) == 0) RAM(0x03B6) = 8; }
+static void ts_op_E8E7(uint8_t x) {
+    if (RAM(0xB0 + x) != 0) return;
+    if (RAM(0x98 + x) == 0) RAM(0x94 + x)++;
+    RiderLaunchFromRest((Regs){ 0, x, 0, 0 });
+}
+static void ts_op_E8F5(uint8_t x) { ts_height_abs(x, 0x30); }
+
+void TrackScriptOpcode(Regs r) {              /* $E794: A = opcode (0-20, not 17), X = rider */
+    uint8_t x = r.x, op = (uint8_t)(r.a << 1);
+    RAM(0x00) = ROMB(0xE6B7 + op); RAM(0x01) = ROMB(0xE6B8 + op);
+    switch (op >> 1) {
+    case 0: ts_op_E963(x); break;   case 1: ts_op_E8E3(x); break;   case 2: ts_op_E85D(x); break;
+    case 3: ts_op_E86A(x); break;   case 4: ts_op_E845(x); break;   case 5: ts_op_E854(x); break;
+    case 6: ts_op_E934(x); break;   case 7: ts_op_E818(x); break;   case 8: ts_op_EA8F(x); break;
+    case 9: ts_op_E879(x); break;   case 10: ts_op_E89D(x); break;  case 11: ts_op_E8EE(x); break;
+    case 12: ts_op_E8FF(x, op); break; case 13: ts_op_E956(x); break; case 14: ts_op_E8BF(x); break;
+    case 15: ts_op_E8C6(x); break;  case 16: ts_op_E8FA(x); break;
+    case 18: ts_op_E8D3(x); break;  case 19: ts_op_E8E7(x); break;  case 20: ts_op_E8F5(x); break;
+    default: break;
+    }
+}
+
+void RunPendingTrackScripts(void) {           /* $E927 */
+    for (int i = 3; i >= 0; i--) {
+        uint8_t x = (uint8_t)i;
+        if (RAM(0xCC + x) != 0) TrackScriptOpcode((Regs){ RAM(0xCC + x), x, 0, 0 });
+    }
+}
+
+void RunTrackScriptRider(Regs r) {            /* $E73B: advance one rider through the script of the piece it is on */
+    uint8_t x = r.x, c = 0, a;
+    RAM(0xC8 + x) = adc8(RAM(0x60 + x), RAM(0xC8 + x), &c);
+    if (RAM(0x58 + x) == 0) {
+        a = (uint8_t)(RAM(0xC0 + x) - 0x40);
+        if (a & 0x80) return;
+        a >>= 2;
+        if (a >= 0x16) return;
+        RAM(0x58 + x) = a + 1;
+        RAM(0xC4 + x) = 0;
+        RAM(0xC8 + x) = RAM(0x64 + x) - 1;
+    }
+    for (;;) {
+        uint8_t idx = RAM(0x58 + x);
+        RAM(0x0A) = ROMB(0xE559 + idx); RAM(0x0B) = ROMB(0xE56E + idx);
+        uint16_t ptr = (uint16_t)(RAM(0x0A) | RAM(0x0B) << 8);
+        uint8_t y = RAM(0xC4 + x);
+        a = rd16mem((uint16_t)(ptr + y));
+        if (a == 0xFF) {                        /* $E7D0: script finished */
+            RAM(0x58 + x) = 0; RAM(0xD4 + x) = 0;
+            if (RAM(0xA0 + x) == 0 && RAM(0xA4 + x) != 1) {
+                RAM(0xBC + x) = 0;
+                if (RAM(0xA4 + x) == 2) RAM(0xA4 + x)++;
+            }
+            RAM(0x036C + x) = 0;
+            return;
+        }
+        RAM(0x0F) = a;
+        if (a > RAM(0xC8 + x)) return;
+        y++;
+        a = rd16mem((uint16_t)(ptr + y));
+        if (a & ROMB(0xE703)) {                 /* $E7A3: pitch command */
+            if ((RAM(0xB0 + x) | RAM(0x98 + x)) == 0) {
+                uint8_t v = rd16mem((uint16_t)(ptr + y)) & 0x0F;
+                RAM(0x00) = v;
+                if (RAM(0xA4 + x) != 1) {
+                    RAM(0xAC + x) = v;
+                    if (RAM(0x58 + x) != 3) RAM(0xD4 + x) = ROMB(0xE6AD + (uint8_t)(v - 2));
+                }
+            }
+        } else if (a & ROMB(0xE6FB)) {           /* $E7F2: deferred command */
+            RAM(0xCC + x) = a & 0x0F;
+            RAM(0xD0 + x) = RAM(0x0F);
+        } else {
+            TrackScriptOpcode((Regs){ a, x, y, 0 });
+        }
+        RAM(0xC4 + x) += 2;
+    }
+}
+
+void RunTrackScripts(void) {                  /* $E733 */
+    for (uint8_t x = 3; x != 0; x--) RunTrackScriptRider((Regs){ 0, x, 0, 0 });
+    RunTrackScriptRider((Regs){ 0, 0, 0, 0 });
+}

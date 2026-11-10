@@ -103,3 +103,9 @@ void UpdateRiderControls(void);      /* $CD1F */
 Regs SpawnRider(Regs r);             /* $DAE3 */
 void SpawnCpuRiders(void);           /* $DA9F */
 void HandleLostRider(void);          /* $DBC4 */
+
+void RiderLaunchFromRest(Regs r);        /* $DCFA */
+void TrackScriptOpcode(Regs r);          /* $E794 */
+void RunPendingTrackScripts(void);       /* $E927 */
+void RunTrackScriptRider(Regs r);        /* $E73B */
+void RunTrackScripts(void);              /* $E733 */
