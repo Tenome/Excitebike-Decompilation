@@ -68,6 +68,16 @@ TESTS = [
     ('RiderStartJump',       0xDD06, True,  'V',   lambda r: dict(x=r.randint(0, 3))),
     ('RiderLaunchUpdate',    0xDCF2, True,  'V',   lambda r: dict(x=r.randint(0, 3))),
     ('ClearOam',             0xD255, False, '',    lambda r: {}),
+    ('RiderTerrainSpeedBias',0xCDEE, True,  'V',   lambda r: dict(x=r.randint(0, 3), ram={0xA4+i: r.choice([3, 1, 0]) for i in range(4)} | {0xC0+i: r.choice([0xE4, 0x10]) for i in range(4)} | {0xB8+i: r.choice([5, 0x10, 0x40]) for i in range(4)} | {0x70+i: r.randint(0, 5) for i in range(4)})),
+    ('RiderAccelerate',      0xCE29, True,  'V',   lambda r: dict(x=r.randint(0, 3), y=r.randint(0, 2), ram={0x4C: r.randint(0, 3)})),
+    ('RiderDecelerateBy',    0xCE5C, True,  'V',   lambda r: dict(x=r.randint(0, 3), y=r.randint(0, 2), ram={0x94+i: r.choice([0, 0, 1]) for i in range(4)} | {0xB0+i: r.randint(0, 3) for i in range(4)})),
+    ('RiderDecelerate',      0xCE58, True,  'V',   lambda r: dict(x=r.randint(0, 3), y=r.randint(0, 2), ram={0x4C: r.randint(0, 3)})),
+    ('RiderPitchWobble',     0xCE83, True,  'V',   lambda r: dict(x=r.randint(0, 3), ram={0x26+i: r.choice([0, 0, 5]) for i in range(4)} | {0xB0+i: r.randint(0, 3) for i in range(4)} | {0xAC+i: r.randint(0, 14) for i in range(4)})),
+    ('AiLaneBlocked',        0xCF96, True,  'c',   lambda r: dict(x=r.randint(0, 3), y=r.choice([0, 2]), ram={0x4A: r.randint(0, 3), 0x0F: r.randint(0, 3), 0x02: r.randint(1, 5)} | {0x84+i: r.randint(0, 3) for i in range(4)} | {0x70+i: r.randint(0, 5) for i in range(4)} | {0x80+i: r.randint(0, 255) for i in range(4)})),
+    ('AiTrackPieceOpen',     0xCF8B, True,  'ac',  lambda r: dict(a=r.randint(0x38, 0x41))),
+    ('AiLaneChangeUp',       0xCF47, True,  'V',   lambda r: dict(x=r.randint(0, 3), ram={0x0360+i: r.randint(0, 5) for i in range(4)} | {0xE0+i: r.randint(0, 40) for i in range(4)} | {0x4A: r.randint(0, 3), 0x0F: r.randint(0, 3)})),
+    ('AiLaneChangeDown',     0xCF6A, True,  'V',   lambda r: dict(x=r.randint(0, 3), ram={0x0360+i: r.randint(0, 5) for i in range(4)} | {0xE0+i: r.randint(0, 40) for i in range(4)} | {0x4A: r.randint(0, 3), 0x0F: r.randint(0, 3)})),
+    ('AiConsiderLaneChange', 0xCF0C, True,  'V',   lambda r: dict(x=r.randint(0, 3), ram={0x0360+i: r.randint(0, 5) for i in range(4)} | {0xE0+i: r.randint(0, 40) for i in range(4)} | {0x4A: r.randint(0, 3), 0x0F: r.randint(0, 3)} | {0x84+i: r.choice([1, 1, 0, 3]) for i in range(4)} | {0xDC+i: r.choice([0, 0, 1]) for i in range(4)} | {0xC0+i: r.choice([0xE6, 0x10]) for i in range(4)} | {0x19+i: r.choice([0x10, 0xE5, 0xFA]) for i in range(4)} | {0x80+i: r.choice([0x10, 0x90, 0xF5]) + r.randint(0, 3) for i in range(4)})),
 ]
 
 def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):

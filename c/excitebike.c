@@ -350,3 +350,134 @@ void RiderLaunchUpdate(Regs r) {              /* $DCF2 */
 }
 
 void ClearOam(void) { for (int i = 0; i < 256; i++) RAM(0x0200 + i) = 0xF8; }   /* $D255 */
+
+/* ---- batch 3: speed model and AI lane changes ---- */
+void RiderTerrainSpeedBias(Regs r) {          /* $CDEE: ramp/terrain-driven bump state ($036C) and the noise SFX */
+    uint8_t x = r.x, y;
+    if (RAM(0xC0 + x) != 0xE4) {
+        int skip = (RAM(0xA4 + x) == 3) && RAM(0x70 + x) >= 3;
+        if (!skip) {
+            y = RAM(0xB8 + x);
+            if (y < 0x38 && y >= 0x08) {                       /* $CE1D */
+                if (RAM(0x036C + x) != 1) RAM(0x036C + x) = 0;
+                return;
+            }
+        }
+    }
+    if (RAM(0x036C + x) != 1) RAM(0x036C + x) = 2;             /* $CE0A */
+    if (x == 0) RAM(0xFD) = 4;
+}
+
+void RiderAccelerate(Regs r) {                /* $CE29: Y = acceleration class; speed capped for rider 0 */
+    uint8_t x = r.x, y = r.y, c = 0;
+    if (x != RAM(0x4C)) return;
+    RAM(0x90 + x) = adc8(ROMB(0xC0BC + y), RAM(0x90 + x), &c);
+    if (c) RAM(0x94 + x)++;
+    if (x != 0) return;
+    uint8_t hi = RAM(0x94), t = ROMB(0xC0D1 + y);
+    if (hi == t) { if (RAM(0x90) < ROMB(0xC0CE + y)) return; }
+    else if (hi < t) return;
+    RAM(0x90) = ROMB(0xC0CE + y); RAM(0x94) = t;
+}
+
+void RiderDecelerateBy(Regs r) {              /* $CE5C */
+    uint8_t x = r.x;
+    RAM(0x00) = r.y;
+    if (RAM(0x94 + x) == 0) {
+        uint8_t i = RAM(0xB0 + x) >> 1;
+        if (RAM(0x90 + x) < ROMB(0xC0CC + i)) return;
+    }
+    uint8_t y = RAM(0x00), lo = RAM(0x90 + x), m = ROMB(0xC0C1 + y);
+    RAM(0x90 + x) = (uint8_t)(lo - m);
+    if (lo >= m) return;
+    if (RAM(0x94 + x)) { RAM(0x94 + x)--; return; }
+    RAM(0x90 + x) = 0;
+}
+void RiderDecelerate(Regs r) { if (r.x == RAM(0x4C)) RiderDecelerateBy(r); }   /* $CE58 */
+
+void RiderPitchWobble(Regs r) {               /* $CE83: bit 0 of $00 chooses the direction; pitch crash at 13 */
+    uint8_t x = r.x;
+    if (RAM(0x26 + x)) return;
+    uint8_t i = RAM(0xB0 + x) >> 1;
+    RAM(0x26 + x) = ROMB(0xC0D4 + i);
+    uint8_t up = RAM(0x00) & 1; RAM(0x00) >>= 1;
+    uint8_t p = RAM(0xAC + x);
+    if (up) {
+        uint8_t t = ROMB(0xC0C8 + i);
+        if (p == t) return;
+        if (p < t) RAM(0xAC + x) = p + 1; else RAM(0xAC + x) = p - 1;
+        return;
+    }
+    RAM(0x0388 + x) &= 2;
+    if (p < ROMB(0xC0CA + i)) { RAM(0xAC + x) = p + 1; return; }
+    if ((RAM(0x5C + x) & 0xC0) == 0) return;
+    if (RAM(0xB0 + x) != 0) return;
+    RAM(0xAC + x) = p + 1;
+    RAM(0x26 + x) = 0x0D;
+    if ((uint8_t)(p + 1) >= 0x0D) { RAM(0x98 + x) = 1; RAM(0x26 + x) = 2; }
+}
+
+Regs AiLaneBlocked(Regs r) {                  /* $CF96: C=1 when another rider is in lane $02 within the X window */
+    uint8_t x = r.x, c = 0;
+    RAM(0x00) = adc8(RAM(0x80 + x), ROMB(0xC0D6 + r.y), &c);
+    RAM(0x01) = (uint8_t)(RAM(0x00) - ROMB(0xC0D7 + r.y));
+    uint8_t y = RAM(0x4A);
+    for (;;) {
+        if (y != RAM(0x0F) && (RAM(0x84 + y) & 1) && RAM(0x70 + y) != 0 && RAM(0x70 + y) == RAM(0x02)) {
+            uint8_t v = RAM(0x80 + y);
+            if (v < RAM(0x00) && v >= RAM(0x01)) { r.c = 1; return r; }
+        }
+        y++;
+        if (y >= 4) { r.c = 0; return r; }
+    }
+}
+Regs AiTrackPieceOpen(Regs r) {               /* $CF8B: C=0 only for pieces $3B-$3D */
+    r.c = !(r.a >= 0x3B && r.a < 0x3E); return r;
+}
+static uint8_t lane_piece_open(uint8_t x, uint8_t y) {   /* $CF88 */
+    Regs q = TrackPieceAtRow((Regs){ 0, x, y, 0 });
+    return AiTrackPieceOpen(q).c;
+}
+
+static void lane_down(uint8_t x);
+static void lane_up(uint8_t x) {              /* $CF47 */
+    uint8_t y = RAM(0x0360 + x) - 1;
+    if ((uint8_t)(y - 1) & 0x80) { lane_down(x); return; }
+    if (lane_piece_open(x, y)) return;
+    RAM(0x02) = RAM(0x70 + x) + 1;
+    if (AiLaneBlocked((Regs){ 0, x, 0, 0 }).c) return;
+    RAM(0xDC + x) = 1;
+}
+static void lane_down(uint8_t x) {            /* $CF6A */
+    uint8_t y = RAM(0x0360 + x) + 1;
+    if (!((uint8_t)(y - 5) & 0x80)) { lane_up(x); return; }
+    if (lane_piece_open(x, y)) return;
+    RAM(0x02) = RAM(0x70 + x) - 1;
+    if (AiLaneBlocked((Regs){ 0, x, 0, 0 }).c) return;
+    RAM(0xDC + x) = 0xFF;
+}
+void AiLaneChangeUp(Regs r) { lane_up(r.x); }
+void AiLaneChangeDown(Regs r) { lane_down(r.x); }
+
+void AiConsiderLaneChange(Regs r) {           /* $CF0C */
+    uint8_t x = r.x;
+    if (!(RAM(0x84 + x) & 1)) return;
+    RAM(0x02) = RAM(0x70 + x);
+    int to64 = 0;
+    if (AiLaneBlocked((Regs){ 0, x, 2, 0 }).c) {
+        AiMatchTargetSpeedFrom((Regs){ 0, x, 2, 0 });
+        if (!(RAM(0x80 + x) & 0x80)) return;
+        if (RAM(0x18 + x) & 1) to64 = 1; else { lane_up(x); return; }
+    } else {
+        if (RAM(0xDC + x) != 0) return;
+        if (!(RAM(0x84 + x) & 1)) return;
+        uint8_t a = RAM(0x80 + x);
+        if (a >= 0xF0) return;
+        if (!(a & 0x80)) return;
+        a = RAM(0x19 + x);
+        if (a < 0xE0) return;
+        if (a < 0xF8) to64 = 1; else { lane_up(x); return; }
+    }
+    if (to64 && RAM(0xC0 + x) == 0xE6) { lane_up(x); return; }
+    lane_down(x);
+}

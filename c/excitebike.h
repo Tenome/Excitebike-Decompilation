@@ -69,3 +69,14 @@ void RiderJumpSetup(Regs r);       /* $DD38 */
 void RiderStartJump(Regs r);       /* $DD06 */
 void RiderLaunchUpdate(Regs r);    /* $DCF2 */
 void ClearOam(void);               /* $D255 */
+
+void RiderTerrainSpeedBias(Regs r);  /* $CDEE */
+void RiderAccelerate(Regs r);        /* $CE29 */
+void RiderDecelerateBy(Regs r);      /* $CE5C */
+void RiderDecelerate(Regs r);        /* $CE58 */
+void RiderPitchWobble(Regs r);       /* $CE83 */
+Regs AiLaneBlocked(Regs r);          /* $CF96 */
+Regs AiTrackPieceOpen(Regs r);       /* $CF8B */
+void AiLaneChangeUp(Regs r);         /* $CF47 */
+void AiLaneChangeDown(Regs r);       /* $CF6A */
+void AiConsiderLaneChange(Regs r);   /* $CF0C */
