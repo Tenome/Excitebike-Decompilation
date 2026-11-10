@@ -161,3 +161,18 @@ void SetMenuCursorSprite(Regs r);    /* $C409 */
 void StateMenuChoice6(void);         /* $C3BD */
 void StateMenuChoice5(void);         /* $C395 */
 void ComputeRaceResult(void);        /* $C485 */
+
+void TrackColumnPointer05(Regs r);   /* $F82E */
+void TrackColumnPointer07(Regs r);   /* $F839 */
+Regs DesignEndRecord(Regs r);        /* $F826 */
+Regs DesignMarkRecord(Regs r);       /* $F821 */
+void ClearColumnBuffer(void);        /* $F676 */
+Regs CopyColumnBytes(Regs r);        /* $F681 */
+void WriteColumnToRows(void);        /* $F64E */
+void DrawTrackColumn(void);          /* $F6FB */
+Regs DesignCheckSlotFree(Regs r);    /* $ECC9 */
+void DesignLoadPiece(void);          /* $EC75 */
+void DesignScrollStep(void);         /* $EC99 */
+void CopyBackupToDesign(void);       /* $EC3B */
+void DrawDesignCursorSprite(Regs r); /* $EC25 */
+void DesignBlinkCursor(void);        /* $EC5D */

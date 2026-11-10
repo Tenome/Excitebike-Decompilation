@@ -147,6 +147,20 @@ TESTS = [
     ('StateMenuChoice6', 0xC3BD, False, '', lambda r: dict(ram={0x15: r.choice([0, 0x04, 0x08, 0x10, 0x20, 0x30, 0x0C, 0x01, 0x80, 0x03, 0x02]), 0x49: r.choice([0, 0, 1]), 0x42: r.randint(0, 6), 0x43: r.randint(0, 5), 0x41: r.randint(0, 12)})),
     ('StateMenuChoice5', 0xC395, False, '', lambda r: dict(ram={0x15: r.choice([0, 0x04, 0x08, 0x10, 0x20, 0x30, 0x0C, 0x01, 0x80, 0x03, 0x02]), 0x49: r.choice([0, 0, 1]), 0x42: r.randint(0, 6), 0x43: r.randint(0, 5), 0x41: r.randint(0, 12)})),
     ('ComputeRaceResult', 0xC485, False, '', lambda r: dict(ram={0x43: r.randint(0, 5), 0x46: r.choice([0, 1]), 0x3F2: r.choice([0, 1]), 0x41: r.choice([2, 5, 8, 9]), 0x3F8: r.choice([1, 2, 4, 8, 3]), 0x68: r.choice([0, 1, 2, 3]), 0x69: r.randint(0, 59), 0x6A: r.randint(0, 99), 0x5: 0, 0x6: 0, 0x7: 0} | {0x580+i: r.choice([0, 1, 2, 3, 0x20, 0x3B, 0xFF]) for i in range(0x40)})),
+    ('TrackColumnPointer05', 0xF82E, True, 'V', lambda r: dict(x=r.randint(0, 0x23))),
+    ('TrackColumnPointer07', 0xF839, True, 'V', lambda r: dict(x=r.randint(0, 4))),
+    ('DesignEndRecord', 0xF826, True, 'ax', lambda r: {}),
+    ('DesignMarkRecord', 0xF821, True, 'ax', lambda r: {}),
+    ('ClearColumnBuffer', 0xF676, False, '', lambda r: {}),
+    ('CopyColumnBytes', 0xF681, True, 'xy', lambda r: dict(x=r.randint(0, 14), y=r.randint(0, 60), ram={0x05: r.randint(0, 255), 0x06: r.choice([0xF0, 0xE5, 0xC1, 0x04])})),
+    ('WriteColumnToRows', 0xF64E, False, '', lambda r: dict(ram={0x0F: r.randint(0, 63)} | {0x304+i: r.choice([0xFC, 0xFC, 0x10, 0x20]) for i in range(14)})),
+    ('DrawTrackColumn', 0xF6FB, False, '', lambda r: dict(ram={0xB1: r.choice([0x1F, 0x10, 0x20]), 0xB0: r.randint(0, 255)})),
+    ('DesignCheckSlotFree', 0xECC9, True, 'a', lambda r: dict(y=r.randint(0, 0x3F), ram={0x400+i: r.choice([0x3B, 0x3D, 0x10, 0x20]) for i in range(0x40)} | {0x440+i: r.choice([0x3B, 0x3D, 0x10]) for i in range(0x40)} | {0x480+i: r.choice([0x3D, 0x10, 0x20]) for i in range(0x40)} | {0x4C0+i: r.choice([0x3B, 0x10]) for i in range(0x40)} | {0x540+i: r.choice([0x3D, 0x10]) for i in range(0x40)})),
+    ('DesignLoadPiece', 0xEC75, False, '', lambda r: dict(ram={0xC2: r.randint(0, 20)})),
+    ('DesignScrollStep', 0xEC99, False, '', lambda r: dict(ram={0x60: r.choice([0, 1, 4, 8]), 0xB9: r.choice([0, 4, 7, 0]), 0xB1: r.choice([0x1F, 3])})),
+    ('CopyBackupToDesign', 0xEC3B, False, '', lambda r: {}),
+    ('DrawDesignCursorSprite', 0xEC25, True, 'V', lambda r: dict(ram={0xC2: r.randint(0, 20)})),
+    ('DesignBlinkCursor', 0xEC5D, False, '', lambda r: dict(ram={0xC2: r.randint(0, 20), 0x3F: r.randint(0, 255)})),
 ]
 
 def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):

@@ -1813,3 +1813,84 @@ scale:
 done:
     RAM(0x53) = a; RAM(0x45) = 0x18; RAM(0x49) = 1; RAM(0x40) = 1; RAM(0x44) = 0;
 }
+
+/* ---- batch 16: track column streaming helpers and track-design (editor) helpers ---- */
+static inline uint8_t rdp(uint8_t lo, uint8_t hi, uint8_t y) { return rd16mem((uint16_t)((lo | hi << 8) + y)); }   /* LDA (zp),Y */
+static inline void wrmem(uint16_t a, uint8_t v) { if (a < 0x2000) g_ram[a & 0x7FF] = v; }
+
+void TrackColumnPointer05(Regs r) { RAM(0x05) = ROMB(0xF063 + r.x); RAM(0x06) = ROMB(0xF087 + r.x); }   /* $F82E */
+void TrackColumnPointer07(Regs r) { RAM(0x07) = ROMB(0xF4F5 + r.x); RAM(0x08) = ROMB(0xF4FA + r.x); }   /* $F839 */
+Regs DesignEndRecord(Regs r) {                /* $F826: store write index, clear the run counter; Z set on return */
+    uint8_t x = r.x + 1;
+    RAM(0xB7) = x; RAM(0xC5) = 0;
+    r.x = x; r.a = 0; return r;
+}
+Regs DesignMarkRecord(Regs r) {               /* $F821: write the $40 marker, then end the record */
+    wrmem((uint16_t)(0x05E0 + r.x), 0x40);
+    return DesignEndRecord(r);
+}
+void ClearColumnBuffer(void) { for (uint8_t x = 0x0A; x != 0; x--) RAM(0x0303 + x) = 0xFC; }     /* $F676 */
+Regs CopyColumnBytes(Regs r) {                /* $F681: copies bytes from ($05),Y+1... into the PPU buffer at $0303,X until X = $0F */
+    uint8_t x = r.x, y = r.y;
+    do { y++; RAM(0x0303 + x) = rdp(RAM(0x05), RAM(0x06), y); x++; } while (x != 0x0F);
+    r.x = x; r.y = y; return r;
+}
+
+void WriteColumnToRows(void) {                /* $F64E: store the buffered column ($0304-$0309...) into the six track rows at column $0F */
+    uint8_t x = 5, val;
+    RAM(0x0C) = 0x0D;
+    for (;;) {
+        SetTrackRowPointer((Regs){ 0, 0, x, 0 });
+        RAM(0x0A) = x;
+        for (;;) {
+            x = RAM(0x0C); val = RAM(0x0304 + x);
+            if (val != 0xFC) break;
+            RAM(0x0C)--;
+            val = RAM(0x0C);
+            if (val & 0x80) break;
+        }
+        wrmem((uint16_t)((RAM(0x03) | RAM(0x04) << 8) + RAM(0x0F)), val);
+        RAM(0x0C)--;
+        x = (uint8_t)(RAM(0x0A) - 1);
+        if (x & 0x80) return;
+    }
+}
+
+void DrawTrackColumn(void) {                  /* $F6FB: advance the design-mode draw column; flips the nametable every 32 columns */
+    RAM(0xB1)++;
+    if (RAM(0xB1) == 0x20) { RAM(0xB1) = 0; RAM(0xB0) ^= 4; }
+}
+Regs DesignCheckSlotFree(Regs r) {            /* $ECC9: A = 0 when column Y of the design rows is empty */
+    uint8_t y = r.y;
+    r.a = 1;
+    if (RAM(0x0540 + y) == 0x3D && RAM(0x0480 + y) == 0x3D && RAM(0x0400 + y) == 0x3B && RAM(0x04C0 + y) == 0x3B) r.a = 0;
+    return r;
+}
+void DesignLoadPiece(void) {                  /* $EC75 */
+    uint8_t a;
+    RAM(0xCA) = 0; RAM(0xC8) = 0; RAM(0xC9) = 0;
+    RAM(0xBA) = RAM(0xB2); RAM(0xBB) = RAM(0xB0); RAM(0xBC) = RAM(0xB1);
+    a = ROMB(0xE6E1 + RAM(0xC2));
+    RAM(0xB8) = a;
+    if (a >= 0x11) RAM(0xC8) = a & 0x0F;
+}
+void DesignScrollStep(void) {                 /* $EC99 */
+    uint8_t a = RAM(0x60);
+    if (a == 0) return;
+    a += RAM(0xB9); RAM(0xB9) = a;
+    if (a != 8) return;
+    RAM(0xC0) = 1; RAM(0xB9) = 0;
+    DrawTrackColumn();
+    RAM(0xB2) = IncMod64((Regs){ RAM(0xB2), 0, 0, 0 }).a;
+    RAM(0xB3) = IncMod64((Regs){ RAM(0xB3), 0, 0, 0 }).a;
+}
+void CopyBackupToDesign(void) { for (int i = 0; i < 256; i++) RAM(0x06E0 + i) = RAM(0x05E0 + i); }   /* $EC3B */
+void DrawDesignCursorSprite(Regs r) {         /* $EC25: A = Y position */
+    RAM(0x0230) = r.a; RAM(0x0231) = 0xCA; RAM(0x0232) = 0;
+    RAM(0x0233) = ROMB(0xE6F6 + RAM(0xC2));
+}
+void DesignBlinkCursor(void) {                /* $EC5D */
+    DrawDesignCursorSprite((Regs){ 0xF8, 0, 0, 0 });
+    uint8_t a = (RAM(0x3F) & 0x10) ? 0xF8 : 0xC7;
+    RAM(0x0228) = a; RAM(0x022C) = a;
+}
