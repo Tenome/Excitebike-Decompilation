@@ -2365,3 +2365,80 @@ void MoveRiders(void) {                       /* $DA26: per-frame movement of th
     if (y == 0) UpdateTrackObstacle();
     else if (y == 1) UpdateScrollingBanner();
 }
+
+/* ---- batch 19: backup RAM, tape bookkeeping, design-mode result states, race setup ---- */
+void ResetSavedTimes(void) {                  /* $C229: default saved times (0:0A:0 style) in both slots */
+    uint8_t a = 0x0A;
+    for (uint8_t x = 0; x < 3; x++) { RAM(0x05A0 + x) = a; RAM(0x05C3 + x) = a; a = 0; }
+}
+void InitBackupRam(void) {                    /* $C1FD: first-boot contents of the battery/recorder RAM and its $A5/$5A signature */
+    for (int8_t x = 0x1E; x >= 0; x--) { RAM(0x0580 + x) = ROMB(0xC091 + x); RAM(0x05A3 + x) = ROMB(0xC091 + x); }
+    RAM(0x06E0) = 1;
+    uint8_t x = 1;
+    do { RAM(0x06E0 + x) = 0x40; x++; } while (x < 0xCF);
+    RAM(0x06E0 + x) = 9;
+    RAM(0x05CE) = 0xA5; RAM(0x05CF) = 0x5A;
+    ResetSavedTimes();
+}
+void CopyTrackDesignToBackup(void) { for (int i = 0; i < 256; i++) RAM(0x05E0 + i) = RAM(0x06E0 + i); }   /* $C621 */
+void TapeCountBit(void) { RAM(0x08)++; if (RAM(0x08) == 0) RAM(0x09)++; }                                  /* $C68A */
+static void tape_block_sizes(uint8_t a) { RAM(0x05) = a; RAM(0x06) = a; }
+void TapeSelectBlockA(void) { RAM(0x0D) = 0x40; RAM(0x0E) = 0x60; RAM(0x0F) = 0x00; tape_block_sizes(0x28); }   /* $C716 */
+void TapeSelectBlockB(void) { RAM(0x0D) = 0x00; RAM(0x0E) = 0xE0; RAM(0x0F) = 0x05; tape_block_sizes(0x14); }   /* $C726 */
+
+static void design_state_finish(void) { RAM(0xFB) = 0x40; ResultsStepFinish(); }                          /* $C447 */
+void StateDesignEnd(void) {                   /* $C43D */
+    if (RAM(0x44) == 0) { RAM(0x48) = 1; RAM(0x44) = 1; return; }
+    if (RAM(0x48) != 0xFF) return;
+    design_state_finish();
+}
+void StateDesignSaveCheck(void) {             /* $C41C */
+    if (RAM(0x44) == 0) { RAM(0x48) = 2; RAM(0x44) = 2; return; }
+    if (RAM(0x48) != 0xFF) return;
+    for (int8_t x = 2; x >= 0; x--) { RAM(0x05A0 + x) = RAM(0x65 + x); RAM(0x05C3 + x) = RAM(0x68 + x); }
+    CopyBackupToDesign();
+    design_state_finish();
+}
+
+void ClearRaceZeroPage(void) { for (uint8_t x = 0xEF; x != 0x4C; x--) RAM(x) = 0; }                      /* $C869 */
+
+void StartRaceSetup(void) {                   /* $C875: initial rider positions, pace targets, best-time HUD text for a new race */
+    uint8_t a, x;
+    RAM(0x47)++; RAM(0x40)++;
+    a = RAM(0x34); if (a == 0) a = 5; RAM(0x34) = a;
+    RAM(0xE8) = 0x34; RAM(0xE9) = 0x14;
+    RAM(0x03F1) = 0xA0;
+    RAM(0x03B4) = 0x80; RAM(0x03B0) = 0x80; RAM(0x03BD) = 0xFF;
+    RAM(0x0370) = 1; RAM(0x03BE) = 2;
+    x = RAM(0x03F2) ? 3 : 0;
+    for (;;) {
+        RAM(0xB8 + x) = ROMB(0xC0B4 + x);
+        RAM(0x64 + x) = 8;
+        RAM(0xE0 + x) = ROMB(0xC0B0 + x);
+        RAM(0x80 + x) = ROMB(0xC0B8 + x);
+        RAM(0xAC + x) = 6; RAM(0x78 + x) = 6;
+        RAM(0x84 + x) = 1; RAM(0xA8 + x) = 1;
+        RAM(0x74 + x) = RAM(0x19 + x) >> 1;
+        x--;
+        if (x & 0x80) break;
+    }
+    a = RAM(0x18) & 3;                          /* ZP indexing wraps: $19 + $FF = $18 */
+    if (a == 0) a = 2;
+    RAM(0x78 + a) >>= 1;
+    if (RAM(0x46) != 0 && RAM(0x43) == 4) {
+        for (int8_t i = 7; i >= 0; i--) RAM(0x0300 + i) = ROMB(0xC158 + i);
+        Regs q = DivMod10((Regs){ RAM(0x03F3), 0, 0, 0 });
+        RAM(0x0307) = q.a;
+        if (q.x != 0) RAM(0x0306) = q.x;
+    }
+    LoadBestTime();
+    if (RAM(0x41) >= 8) LoadSavedTime();
+    {
+        uint8_t c = 0;
+        a = adc8((uint8_t)(RAM(0x03F8) << 1), RAM(0x06), &c);
+        if (a >= 0x3C) { a -= 0x3C; RAM(0x05)++; }
+    }
+    RAM(0x06) = a; RAM(0x07) = 0; RAM(0x03) = 2;
+    WriteTimeDigitsToBuffer();
+    WriteTimeTextSaved((Regs){ 8, 0, 0, 0 });
+}

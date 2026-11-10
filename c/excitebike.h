@@ -190,3 +190,14 @@ void DrawFinishGate(void);           /* $EAC5 */
 void UpdateTrackObstacle(void);      /* $E0E6 */
 void UpdateScrollingBanner(void);    /* $E2AF */
 void MoveRiders(void);               /* $DA26 */
+
+void ResetSavedTimes(void);          /* $C229 */
+void InitBackupRam(void);            /* $C1FD */
+void CopyTrackDesignToBackup(void);  /* $C621 */
+void TapeCountBit(void);             /* $C68A */
+void TapeSelectBlockA(void);         /* $C716 */
+void TapeSelectBlockB(void);         /* $C726 */
+void StateDesignEnd(void);           /* $C43D */
+void StateDesignSaveCheck(void);     /* $C41C */
+void ClearRaceZeroPage(void);        /* $C869 */
+void StartRaceSetup(void);           /* $C875 */
