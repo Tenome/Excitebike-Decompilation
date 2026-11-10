@@ -58,6 +58,28 @@ static uint8_t read_pad(const uint8_t *keys) {            /* bit 0 = A (first bi
     return b;
 }
 
+/* Track designs: the design menu's SAVE and LOAD talk to the Famicom Data Recorder on the real machine (the game's idle loop runs the tape routines
+ * when ResetState is 1 = save or 2 = load). Here they use a file instead: the 64 bytes of zero page from $60 (header, times) and the 256-byte design at $05E0. */
+static const char *designs_path = "designs.ebd";
+static void tape_service(void) {
+    uint8_t st = g_ram[0x48];
+    if (st == 0 || (st & 0x80)) return;
+    DisableNmi();
+    FILE *f = fopen(designs_path, st == 1 ? "wb" : "rb");
+    if (f) {
+        if (st == 1) { fwrite("EBDES1", 1, 6, f); fwrite(g_ram + 0x60, 1, 0x40, f); fwrite(g_ram + 0x05E0, 1, 0x100, f); }
+        else {
+            char magic[6]; uint8_t zp[0x40], design[0x100];
+            if (fread(magic, 1, 6, f) == 6 && !memcmp(magic, "EBDES1", 6) && fread(zp, 1, 0x40, f) == 0x40 && fread(design, 1, 0x100, f) == 0x100) {
+                memcpy(g_ram + 0x60, zp, sizeof zp); memcpy(g_ram + 0x05E0, design, sizeof design);
+            } else fprintf(stderr, "%s is not a track design file\n", designs_path);
+        }
+        fclose(f);
+    } else if (st != 1) fprintf(stderr, "no %s to load\n", designs_path);
+    g_ram[0x48] = 0xFF;
+    WaitVblankEndEnableNmi();
+}
+
 /* Graphics mods: a 128x256 8-bit indexed BMP (see tools/chrbmp.py) or a raw 8 KB CHR file replaces the tiles; a 192-byte RGB file replaces the 64 colours. */
 static int load_chr_bmp(const char *path, uint8_t *chr) {
     SDL_Surface *s = SDL_LoadBMP(path);
@@ -116,6 +138,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--record") && i + 1 < argc) record = argv[++i];
         else if (!strcmp(argv[i], "--play") && i + 1 < argc) play = argv[++i];
         else if (!strcmp(argv[i], "--rule") && i + 1 < argc) { if (!set_rule(argv[++i])) { fprintf(stderr, "unknown rule %s\n", argv[i]); return 1; } }
+        else if (!strcmp(argv[i], "--designs") && i + 1 < argc) designs_path = argv[++i];
         else if (!strcmp(argv[i], "--chr-bmp") && i + 1 < argc) chr_bmp = argv[++i];
         else if (!strcmp(argv[i], "--chr") && i + 1 < argc) chr_raw = argv[++i];
         else if (!strcmp(argv[i], "--palette") && i + 1 < argc) pal_file = argv[++i];
@@ -198,6 +221,7 @@ int main(int argc, char **argv) {
         if (g_ppu.frames_done > 1) { SDL_UpdateTexture(tex, NULL, g_ppu.frame, g_ppu.width * 4); }
         for (int i = 0; i < 150; i++) UpdateRandom();          /* the idle loop between frames */
         if (g_ppu.ctrl & 0x80) Nmi();
+        tape_service();                                        /* design save/load requested through the (former) tape interface */
         /* audio for this frame */
         audio_acc += samples_per_frame;
         int ns = (int)audio_acc; audio_acc -= ns;

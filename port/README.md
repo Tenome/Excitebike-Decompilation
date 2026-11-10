@@ -14,6 +14,8 @@ Replays: `--record file` writes the controller state of every frame, `--play fil
 
 Widescreen: `--widescreen` (416 px, about 16:9) or `--width N` (256-512) draws the track ahead of the normal screen edge while racing: the game already streams about 20 tiles beyond the edge, so no game code changes. The status bar stays 256 wide and centred; menus stay 256 wide. Sprites are still the game's own (a rider beyond the original edge appears when it reaches it); drawing those from game state is the next step.
 
+Track designs: the design menu's SAVE and LOAD (which drive the Famicom Data Recorder on the real console) read and write a file, `designs.ebd` or `--designs file`; the file holds the 256-byte track design plus its header, so designs can be shared.
+
 Graphics mods: `python tools/chrbmp.py export orig/excitebike_us.nes tiles.bmp` writes all tiles as an editable 128x256 8-bit BMP (pixel values 0-3);
 edit it in any indexed-colour editor and run `excitebike --chr-bmp tiles.bmp` (or `--chr file.chr` for a raw 8 KB file). `--palette file.pal` replaces the 64 colours
 (192 bytes, RGB). The ROM and the repository are never modified.
