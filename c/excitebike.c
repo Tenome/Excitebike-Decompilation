@@ -57,6 +57,7 @@ static inline uint8_t rd16mem(uint16_t a) { return a < 0x2000 ? g_ram[a & 0x7FF]
 static inline uint8_t adc8(uint8_t a, uint8_t m, uint8_t *c) { unsigned r = a + m + *c; *c = r > 0xFF; return (uint8_t)r; }
 #define RAM(a) g_ram[(a) & 0x7FF]
 #define NEG(v) (((v) & 0x80) != 0)
+#include "ram_names.h"
 
 Regs DivModByX(Regs r) {
     uint8_t a = r.a, c = 0;
@@ -76,20 +77,20 @@ Regs IncMod64(Regs r) {
 }
 
 void UpdateRandom(void) {
-    RAM(0x00) = RAM(0x18) & 0x02;
+    RAM(0x00) = RandomState(0) & 0x02;
     uint8_t c = ((RAM(0x19) & 0x02) ^ RAM(0x00)) ? 1 : 0;
     for (int i = 0; i < 8; i++) {
-        uint8_t v = RAM(0x18 + i), nc = v & 1;
-        RAM(0x18 + i) = (uint8_t)((v >> 1) | (c << 7));
+        uint8_t v = RandomState(i), nc = v & 1;
+        RandomState(i) = (uint8_t)((v >> 1) | (c << 7));
         c = nc;
     }
 }
 
 void TickTimers(void) {
     uint8_t x = 0x0E;
-    RAM(0x20)--;
-    if (NEG(RAM(0x20))) { RAM(0x20) = 0x0A; x = 0x1C; }
-    do { if (RAM(0x21 + x)) RAM(0x21 + x)--; x--; } while (!NEG(x));
+    TimerPrescaler--;
+    if (NEG(TimerPrescaler)) { TimerPrescaler = 0x0A; x = 0x1C; }
+    do { if (Timers(x)) Timers(x)--; x--; } while (!NEG(x));
 }
 
 Regs AddCollisionHeight(Regs r) { if (r.a < 0xE7) r.a += 0x0C; return r; }
@@ -97,50 +98,50 @@ Regs AddCollisionWidth(Regs r)  { if (r.a < 0xE7) r.a += 0x02; return r; }
 
 Regs RiderBaseYFrom(Regs r) {
     uint8_t c = 1;
-    uint8_t a = sbc8(r.a, RAM(0xBC + r.x), &c);
-    a = sbc8(a, RAM(0xB8 + r.x), &c);
+    uint8_t a = sbc8(r.a, RiderHeight(r.x), &c);
+    a = sbc8(a, RiderY(r.x), &c);
     r.a = a; return r;
 }
-Regs RiderBaseY(Regs r) { r.a = RAM(0x03F1); return RiderBaseYFrom(r); }
+Regs RiderBaseY(Regs r) { r.a = LandingBaseY; return RiderBaseYFrom(r); }
 
 Regs RiderLaneFromY(Regs r) {
     uint8_t x = r.x, y = 0;
-    if (RAM(0x9C + x) == 0) {
-        uint8_t a = RAM(0xB8 + x);
+    if (RiderState(x) == 0) {
+        uint8_t a = RiderY(x);
         for (;;) {
             uint8_t d = (uint8_t)(a - ROMB(0xD913 + y));          /* cmp ... ; bmi */
             if (NEG(d)) break;
             y++;
             if (!NEG((uint8_t)(y - 5))) { y = 0; break; }          /* cpy #5 ; bmi */
         }
-        if (y != 0 && RAM(0xA4 + x) == 1) y += 2;
+        if (y != 0 && RiderTerrainState(x) == 1) y += 2;
     }
-    RAM(0x70 + x) = y;
+    RiderLane(x) = y;
     r.y = y; r.a = y; return r;
 }
 
 void ComputeRiderLanes(void) {
     for (int x = g_rhi; x >= g_rlo; x--) {
-        uint8_t y = 5, a = (uint8_t)(RAM(0xB8 + x) - 0x10);
+        uint8_t y = 5, a = (uint8_t)(RiderY(x) - 0x10);
         if (!NEG(a)) {
             for (;;) { y--; if (y == 0) break; a = (uint8_t)(a - 8); if (NEG(a)) break; }
         }
-        RAM(0x0360 + x) = y;
+        RiderLaneRow(x) = y;
     }
 }
 
 void AdvanceTrackPositions(void) {
     for (int x = g_rhi; x >= g_rlo; x--) {
-        if (RAM(0x60 + x) != 0) {
-            uint8_t d = (uint8_t)(RAM(0x64 + x) - RAM(0x60 + x));
+        if (RiderMoveX(x) != 0) {
+            uint8_t d = (uint8_t)(RiderMoveFraction(x) - RiderMoveX(x));
             if (d == 0 || NEG(d)) {
-                RAM(0x64 + x) = (uint8_t)(d + 8);
-                RAM(0xE0 + x) = (uint8_t)((RAM(0xE0 + x) + 1) & 0x3F);
+                RiderMoveFraction(x) = (uint8_t)(d + 8);
+                RiderTrackPos(x) = (uint8_t)((RiderTrackPos(x) + 1) & 0x3F);
             } else {
-                RAM(0x64 + x) = d;
+                RiderMoveFraction(x) = d;
             }
         }
-        RAM(0xD8 + x) = 0;
+        RiderTrackFlags(x) = 0;
     }
 }
 
@@ -154,13 +155,13 @@ void SplitDigits3(Regs r) {
 }
 
 void SortRidersByY(void) {
-    for (int x = 3; x >= 0; x--) { RAM(0x88 + x) = (uint8_t)x; RAM(x) = RAM(0xB8 + x); }
+    for (int x = 3; x >= 0; x--) { RiderSortOrder(x) = (uint8_t)x; RAM(x) = RiderY(x); }
     if (RAM(0x0373)) RAM(0x03) = RAM(0x6F);
     RAM(0x0D) = 3;
     do {
         for (uint8_t y = 0; y != RAM(0x0D); y++) {
-            uint8_t xa = RAM(0x88 + y), xb = RAM(0x89 + y);
-            if (RAM(xa) >= RAM(xb)) { RAM(0x89 + y) = RAM(0x88 + y); RAM(0x88 + y) = xb; }
+            uint8_t xa = RiderSortOrder(y), xb = RAM(0x89 + y);
+            if (RAM(xa) >= RAM(xb)) { RAM(0x89 + y) = RiderSortOrder(y); RiderSortOrder(y) = xb; }
         }
         RAM(0x0D)--;
     } while (RAM(0x0D) != 0);
@@ -169,86 +170,86 @@ void SortRidersByY(void) {
 /* ---------------------------------------------------------------- batch 2 */
 Regs AccumulateRiderMove(Regs r) {            /* $DA58 */
     uint8_t x = r.x, c = 0;
-    RAM(0x60 + x) = RAM(0x94 + x);
-    uint8_t a = adc8(RAM(0x90 + x), RAM(0x0394 + x), &c);
-    RAM(0x0394 + x) = a;
-    if (c) RAM(0x60 + x)++;
+    RiderMoveX(x) = RiderSpeedHi(x);
+    uint8_t a = adc8(RiderSpeedLo(x), RiderMoveSubpixel(x), &c);
+    RiderMoveSubpixel(x) = a;
+    if (c) RiderMoveX(x)++;
     r.a = a; r.c = c; return r;
 }
 
 void ScrollWorld(void) {                      /* $DA6A */
-    uint8_t c = 0, a = adc8(RAM(0x12), RAM(0x60), &c);
-    RAM(0x12) = a;
-    if (c) RAM(0x4D) ^= 0x01;
+    uint8_t c = 0, a = adc8(ScrollX, RiderMoveX(0), &c);
+    ScrollX = a;
+    if (c) PpuCtrlNametableBits ^= 0x01;
 }
 
 void ShiftRidersByScroll(void) {              /* $DA7A */
     for (int x = g_rhi; x >= (g_rlo ? g_rlo : 1); x--) {
-        if (RAM(0xA8 + x) == 0) continue;
-        uint8_t c = 0, a = adc8(RAM(0x60 + x), RAM(0x80 + x), &c);
-        if (c) RAM(0x84 + x)++;
-        c = 1; a = sbc8(a, RAM(0x60), &c);
-        RAM(0x80 + x) = a;
-        if (!c) RAM(0x84 + x)--;
-        RAM(0x0390 + x) = (uint8_t)(RAM(0x0390 + x) - RAM(0x60));
+        if (RiderActive(x) == 0) continue;
+        uint8_t c = 0, a = adc8(RiderMoveX(x), RiderXLo(x), &c);
+        if (c) RiderXHi(x)++;
+        c = 1; a = sbc8(a, RiderMoveX(0), &c);
+        RiderXLo(x) = a;
+        if (!c) RiderXHi(x)--;
+        RiderShadowX(x) = (uint8_t)(RiderShadowX(x) - RiderMoveX(0));
     }
 }
 
 void ScrollSplitLayer(void) {                 /* $DBFE */
-    uint8_t a = RAM(0x60), c = a & 1;
+    uint8_t a = RiderMoveX(0), c = a & 1;
     a >>= 1;
     for (int i = 0; i < 3; i++) { uint8_t nc = a & 1; a = (uint8_t)((a >> 1) | (c << 7)); c = nc; }
     c = 0; a = adc8(a, RAM(0x03BF), &c); RAM(0x03BF) = a;
-    a = adc8(RAM(0x60), RAM(0x50), &c); RAM(0x50) = a;
-    if (c) RAM(0x4E) ^= 0x01;
+    a = adc8(RiderMoveX(0), SplitScrollX, &c); SplitScrollX = a;
+    if (c) SplitNametableBits ^= 0x01;
 }
 
 Regs ComputeRiderShadowY(Regs r) {            /* $DA15 */
     uint8_t x = r.x, c = 1;
-    uint8_t a = sbc8(RAM(0x0390 + x), RAM(0x80 + x), &c);
+    uint8_t a = sbc8(RiderShadowX(x), RiderXLo(x), &c);
     a = sbc8(a, 8, &c);
     c = (uint8_t)(a >> 7); a = (uint8_t)(a << 1);          /* asl a */
-    c = 0; a = adc8(a, RAM(0xB8 + x), &c);
+    c = 0; a = adc8(a, RiderY(x), &c);
     a = adc8(a, 4, &c);
-    RAM(0x6C + x) = a;
+    RiderShadowY(x) = a;
     r.a = a; r.c = c; return r;
 }
 
 Regs JumpArcStep(Regs r) {                    /* $DD6F: vertical velocity/height integration for a jump */
     uint8_t x = r.x, c = r.c;
-    uint8_t a = adc8(RAM(0x0380 + x), RAM(0x038C + x), &c);
-    RAM(0x0380 + x) = a;
-    a = adc8(RAM(0x0384 + x), 0, &c);
-    RAM(0x0384 + x) = a;
-    a = sbc8(RAM(0x01), RAM(0x037C + x), &c);
+    uint8_t a = adc8(RiderJumpArcLo(x), RiderJumpGravity(x), &c);
+    RiderJumpArcLo(x) = a;
+    a = adc8(RiderJumpArcHi(x), 0, &c);
+    RiderJumpArcHi(x) = a;
+    a = sbc8(RAM(0x01), RiderJumpSpeedHi(x), &c);
     RAM(0x01) = a;
-    a = adc8(RAM(0x01), RAM(0x0384 + x), &c);
+    a = adc8(RAM(0x01), RiderJumpArcHi(x), &c);
     r.a = a; r.c = c; return r;
 }
 
 Regs RiderPitchTimer(Regs r) {                /* $DCDE */
     uint8_t x = r.x;
-    uint8_t a = RAM(0x0374 + x);
+    uint8_t a = RiderPitchLock(x);
     if (a != 0) {
-        RAM(0x0374 + x) = --a;
-        a = RAM(0x5C + x) & 0xC0;
-        if (a != 0) { a = 0; RAM(0x0374 + x) = 0; }
+        RiderPitchLock(x) = --a;
+        a = RiderInput(x) & 0xC0;
+        if (a != 0) { a = 0; RiderPitchLock(x) = 0; }
     }
     r.a = a; return r;
 }
 
 Regs AiMatchTargetSpeedFrom(Regs r) {         /* $CFDB: clear the throttle bits of the opposite direction */
-    uint8_t x = r.x, a = RAM(0x94 + x);
-    if (a != 0) { a = 0x0F; RAM(0x5C + x) = (uint8_t)(a & RAM(0x5C + x)); a = RAM(0x5C + x); }
+    uint8_t x = r.x, a = RiderSpeedHi(x);
+    if (a != 0) { a = 0x0F; RiderInput(x) = (uint8_t)(a & RiderInput(x)); a = RiderInput(x); }
     r.a = a; return r;
 }
 Regs AiMatchTargetSpeed(Regs r) {             /* $CFCB: compare speed with target; set accelerate/brake input bits */
-    uint8_t x = r.x, y = 0x80, hi = RAM(0x94 + x), thi = RAM(0x78 + x);
+    uint8_t x = r.x, y = 0x80, hi = RiderSpeedHi(x), thi = RiderTargetSpeedHi(x);
     if (hi >= thi) {
-        if (hi != thi || RAM(0x90 + x) >= RAM(0x74 + x)) { Regs q = AiMatchTargetSpeedFrom(r); q.y = y; return q; }
+        if (hi != thi || RiderSpeedLo(x) >= RiderTargetSpeedLo(x)) { Regs q = AiMatchTargetSpeedFrom(r); q.y = y; return q; }
     }
-    uint8_t a = (uint8_t)(y | RAM(0x5C + x));
-    RAM(0x5C + x) = a;
+    uint8_t a = (uint8_t)(y | RiderInput(x));
+    RiderInput(x) = a;
     r.a = a; r.y = y; return r;
 }
 
@@ -265,11 +266,11 @@ Regs TrackPieceAt(Regs r) {                   /* $E803: A = track piece at row Y
     r.a = rd16mem((uint16_t)(p + r.y));
     return r;
 }
-Regs TrackPieceAtRow(Regs r) { RAM(0x08) = RAM(0xE0 + r.x); return TrackPieceAt(r); }                 /* $E7FF */
-Regs TrackPieceAtRiderLane(Regs r) { r.y = RAM(0x0360 + r.x); return TrackPieceAtRow(r); }             /* $E7FC */
+Regs TrackPieceAtRow(Regs r) { RAM(0x08) = RiderTrackPos(r.x); return TrackPieceAt(r); }                 /* $E7FF */
+Regs TrackPieceAtRiderLane(Regs r) { r.y = RiderLaneRow(r.x); return TrackPieceAtRow(r); }             /* $E7FC */
 
 Regs RiderYOverlapTest(Regs r) {              /* $E52C: 0 when |Y[x]-Y[y]| is within 0x12 */
-    uint8_t d = (uint8_t)(RAM(0x8C + r.x) - RAM(0x8C + r.y));
+    uint8_t d = (uint8_t)(RiderScreenY(r.x) - RiderScreenY(r.y));
     if (d >= 0xEC) { r.a = d; r.c = 1; return r; }
     if (d < 0x12)  { r.a = d; r.c = 0; return r; }
     r.a = 0; r.c = 1; return r;
@@ -283,41 +284,41 @@ Regs ClearRider(Regs r) {                     /* $DB95 */
 
 Regs AdvanceBufferPos(Regs r) {               /* $C971: X = old PPU buffer length, buffer length += A */
     uint8_t c = 0;
-    r.x = RAM(0x0300);
-    r.a = adc8(r.a, RAM(0x0300), &c);
-    RAM(0x0300) = r.a; r.c = c; return r;
+    r.x = PpuBufferLen;
+    r.a = adc8(r.a, PpuBufferLen, &c);
+    PpuBufferLen = r.a; r.c = c; return r;
 }
 
 /* ---- batch 2: rider jump/launch, target speed/pitch, AI input bits ---- */
 void SetRiderTargetSpeed(Regs r) {            /* $DB50: Y = speed class from the AI */
     uint8_t x = r.x, y = r.y, a;
-    if (RAM(0x52)) a = 3;
+    if (RaceEndState) a = 3;
     else {
         if (x == 3) {                          /* $DB6C: the pace-setter copies the player's speed when close by */
             uint8_t go_table = 0;
-            if ((RAM(0x84 + x) >> 1) & 1) go_table = 1;
-            else if (RAM(0x94) == 0) go_table = 1;
+            if ((RiderXHi(x) >> 1) & 1) go_table = 1;
+            else if (RiderSpeedHi(0) == 0) go_table = 1;
             else {
-                RAM(0x78 + x) = RAM(0x94); RAM(0x74 + x) = RAM(0x90);
-                if (RAM(0x84 + x) != 0) {
-                    if (RAM(0x80 + x) >= 0x40) go_table = 1;
-                    else if (RAM(0x70) == RAM(0x73)) return;
+                RiderTargetSpeedHi(x) = RiderSpeedHi(0); RiderTargetSpeedLo(x) = RiderSpeedLo(0);
+                if (RiderXHi(x) != 0) {
+                    if (RiderXLo(x) >= 0x40) go_table = 1;
+                    else if (RiderLane(0) == RAM(0x73)) return;
                 }
-                if (!go_table) { if (RAM(0x78 + x) < 4) RAM(0x78 + x)++; return; }
+                if (!go_table) { if (RiderTargetSpeedHi(x) < 4) RiderTargetSpeedHi(x)++; return; }
             }
             (void)go_table;
         }
         a = ROMB(0xD8D5 + y);
     }
-    RAM(0x78 + x) = a;
+    RiderTargetSpeedHi(x) = a;
     y = RAM(0x1B + x) & 0x0F;
-    RAM(0x74 + x) = ROMB(0xD8CD + y);
+    RiderTargetSpeedLo(x) = ROMB(0xD8CD + y);
 }
 
 void AiJumpCheck(Regs r) {                    /* $D000 */
     uint8_t x = r.x; r.y = 0;
     if (x != 3) {
-        if ((RAM(0x80 + x) & 0x10) == 0) return;
+        if ((RiderXLo(x) & 0x10) == 0) return;
         uint8_t a = RAM(0x1A + x);
         if (a < 0xC0) return;
         if (a == 0xC0) r.y = 1;
@@ -325,79 +326,79 @@ void AiJumpCheck(Regs r) {                    /* $D000 */
     SetRiderTargetSpeed(r);
 }
 
-void AiClearPitchBits(Regs r) { RAM(0x5C + r.x) &= 0xF0; }           /* $CFE3 */
+void AiClearPitchBits(Regs r) { RiderInput(r.x) &= 0xF0; }           /* $CFE3 */
 void AiSetPitchInput(Regs r) {                /* $CFEA */
     uint8_t x = r.x;
     AiClearPitchBits(r);
-    uint8_t y = 1, t = RAM(0x7C + x), p = RAM(0xAC + x);
+    uint8_t y = 1, t = RiderTargetPitch(x), p = RiderPitch(x);
     if (t == 0 || t == p) return;
     if (t > p) y = 2;
-    RAM(0x5C + x) |= y;
+    RiderInput(x) |= y;
 }
 
 void SetRiderTargetPitch(Regs r) {            /* $DCA0 */
-    uint8_t x = r.x, y = RAM(0xD4 + x), a;
-    if (RAM(0x52) == 1 && (uint8_t)(x | RAM(0x98) | RAM(0x9C) | RAM(0x58)) == 0) a = 0x0A;
+    uint8_t x = r.x, y = RiderScriptShape(x), a;
+    if (RaceEndState == 1 && (uint8_t)(x | RiderCrash(0) | RiderState(0) | RiderScriptId(0)) == 0) a = 0x0A;
     else a = ROMB(0xD88B + y);
-    RAM(0x0368 + x) = a;
-    if (RAM(0xA4 + x) == 1) RAM(0x0368 + x) = 6;
+    RiderPitchGoal(x) = a;
+    if (RiderTerrainState(x) == 1) RiderPitchGoal(x) = 6;
 }
 
 void RiderPitchAdjust(Regs r) {               /* $DCC7: step pitch one notch toward A, at most once per Y-latched period */
     uint8_t x = r.x;
     RAM(0x00) = r.a;
-    if (RAM(0x2A + x) != 0) return;
-    RAM(0x2A + x) = r.y;
-    uint8_t p = RAM(0xAC + x);
+    if (RiderPitchAdjustTimer(x) != 0) return;
+    RiderPitchAdjustTimer(x) = r.y;
+    uint8_t p = RiderPitch(x);
     if (p == RAM(0x00)) return;
-    if (p < RAM(0x00)) RAM(0xAC + x) = p + 1; else RAM(0xAC + x) = p - 1;
+    if (p < RAM(0x00)) RiderPitch(x) = p + 1; else RiderPitch(x) = p - 1;
 }
 
 static uint8_t jump_setup(uint8_t x) {         /* $DD38 body; returns carry as the 6502 leaves it */
     uint8_t c = 0;
-    RAM(0xB0 + x) = 2; RAM(0x0380 + x) = 0x0F;
-    RAM(0x0378 + x) = adc8(RAM(0x90 + x), g_rules.jump_power, &c);
-    RAM(0x037C + x) = adc8(RAM(0x94 + x), 0, &c);
-    uint8_t v = RAM(0x0388 + x);
+    RiderAirborne(x) = 2; RiderJumpArcLo(x) = 0x0F;
+    RiderJumpSpeedLo(x) = adc8(RiderSpeedLo(x), g_rules.jump_power, &c);
+    RiderJumpSpeedHi(x) = adc8(RiderSpeedHi(x), 0, &c);
+    uint8_t v = RiderJumpMode(x);
     c = v >= 2;
     if (v == 2) {
-        c = RAM(0x037C + x) & 1; RAM(0x037C + x) >>= 1;
-        uint8_t o = RAM(0x0378 + x); RAM(0x0378 + x) = (uint8_t)((o >> 1) | (c << 7)); c = o & 1;
+        c = RiderJumpSpeedHi(x) & 1; RiderJumpSpeedHi(x) >>= 1;
+        uint8_t o = RiderJumpSpeedLo(x); RiderJumpSpeedLo(x) = (uint8_t)((o >> 1) | (c << 7)); c = o & 1;
     }
     if (x == 0) {
-        uint8_t t = RAM(0x94); c = (t >> 4) & 1;
+        uint8_t t = RiderSpeedHi(0); c = (t >> 4) & 1;
         uint8_t a = (uint8_t)((t << 4) ^ 0x30);
-        RAM(0xFF) = a ? a : 0x08;
+        SfxPulse1Request = a ? a : 0x08;
     }
     return c;
 }
 void RiderJumpSetup(Regs r) { jump_setup(r.x); }
 
 static void launch_tail(uint8_t x, uint8_t c) {   /* $DD1A */
-    uint8_t y = RAM(0x5C + x) & 3;
-    RAM(0x038C + x) = ROMB(0xD868 + y);
-    RAM(0x01) = RAM(0x8C + x);
+    uint8_t y = RiderInput(x) & 3;
+    RiderJumpGravity(x) = ROMB(0xD868 + y);
+    RAM(0x01) = RiderScreenY(x);
     Regs q = JumpArcStep((Regs){ 0, x, y, c });
-    RAM(0x8C + x) = q.a;
-    if (RAM(0xCC + x) == 0) RAM(0x0364 + x) = 1;
+    RiderScreenY(x) = q.a;
+    if (RiderPendingOp(x) == 0) RiderLandingArmed(x) = 1;
 }
 void RiderStartJump(Regs r) {                 /* $DD06 */
     uint8_t x = r.x;
-    RAM(0x0384 + x) = RAM(0x94 + x);
+    RiderJumpArcHi(x) = RiderSpeedHi(x);
     launch_tail(x, jump_setup(x));
 }
 void RiderLaunchUpdate(Regs r) {              /* $DCF2 */
-    uint8_t x = r.x, a = RAM(0xB0 + x);
+    uint8_t x = r.x, a = RiderAirborne(x);
     if (a == 0) return;
     if (a != 2) {                              /* $DCFA */
-        RAM(0x0384 + x) = 0; launch_tail(x, jump_setup(x)); return;
+        RiderJumpArcHi(x) = 0; launch_tail(x, jump_setup(x)); return;
     }
-    uint8_t in = RAM(0x5C + x);
-    if (in & 1) { if (RAM(0x4C) == 0) return; launch_tail(x, 1); }
+    uint8_t in = RiderInput(x);
+    if (in & 1) { if (FrameMod4 == 0) return; launch_tail(x, 1); }
     else launch_tail(x, 0);
 }
 
-void ClearOam(void) { for (int i = 0; i < 256; i++) RAM(0x0200 + i) = 0xF8; }   /* $D255 */
+void ClearOam(void) { for (int i = 0; i < 256; i++) OamBuffer(i) = 0xF8; }   /* $D255 */
 
 /* ---- batch 3: speed model and AI lane changes ---- */
 static void max_speed(uint8_t y, uint8_t *hi, uint8_t *lo) {   /* top speed for acceleration class Y (rider 0), scaled by the rule */
@@ -407,79 +408,79 @@ static void max_speed(uint8_t y, uint8_t *hi, uint8_t *lo) {   /* top speed for 
 }
 Regs RiderTerrainSpeedBias(Regs r) {          /* $CDEE: bump state ($036C) from terrain; returns the 6502 Z flag in .c (1 = on the ramp-free path) */
     uint8_t x = r.x, y;
-    if (RAM(0xC0 + x) != 0xE4) {
-        int skip = (RAM(0xA4 + x) == 3) && RAM(0x70 + x) >= 3;
+    if (RiderTrackPiece(x) != 0xE4) {
+        int skip = (RiderTerrainState(x) == 3) && RiderLane(x) >= 3;
         if (!skip) {
-            y = RAM(0xB8 + x);
+            y = RiderY(x);
             if (y < 0x38 && y >= 0x08) {                       /* $CE1D */
-                if (RAM(0x036C + x) != 1) RAM(0x036C + x) = 0;
+                if (RiderSkid(x) != 1) RiderSkid(x) = 0;
                 r.c = 1; return r;
             }
         }
     }
-    if (RAM(0x036C + x) != 1) RAM(0x036C + x) = 2;             /* $CE0A */
-    if (x == 0) RAM(0xFD) = 4;
+    if (RiderSkid(x) != 1) RiderSkid(x) = 2;             /* $CE0A */
+    if (x == 0) SfxNoiseRequest = 4;
     r.c = 0; return r;
 }
 
 void RiderAccelerate(Regs r) {                /* $CE29: Y = acceleration class; speed capped for rider 0 */
     uint8_t x = r.x, y = r.y, c = 0;
-    if (x != RAM(0x4C)) return;
-    RAM(0x90 + x) = adc8(ROMB(0xC0BC + y), RAM(0x90 + x), &c);
-    if (c) RAM(0x94 + x)++;
+    if (x != FrameMod4) return;
+    RiderSpeedLo(x) = adc8(ROMB(0xC0BC + y), RiderSpeedLo(x), &c);
+    if (c) RiderSpeedHi(x)++;
     if (x != 0) return;
-    uint8_t hi = RAM(0x94), t, tl;
+    uint8_t hi = RiderSpeedHi(0), t, tl;
     max_speed(y, &t, &tl);
-    if (hi == t) { if (RAM(0x90) < tl) return; }
+    if (hi == t) { if (RiderSpeedLo(0) < tl) return; }
     else if (hi < t) return;
-    RAM(0x90) = tl; RAM(0x94) = t;
+    RiderSpeedLo(0) = tl; RiderSpeedHi(0) = t;
 }
 
 void RiderDecelerateBy(Regs r) {              /* $CE5C */
     uint8_t x = r.x;
     RAM(0x00) = r.y;
-    if (RAM(0x94 + x) == 0) {
-        uint8_t i = RAM(0xB0 + x) >> 1;
-        if (RAM(0x90 + x) < ROMB(0xC0CC + i)) return;
+    if (RiderSpeedHi(x) == 0) {
+        uint8_t i = RiderAirborne(x) >> 1;
+        if (RiderSpeedLo(x) < ROMB(0xC0CC + i)) return;
     }
-    uint8_t y = RAM(0x00), lo = RAM(0x90 + x), m = ROMB(0xC0C1 + y);
-    RAM(0x90 + x) = (uint8_t)(lo - m);
+    uint8_t y = RAM(0x00), lo = RiderSpeedLo(x), m = ROMB(0xC0C1 + y);
+    RiderSpeedLo(x) = (uint8_t)(lo - m);
     if (lo >= m) return;
-    if (RAM(0x94 + x)) { RAM(0x94 + x)--; return; }
-    RAM(0x90 + x) = 0;
+    if (RiderSpeedHi(x)) { RiderSpeedHi(x)--; return; }
+    RiderSpeedLo(x) = 0;
 }
-void RiderDecelerate(Regs r) { if (r.x == RAM(0x4C)) RiderDecelerateBy(r); }   /* $CE58 */
+void RiderDecelerate(Regs r) { if (r.x == FrameMod4) RiderDecelerateBy(r); }   /* $CE58 */
 
 void RiderPitchWobble(Regs r) {               /* $CE83: bit 0 of $00 chooses the direction; pitch crash at 13 */
     uint8_t x = r.x;
-    if (RAM(0x26 + x)) return;
-    uint8_t i = RAM(0xB0 + x) >> 1;
-    RAM(0x26 + x) = ROMB(0xC0D4 + i);
+    if (RiderPitchRepeatTimer(x)) return;
+    uint8_t i = RiderAirborne(x) >> 1;
+    RiderPitchRepeatTimer(x) = ROMB(0xC0D4 + i);
     uint8_t up = RAM(0x00) & 1; RAM(0x00) >>= 1;
-    uint8_t p = RAM(0xAC + x);
+    uint8_t p = RiderPitch(x);
     if (up) {
         uint8_t t = ROMB(0xC0C8 + i);
         if (p == t) return;
-        if (p < t) RAM(0xAC + x) = p + 1; else RAM(0xAC + x) = p - 1;
+        if (p < t) RiderPitch(x) = p + 1; else RiderPitch(x) = p - 1;
         return;
     }
-    RAM(0x0388 + x) &= 2;
-    if (p < ROMB(0xC0CA + i)) { RAM(0xAC + x) = p + 1; return; }
-    if ((RAM(0x5C + x) & 0xC0) == 0) return;
-    if (RAM(0xB0 + x) != 0) return;
-    RAM(0xAC + x) = p + 1;
-    RAM(0x26 + x) = 0x0D;
-    if ((uint8_t)(p + 1) >= g_rules.crash_pitch) { RAM(0x98 + x) = 1; RAM(0x26 + x) = 2; }
+    RiderJumpMode(x) &= 2;
+    if (p < ROMB(0xC0CA + i)) { RiderPitch(x) = p + 1; return; }
+    if ((RiderInput(x) & 0xC0) == 0) return;
+    if (RiderAirborne(x) != 0) return;
+    RiderPitch(x) = p + 1;
+    RiderPitchRepeatTimer(x) = 0x0D;
+    if ((uint8_t)(p + 1) >= g_rules.crash_pitch) { RiderCrash(x) = 1; RiderPitchRepeatTimer(x) = 2; }
 }
 
 Regs AiLaneBlocked(Regs r) {                  /* $CF96: C=1 when another rider is in lane $02 within the X window */
     uint8_t x = r.x, c = 0;
-    RAM(0x00) = adc8(RAM(0x80 + x), ROMB(0xC0D6 + r.y), &c);
+    RAM(0x00) = adc8(RiderXLo(x), ROMB(0xC0D6 + r.y), &c);
     RAM(0x01) = (uint8_t)(RAM(0x00) - ROMB(0xC0D7 + r.y));
-    uint8_t y = RAM(0x4A);
+    uint8_t y = FirstAiRider;
     for (;;) {
-        if (y != RAM(0x0F) && (RAM(0x84 + y) & 1) && RAM(0x70 + y) != 0 && RAM(0x70 + y) == RAM(0x02)) {
-            uint8_t v = RAM(0x80 + y);
+        if (y != RAM(0x0F) && (RiderXHi(y) & 1) && RiderLane(y) != 0 && RiderLane(y) == RAM(0x02)) {
+            uint8_t v = RiderXLo(y);
             if (v < RAM(0x00) && v >= RAM(0x01)) { r.c = 1; return r; }
         }
         y++;
@@ -496,110 +497,110 @@ static uint8_t lane_piece_open(uint8_t x, uint8_t y) {   /* $CF88 */
 
 static void lane_down(uint8_t x);
 static void lane_up(uint8_t x) {              /* $CF47 */
-    uint8_t y = RAM(0x0360 + x) - 1;
+    uint8_t y = RiderLaneRow(x) - 1;
     if ((uint8_t)(y - 1) & 0x80) { lane_down(x); return; }
     if (lane_piece_open(x, y)) return;
-    RAM(0x02) = RAM(0x70 + x) + 1;
+    RAM(0x02) = RiderLane(x) + 1;
     if (AiLaneBlocked((Regs){ 0, x, 0, 0 }).c) return;
-    RAM(0xDC + x) = 1;
+    RiderLaneStep(x) = 1;
 }
 static void lane_down(uint8_t x) {            /* $CF6A */
-    uint8_t y = RAM(0x0360 + x) + 1;
+    uint8_t y = RiderLaneRow(x) + 1;
     if (!((uint8_t)(y - 5) & 0x80)) { lane_up(x); return; }
     if (lane_piece_open(x, y)) return;
-    RAM(0x02) = RAM(0x70 + x) - 1;
+    RAM(0x02) = RiderLane(x) - 1;
     if (AiLaneBlocked((Regs){ 0, x, 0, 0 }).c) return;
-    RAM(0xDC + x) = 0xFF;
+    RiderLaneStep(x) = 0xFF;
 }
 void AiLaneChangeUp(Regs r) { lane_up(r.x); }
 void AiLaneChangeDown(Regs r) { lane_down(r.x); }
 
 void AiConsiderLaneChange(Regs r) {           /* $CF0C */
     uint8_t x = r.x;
-    if (!(RAM(0x84 + x) & 1)) return;
-    RAM(0x02) = RAM(0x70 + x);
+    if (!(RiderXHi(x) & 1)) return;
+    RAM(0x02) = RiderLane(x);
     int to64 = 0;
     if (AiLaneBlocked((Regs){ 0, x, 2, 0 }).c) {
         AiMatchTargetSpeedFrom((Regs){ 0, x, 2, 0 });
-        if (!(RAM(0x80 + x) & 0x80)) return;
-        if (RAM(0x18 + x) & 1) to64 = 1; else { lane_up(x); return; }
+        if (!(RiderXLo(x) & 0x80)) return;
+        if (RandomState(x) & 1) to64 = 1; else { lane_up(x); return; }
     } else {
-        if (RAM(0xDC + x) != 0) return;
-        if (!(RAM(0x84 + x) & 1)) return;
-        uint8_t a = RAM(0x80 + x);
+        if (RiderLaneStep(x) != 0) return;
+        if (!(RiderXHi(x) & 1)) return;
+        uint8_t a = RiderXLo(x);
         if (a >= 0xF0) return;
         if (!(a & 0x80)) return;
         a = RAM(0x19 + x);
         if (a < 0xE0) return;
         if (a < 0xF8) to64 = 1; else { lane_up(x); return; }
     }
-    if (to64 && RAM(0xC0 + x) == 0xE6) { lane_up(x); return; }
+    if (to64 && RiderTrackPiece(x) == 0xE6) { lane_up(x); return; }
     lane_down(x);
 }
 
 /* ---- batch 4: rider start-sequence states (gate, move to lane, wait, finish) ---- */
 void RiderState1Gate(Regs r) {                /* $D933: riders creep up to the gate */
     uint8_t x = r.x;
-    if (RAM(0x0370 + x) != 0) {
-        if (RAM(0x3F) & 1) return;
-        RAM(0x0390 + x)++;
-        uint8_t y = RAM(0x03E4 + x);
-        uint8_t a = (uint8_t)(RAM(0x80 + x) + ROMB(0xD90E + y));
-        if (a >= RAM(0x0390 + x)) return;
+    if (RiderGateWait(x) != 0) {
+        if (FrameCounter & 1) return;
+        RiderShadowX(x)++;
+        uint8_t y = RiderCrashFacing(x);
+        uint8_t a = (uint8_t)(RiderXLo(x) + ROMB(0xD90E + y));
+        if (a >= RiderShadowX(x)) return;
     }
-    if (++RAM(0x9C + x) == 0) return;
-    RAM(0x2A + x) = 8;
+    if (++RiderState(x) == 0) return;
+    RiderPitchAdjustTimer(x) = 8;
 }
 
 void RiderState2MoveToLane(Regs r) {          /* $D953 */
     uint8_t x = r.x, y = x;
-    if (x != 0 && RAM(0xBC + x) != 0) y = 4;
-    uint8_t a = RAM(0xB8 + x), t = ROMB(0xD8C4 + y);
-    if (a != t) { RAM(0xDC + x) = a < t ? 1 : 0xFF; return; }
-    RAM(0x0398 + x) = 0; RAM(0xDC + x) = 0;
-    RAM(0x9C + x)++;
-    if (x == 0) RAM(0xFD) = 2;
-    RAM(0x2A + x) = 8;
+    if (x != 0 && RiderHeight(x) != 0) y = 4;
+    uint8_t a = RiderY(x), t = ROMB(0xD8C4 + y);
+    if (a != t) { RiderLaneStep(x) = a < t ? 1 : 0xFF; return; }
+    RiderShadowFrame(x) = 0; RiderLaneStep(x) = 0;
+    RiderState(x)++;
+    if (x == 0) SfxNoiseRequest = 2;
+    RiderPitchAdjustTimer(x) = 8;
 }
 
 void RiderState3Wait(Regs r) {                /* $D983 */
     uint8_t x = r.x, a;
-    if (RAM(0x0370 + x) != 0) {
-        if (RAM(0x2A + x) != 0) return;
+    if (RiderGateWait(x) != 0) {
+        if (RiderPitchAdjustTimer(x) != 0) return;
         int dec = 0;
         a = 0;
         int frame = 1;
-        if ((uint8_t)(x | RAM(0x03F7)) == 0) {
-            uint8_t y = RAM(0x49);
-            a = RAM(0x14) & 0xC0;
-            if (a != 0 && y == 0) { RAM(0x49) = a; dec = 1; frame = 0; a = 0; }
-            else RAM(0x49) = (a != 0) ? y : 0;      /* $D99F stores A, which is the old latch after TYA */
+        if ((uint8_t)(x | DemoMode) == 0) {
+            uint8_t y = InputLatch;
+            a = Joy1Held & 0xC0;
+            if (a != 0 && y == 0) { InputLatch = a; dec = 1; frame = 0; a = 0; }
+            else InputLatch = (a != 0) ? y : 0;      /* $D99F stores A, which is the old latch after TYA */
         }
-        if (frame) { a = RAM(0x3F) & 0x0F; if (a == 0) dec = 1; }
-        if (dec) RAM(0x0390 + x)--;
-        if ((a & 7) == 0) RAM(0x0398 + x) ^= 1;
-        if ((uint8_t)(RAM(0x0390 + x) - 8) >= RAM(0x80 + x)) return;
+        if (frame) { a = FrameCounter & 0x0F; if (a == 0) dec = 1; }
+        if (dec) RiderShadowX(x)--;
+        if ((a & 7) == 0) RiderShadowFrame(x) ^= 1;
+        if ((uint8_t)(RiderShadowX(x) - 8) >= RiderXLo(x)) return;
     }
-    RAM(0x36 + x) = 3;                         /* $D9C0 */
-    RAM(0x9C + x)++;
+    RiderReleaseTimer(x) = 3;                         /* $D9C0 */
+    RiderState(x)++;
     if (x == 3) { RAM(0x03A8) = 0; RAM(0x0373) = 0; }
 }
 
 void RiderState5Finish(Regs r) {              /* $D9F6 */
     uint8_t x = r.x;
-    if ((RAM(0x94 + x) | RAM(0xDC + x)) == 0 && RAM(0xB8 + x) == ROMB(0xD8C4 + x)) return;
-    RAM(0xDC + x) = 1;
-    if (x != 0 && RAM(0xB8 + x) < 8) return;
-    RAM(0x9C + x) = 0;
+    if ((RiderSpeedHi(x) | RiderLaneStep(x)) == 0 && RiderY(x) == ROMB(0xD8C4 + x)) return;
+    RiderLaneStep(x) = 1;
+    if (x != 0 && RiderY(x) < 8) return;
+    RiderState(x) = 0;
 }
 
 /* ---- batch 5: reset, time-table indexing, release state ---- */
 void ResetGameRam(void) {                     /* $CA85: clears zero page $21-$FF, keeps the menu cursor */
-    uint8_t cur = RAM(0x42);
+    uint8_t cur = MenuCursor;
     for (int i = 0x21; i <= 0xFF; i++) RAM(i) = 0;
-    RAM(0xFC) = 0;
-    RAM(0x49)++;
-    RAM(0x42) = cur;
+    EngineSoundRequest = 0;
+    InputLatch++;
+    MenuCursor = cur;
 }
 
 Regs TimeTableIndexForTrack(Regs r) {         /* $CB13: best-time table slot for track number $02 */
@@ -611,62 +612,62 @@ Regs TimeTableIndexForTrack(Regs r) {         /* $CB13: best-time table slot for
         if (y & 0x80) break;
         c = 0; a = adc8(a, 3, &c);
     }
-    y = RAM(0x46);
+    y = ModeFlagB;
     if (y) a |= 0x10;
     r.a = a; r.y = y; r.c = c; return r;
 }
 Regs TimeTableIndexForSelection(Regs r) {     /* $CB06 */
     r = TimeTableIndexForTrack(r);
     uint8_t c = r.c, a = r.a;
-    if (RAM(0x03F2) != 0) { c = 0; a = adc8(a, 0x23, &c); }
+    if (SelectionB != 0) { c = 0; a = adc8(a, 0x23, &c); }
     r.a = r.y = a; r.c = c; return r;
 }
 
-void SaveInputToRider0(void) { RAM(0x5C) = RAM(0x14); }   /* $CA1B */
+void SaveInputToRider0(void) { RiderInput(0) = Joy1Held; }   /* $CA1B */
 
 void RiderState4Release(Regs r) {             /* $D9D3 */
     uint8_t x = r.x;
-    if (RAM(0x36 + x) != 0) return;
+    if (RiderReleaseTimer(x) != 0) return;
     if (x == 0) {
-        if (RAM(0x03E0) != 0) { RAM(0x9C) = 0; return; }
-        if (RAM(0x03F7) != 0) { ResetGameRam(); return; }
+        if (RiderOverheated(0) != 0) { RiderState(0) = 0; return; }
+        if (DemoMode != 0) { ResetGameRam(); return; }
     } else {
         if (RAM(0x22) != 0) return;
-        RAM(0xDC + x) = 1; RAM(0x22) = 0x18;
+        RiderLaneStep(x) = 1; RAM(0x22) = 0x18;
     }
-    RAM(0x9C + x)++;
+    RiderState(x)++;
 }
 
 /* ---- batch 6: player/AI control step, race clock, engine sound ---- */
 void RiderControlStep(Regs r) {               /* $CD59: one rider's throttle, brake and pitch handling for this frame */
     uint8_t x = r.x, y = 0, a;
-    RAM(0x0A) = RAM(0x5C + x) & 3;
-    if ((RAM(0x0374 + x) | RAM(0x98 + x)) != 0) goto decel;
-    a = RAM(0x9C + x);
+    RAM(0x0A) = RiderInput(x) & 3;
+    if ((RiderPitchLock(x) | RiderCrash(x)) != 0) goto decel;
+    a = RiderState(x);
     if (a != 0 && a != 5) goto decel;
     if (x == 0) {
         y = 2;
-        if (RAM(0x52) != 0) goto cmp_speed;
+        if (RaceEndState != 0) goto cmp_speed;
         y = 0;
     }
-    if (RAM(0xB0 + x) != 0) {                   /* $CDB2: airborne */
+    if (RiderAirborne(x) != 0) {                   /* $CDB2: airborne */
         y = 4; a = RAM(0x0A);
         if (a == 0) goto decel;
         y = a; goto brake;
     }
-    a = RAM(0x5C + x) & 0xC0;
+    a = RiderInput(x) & 0xC0;
     if (a == 0) goto decel;
     RAM(0x00) = x;
     if (!(a & 0x80)) RAM(0x00)++;
-    if (!RiderTerrainSpeedBias(r).c && RAM(0x94 + x) != 0) goto decel;
+    if (!RiderTerrainSpeedBias(r).c && RiderSpeedHi(x) != 0) goto decel;
     y = RAM(0x00);
     if (x != 0) goto accel;
 cmp_speed: {                                    /* $CD9A */
-    uint8_t hi = RAM(0x94 + x), t, t2;
+    uint8_t hi = RiderSpeedHi(x), t, t2;
     max_speed(y, &t, &t2);
     if (hi < t) goto accel;
     if (hi != t) goto brake;
-    uint8_t lo = RAM(0x90 + x);
+    uint8_t lo = RiderSpeedLo(x);
     if (lo == t2) goto after;
     if (lo >= t2) goto brake;
 }
@@ -677,10 +678,10 @@ brake:
 decel:
     RiderDecelerate((Regs){ 0, x, y, 0 });
 after:                                          /* $CDBD */
-    if (RAM(0x98 + x) != 0) return;
-    if (RAM(0xB0 + x) == 0) {
-        if ((RAM(0x58 + x) | RAM(0x52)) != 0) goto settle;
-        if (RAM(0x94 + x) == 0 && RAM(0x90 + x) < 0xA0) goto settle;
+    if (RiderCrash(x) != 0) return;
+    if (RiderAirborne(x) == 0) {
+        if ((RiderScriptId(x) | RaceEndState) != 0) goto settle;
+        if (RiderSpeedHi(x) == 0 && RiderSpeedLo(x) < 0xA0) goto settle;
     }
     a = RAM(0x0A);                              /* $CDD5 */
     if (a == 0) goto settle;
@@ -688,13 +689,13 @@ after:                                          /* $CDBD */
     RiderPitchWobble(r);
     return;
 settle:                                         /* $CDDE */
-    if (RAM(0xB0 + x) != 0) return;
-    if (RAM(0x0368 + x) == RAM(0xAC + x)) return;
-    RiderPitchAdjust((Regs){ RAM(0x0368 + x), x, 5, 0 });
+    if (RiderAirborne(x) != 0) return;
+    if (RiderPitchGoal(x) == RiderPitch(x)) return;
+    RiderPitchAdjust((Regs){ RiderPitchGoal(x), x, 5, 0 });
 }
 
 void UpdateRaceClock(void) {                  /* $DF30: ticks the race time (minutes:seconds:hundredths) and mirrors the digits to $03D9 */
-    if (!RAM(0x4F)) return;
+    if (!RaceStarted) return;
     RAM(0x6B) += 0x10;
     for (;;) {
         if (RAM(0x6B) < 0x0A) break;
@@ -704,7 +705,7 @@ void UpdateRaceClock(void) {                  /* $DF30: ticks the race time (min
         if (++RAM(0x69) < 0x3C) continue;
         RAM(0x69) = 0;
         if (++RAM(0x68) < 0x09) continue;
-        RAM(0x52) = 2;
+        RaceEndState = 2;
         break;
     }
     SplitDigits3((Regs){ 0, 0x68, 0, 0 });
@@ -713,21 +714,21 @@ void UpdateRaceClock(void) {                  /* $DF30: ticks the race time (min
 
 void UpdateEngineSound(void) {                /* $DEE2: engine pitch request for rider 0 */
     uint8_t x = 0;
-    if (RAM(0x03A9) != 0) {
-        if (RAM(0x4C) & 1) return;
-        RAM(0x00) = RAM(0x94); RAM(0x01) = RAM(0x90);
+    if (EngineRunning != 0) {
+        if (FrameMod4 & 1) return;
+        RAM(0x00) = RiderSpeedHi(0); RAM(0x01) = RiderSpeedLo(0);
         for (int i = 0; i < 3; i++) { uint8_t c = RAM(0x00) & 1; RAM(0x00) >>= 1; RAM(0x01) = (uint8_t)((RAM(0x01) >> 1) | (c << 7)); }
-        x = RAM(0xB0) ? 4 : 2;
+        x = RiderAirborne(0) ? 4 : 2;
         uint8_t a = (uint8_t)(RAM(0x01) - 2);
         if (a & 0x80) x = 1;
         else {
             x = DivModByX((Regs){ a, x, 0, 0 }).x;
             if (x == 0) x = 1;
         }
-        if (x >= 0x2F) { x = 0x2F; if ((RAM(0x3F) & 8) == 0) x--; }
-        if (!(RAM(0x5C) & 0x80)) x |= 0x80;
+        if (x >= 0x2F) { x = 0x2F; if ((FrameCounter & 8) == 0) x--; }
+        if (!(RiderInput(0) & 0x80)) x |= 0x80;
     }
-    RAM(0xFC) = x;
+    EngineSoundRequest = x;
 }
 
 /* ---- batch 7: AI obstacle scan and the per-frame rider update loops ---- */
@@ -748,13 +749,13 @@ Regs AiScanObstacles(Regs r) {                /* $D018: A = obstacles found ahea
     }
 clear:                                          /* $D04B */
     y = 0;
-    if (RAM(0x58 + x) == 0) y = RAM(0x0368 + x);
+    if (RiderScriptId(x) == 0) y = RiderPitchGoal(x);
     a = y; goto done;
 obstacle:                                       /* $D058 */
     RAM(0x0D)++;
-    a = (uint8_t)(((RAM(0x0A) & 3) + 1 + RAM(0xE0 + x)) & 0x3F);
+    a = (uint8_t)(((RAM(0x0A) & 3) + 1 + RiderTrackPos(x)) & 0x3F);
     RAM(0x08) = a; RAM(0x09) = 0x40;
-    y = RAM(0x0360 + x);
+    y = RiderLaneRow(x);
     for (;;) {                                  /* $D06F: look toward lower lanes */
         y--;
         if ((uint8_t)(y - 1) & 0x80) break;
@@ -763,7 +764,7 @@ obstacle:                                       /* $D058 */
         if (a == 0xFA) break;
         if (!AiTrackPieceOpen((Regs){ a, 0, 0, 0 }).c) { AiLaneChangeUp((Regs){ 0, x, 0, 0 }); goto clear; }
     }
-    y = RAM(0x0360 + x);
+    y = RiderLaneRow(x);
     for (;;) {                                  /* $D08B */
         y++;
         if (!((uint8_t)(y - 6) & 0x80)) goto clear;
@@ -773,22 +774,22 @@ obstacle:                                       /* $D058 */
         if (!AiTrackPieceOpen((Regs){ a, 0, 0, 0 }).c) { AiLaneChangeDown((Regs){ 0, x, 0, 0 }); goto clear; }
     }
 done:
-    RAM(0x7C + x) = a;
+    RiderTargetPitch(x) = a;
     r.a = RAM(0x0D); r.c = (r.a == 0); return r;
 }
 
 void UpdateAiRiders(void) {                   /* $CED0 */
-    uint8_t x = RAM(0x4A);
+    uint8_t x = FirstAiRider;
     do {
         RAM(0x0F) = x;
-        if (RAM(0xA8 + x) != 0 && (RAM(0x98 + x) | RAM(0x9C + x)) == 0) {
+        if (RiderActive(x) != 0 && (RiderCrash(x) | RiderState(x)) == 0) {
             AiSetPitchInput((Regs){ 0, x, 0, 0 });
-            if (RAM(0xB0 + x) != 0) RAM(0x7C + x) = RAM(0x0368 + x);
+            if (RiderAirborne(x) != 0) RiderTargetPitch(x) = RiderPitchGoal(x);
             else {
                 AiMatchTargetSpeed((Regs){ 0, x, 0, 0 });
                 if (AiScanObstacles((Regs){ 0, x, 0, 0 }).a == 0 && RAM(0x03A6) != 0) {
                     AiJumpCheck((Regs){ 0, x, 0, 0 });
-                    if (RAM(0x52) == 0) AiConsiderLaneChange((Regs){ 0, x, 0, 0 });
+                    if (RaceEndState == 0) AiConsiderLaneChange((Regs){ 0, x, 0, 0 });
                 }
             }
         }
@@ -797,17 +798,17 @@ void UpdateAiRiders(void) {                   /* $CED0 */
 }
 
 void UpdateRiderControls(void) {              /* $CD1F */
-    if (RAM(0x4F)) {
+    if (RaceStarted) {
         for (int i = g_rhi; i >= g_rlo; i--) {
             uint8_t x = (uint8_t)i;
-            if (RAM(0xA8 + x) == 0) continue;
-            if (RAM(0x9C + x) != 5 && (RAM(0x9C + x) | RAM(0x98 + x) | RAM(0x03E0 + x)) != 0) RAM(0x5C + x) = 0;
+            if (RiderActive(x) == 0) continue;
+            if (RiderState(x) != 5 && (RiderState(x) | RiderCrash(x) | RiderOverheated(x)) != 0) RiderInput(x) = 0;
             RiderControlStep((Regs){ 0, x, 0, 0 });
         }
     }
     if (g_rlo != 0) return;
-    if (RAM(0x34) == 0 && (RAM(0x5C) & 0xC0) != 0 && (RAM(0x03A9) | RAM(0x52)) == 0) {
-        RAM(0x03A9) = 1; RAM(0xFE) = 1;
+    if (MenuHintTimer == 0 && (RiderInput(0) & 0xC0) != 0 && (EngineRunning | RaceEndState) == 0) {
+        EngineRunning = 1; SfxPulse2Request = 1;
     }
 }
 
@@ -816,29 +817,29 @@ Regs SpawnRider(Regs r) {                     /* $DAE3: X = slot, Y = start lane
     uint8_t x = r.x, y = r.y, a;
     ClearRider((Regs){ 0, x, 0, 0 });
     y--;
-    RAM(0xB8 + x) = ROMB(0xD8D8 + y);
-    y = RAM(0x84 + x);
-    RAM(0x80 + x) = ROMB(0xD8DF + y);
-    RAM(0xAC + x) = 6;
-    RAM(0xE0 + x) = (uint8_t)((RAM(0xE0) + ROMB(0xD8E2 + y)) & 0x3F);
-    RAM(0x64 + x) = RAM(0x64);
+    RiderY(x) = ROMB(0xD8D8 + y);
+    y = RiderXHi(x);
+    RiderXLo(x) = ROMB(0xD8DF + y);
+    RiderPitch(x) = 6;
+    RiderTrackPos(x) = (uint8_t)((RiderTrackPos(0) + ROMB(0xD8E2 + y)) & 0x3F);
+    RiderMoveFraction(x) = RiderMoveFraction(0);
     if (y != 0) {
         a = TrackPieceAtRow((Regs){ 0, x, 5, 0 }).a;
         if (a != 0xE4) {
             if (a < 0x3B || a >= 0x93) { r.a = 0; r.c = 1; return r; }
             a = TrackPieceAtRow((Regs){ 0, x, 2, 0 }).a;
             if (a == 0xE6) {
-                if (RAM(0xB8 + x) >= 0x20) { RAM(0xBC + x) = 0x30; RAM(0xA4 + x) = 1; }
-                else RAM(0xA4 + x) = 3;
+                if (RiderY(x) >= 0x20) { RiderHeight(x) = 0x30; RiderTerrainState(x) = 1; }
+                else RiderTerrainState(x) = 3;
             }
         }
     }
-    y = RAM(0x84 + x);                          /* $DB34 */
+    y = RiderXHi(x);                          /* $DB34 */
     SetRiderTargetSpeed((Regs){ 0, x, y, 0 });
-    RAM(0x94 + x) = (uint8_t)((RAM(0x84 + x) ^ 2) << 1);
+    RiderSpeedHi(x) = (uint8_t)((RiderXHi(x) ^ 2) << 1);
     RAM(0x039B + x) = 0x20;
     RAM(0x23) = 0x10;
-    RAM(0xA8 + x) = 1;
+    RiderActive(x) = 1;
     r.a = 1; r.c = 0; return r;
 }
 
@@ -846,14 +847,14 @@ void SpawnCpuRiders(void) {                   /* $DA9F: occasionally brings a CP
     uint8_t x = 3;
     if (RAM(0x3B) != 0) x--;                    /* first pass is skipped when $3B is set (falls to the DEX) */
     for (;;) {
-        if ((uint8_t)((x ^ RAM(0x4C)) | RAM(0xA8 + x) | RAM(0x23) | RAM(0x0373) | RAM(0x03A8)) == 0 && RAM(0x18 + x) >= 0xA0) {
-            uint8_t a = RAM(0x18 + x), y;
+        if ((uint8_t)((x ^ FrameMod4) | RiderActive(x) | RAM(0x23) | RAM(0x0373) | RAM(0x03A8)) == 0 && RandomState(x) >= 0xA0) {
+            uint8_t a = RandomState(x), y;
             RAM(0x00) = x;
             y = (uint8_t)((a & 3) + 1);
-            RAM(0x84 + x) = RAM(0x94) & 2;
+            RiderXHi(x) = RiderSpeedHi(0) & 2;
             for (uint8_t xx = 3; xx != 0; xx--) {
                 RAM(0x01) = y;
-                if (RAM(0x70 + xx) == y) { y++; if (y >= 5) y = 1; }
+                if (RiderLane(xx) == y) { y++; if (y >= 5) y = 1; }
             }
             x = RAM(0x00);
             SpawnRider((Regs){ 0, x, y, 0 });
@@ -882,89 +883,89 @@ void HandleLostRider(void) {                  /* $DBC4: clears rider 3 when it f
  * Each track piece can start a script (tables at $E559/$E56E): pairs of (position, opcode/operand). The opcode byte
  * indexes the jump table at $E6B7. Handlers set rider height, bump/terrain state and launch jumps. */
 static uint8_t ts_set_height(uint8_t x, uint8_t a) {      /* $E893: returns A = distance into the piece */
-    RAM(0xD4 + x) = a; RAM(0xB4 + x) = a;
-    return (uint8_t)(RAM(0xC8 + x) - RAM(0xD0 + x));
+    RiderScriptShape(x) = a; RiderScriptShapeB(x) = a;
+    return (uint8_t)(RiderScriptClock(x) - RiderScriptBase(x));
 }
-static void ts_height_abs(uint8_t x, uint8_t a) { RAM(0xBC + x) = a; RAM(0xE4 + x) = a; }       /* $E84F */
-static void ts_height_rel(uint8_t x, uint8_t a) { RAM(0x00) = a; RAM(0xBC + x) = (uint8_t)(RAM(0xE4 + x) - a); }   /* $E86F */
+static void ts_height_abs(uint8_t x, uint8_t a) { RiderHeight(x) = a; RiderHeightBase(x) = a; }       /* $E84F */
+static void ts_height_rel(uint8_t x, uint8_t a) { RAM(0x00) = a; RiderHeight(x) = (uint8_t)(RiderHeightBase(x) - a); }   /* $E86F */
 
 void RiderLaunchFromRest(Regs r) {            /* $DCFA path: start a jump with no speed bonus */
     uint8_t x = r.x;
-    RAM(0x0384 + x) = 0; launch_tail(x, jump_setup(x));
+    RiderJumpArcHi(x) = 0; launch_tail(x, jump_setup(x));
 }
 
-static void ts_op_E963(uint8_t x) { RAM(0xCC + x) = 0; RAM(0xD4 + x) = 0; RAM(0xB4 + x) = 0; }
-static void ts_op_E8E3(uint8_t x) { RAM(0xA0 + x) = 1; }
-static void ts_op_E85D(uint8_t x) { ts_height_abs(x, ts_set_height(x, 6)); RAM(0xD8 + x) = 0x60; }
+static void ts_op_E963(uint8_t x) { RiderPendingOp(x) = 0; RiderScriptShape(x) = 0; RiderScriptShapeB(x) = 0; }
+static void ts_op_E8E3(uint8_t x) { RiderBumpState(x) = 1; }
+static void ts_op_E85D(uint8_t x) { ts_height_abs(x, ts_set_height(x, 6)); RiderTrackFlags(x) = 0x60; }
 static void ts_op_E86A(uint8_t x) { ts_height_rel(x, ts_set_height(x, 1)); }
-static void ts_op_E845(uint8_t x) { RAM(0xD8 + x) = 0x80; ts_height_abs(x, ts_set_height(x, 5) >> 1); }
+static void ts_op_E845(uint8_t x) { RiderTrackFlags(x) = 0x80; ts_height_abs(x, ts_set_height(x, 5) >> 1); }
 static void ts_op_E854(uint8_t x) { ts_height_rel(x, ts_set_height(x, 2) >> 1); }
 static void ts_op_E934(uint8_t x) {
-    if (RAM(0xB0 + x) != 0) return;
-    uint8_t y = 0, a = RAM(0x94 + x);
+    if (RiderAirborne(x) != 0) return;
+    uint8_t y = 0, a = RiderSpeedHi(x);
     if (a == 0) return;
-    if (a < 2 && RAM(0x90 + x) < RAM(0xD8 + x)) y = 1;
-    RAM(0x0388 + x) = y;
-    if (RAM(0xA0 + x) == 2) RiderStartJump((Regs){ 0, x, 0, 0 });
+    if (a < 2 && RiderSpeedLo(x) < RiderTrackFlags(x)) y = 1;
+    RiderJumpMode(x) = y;
+    if (RiderBumpState(x) == 2) RiderStartJump((Regs){ 0, x, 0, 0 });
     else RiderLaunchFromRest((Regs){ 0, x, 0, 0 });
 }
 static void ts_op_E818(uint8_t x) {
-    if (RAM(0xB0 + x) != 0) return;
-    if (!((uint8_t)(RAM(0xAC + x) - 7) & 0x80)) return;
-    uint8_t hi = RAM(0x94 + x);
+    if (RiderAirborne(x) != 0) return;
+    if (!((uint8_t)(RiderPitch(x) - 7) & 0x80)) return;
+    uint8_t hi = RiderSpeedHi(x);
     if (hi < 3) {
         if (hi != 2) return;
-        if (!(RAM(0x90 + x) & 0x80)) return;
+        if (!(RiderSpeedLo(x) & 0x80)) return;
     }
-    RAM(0x98 + x) = 0xFF;
+    RiderCrash(x) = 0xFF;
 }
 static void ts_op_EA8F(uint8_t x) {            /* finish line: rider 0 copies the time digits to the sprite block, or starts the end sequence */
     if (x != 0) return;
-    RAM(0x3A) = 0x1D;
-    if (RAM(0x57) == 0) { RAM(0x32) = 0x10; RAM(0xFD) = 2; RAM(0x52) = 1; RAM(0x3A) = 0; return; }
-    if (RAM(0x3C) != 0) { RAM(0x3A) = 0; return; }
+    FinishGateTimer = 0x1D;
+    if (RAM(0x57) == 0) { RaceEndTimer = 0x10; SfxNoiseRequest = 2; RaceEndState = 1; FinishGateTimer = 0; return; }
+    if (OverheatTimer != 0) { FinishGateTimer = 0; return; }
     RAM(0x0D) = x;
     uint8_t y = 0x19;
     for (int i = 6; i >= 0; i--) { RAM(0x02C0 + y) = RAM(0x03D9 + i); y -= 4; }
 }
 static void ts_op_E879(uint8_t x) {
     ts_height_abs(x, (uint8_t)(ts_set_height(x, 4) << 1));
-    if (RAM(0xA0 + x) != 0) ts_height_abs(x, RAM(0xBC + x) + 0x10);
-    RAM(0xD8 + x) = 0x40;
+    if (RiderBumpState(x) != 0) ts_height_abs(x, RiderHeight(x) + 0x10);
+    RiderTrackFlags(x) = 0x40;
 }
 static void ts_op_E89D(uint8_t x) {
-    uint8_t s = RAM(0xA4 + x);
+    uint8_t s = RiderTerrainState(x);
     if (s == 1) return;
     ts_height_rel(x, (uint8_t)(ts_set_height(x, 3) << 1));
-    if (RAM(0xA4 + x) == 4) {
+    if (RiderTerrainState(x) == 4) {
         RiderStartJump((Regs){ 0, x, 0, 0 });
-        RAM(0xA4 + x) = 2; RAM(0x0364 + x) = 2;
+        RiderTerrainState(x) = 2; RiderLandingArmed(x) = 2;
     }
 }
-static void ts_op_E8EE(uint8_t x) { RAM(0xA0 + x) = 2; RAM(0xD8 + x) = 1; ts_height_abs(x, 0x30); }
+static void ts_op_E8EE(uint8_t x) { RiderBumpState(x) = 2; RiderTrackFlags(x) = 1; ts_height_abs(x, 0x30); }
 static void ts_op_E8FF(uint8_t x, uint8_t y) {
-    if (RAM(0xB0 + x) != 0) return;
-    uint8_t s = RAM(0xA4 + x);
+    if (RiderAirborne(x) != 0) return;
+    uint8_t s = RiderTerrainState(x);
     if (s != 0 && !((s >> 1) & 1)) return;
     RAM(0x01) = y;
-    if (RAM(0x94 + x) != 0) {
-        uint8_t yy = (RAM(0x5C + x) & 0x40) ? 3 : 4;
-        RAM(0x036C + x) = 1;
+    if (RiderSpeedHi(x) != 0) {
+        uint8_t yy = (RiderInput(x) & 0x40) ? 3 : 4;
+        RiderSkid(x) = 1;
         RiderDecelerateBy((Regs){ 0, x, (uint8_t)(yy + 2), 0 });
     }
 }
 static void ts_op_E956(uint8_t x) {
-    if (RAM(0xA4 + x) != 1) return;
-    RAM(0xBC + x) = 0;
+    if (RiderTerrainState(x) != 1) return;
+    RiderHeight(x) = 0;
     RiderStartJump((Regs){ 0, x, 0, 0 });
 }
-static void ts_op_E8BF(uint8_t x) { RAM(0xA4 + x) = 0; RAM(0xA0 + x) = 0; }
-static void ts_op_E8C6(uint8_t x) { RAM(0xA4 + x) = 1; if (RAM(0xB8 + x) < 0x20) RAM(0xA4 + x) = 2; }
+static void ts_op_E8BF(uint8_t x) { RiderTerrainState(x) = 0; RiderBumpState(x) = 0; }
+static void ts_op_E8C6(uint8_t x) { RiderTerrainState(x) = 1; if (RiderY(x) < 0x20) RiderTerrainState(x) = 2; }
 static void ts_op_E8FA(uint8_t x) { ts_height_abs(x, 0x10); }
-static void ts_op_E8D3(uint8_t x) { if ((uint8_t)(x | RAM(0xB0 + x) | RAM(0x03E0) | RAM(0x3C)) == 0) RAM(0x03B6) = 8; }
+static void ts_op_E8D3(uint8_t x) { if ((uint8_t)(x | RiderAirborne(x) | RiderOverheated(0) | OverheatTimer) == 0) TempGauge = 8; }
 static void ts_op_E8E7(uint8_t x) {
-    if (RAM(0xB0 + x) != 0) return;
-    if (RAM(0x98 + x) == 0) RAM(0x94 + x)++;
+    if (RiderAirborne(x) != 0) return;
+    if (RiderCrash(x) == 0) RiderSpeedHi(x)++;
     RiderLaunchFromRest((Regs){ 0, x, 0, 0 });
 }
 static void ts_op_E8F5(uint8_t x) { ts_height_abs(x, 0x30); }
@@ -987,57 +988,57 @@ void TrackScriptOpcode(Regs r) {              /* $E794: A = opcode (0-20, not 17
 void RunPendingTrackScripts(void) {           /* $E927 */
     for (int i = g_rhi; i >= g_rlo; i--) {
         uint8_t x = (uint8_t)i;
-        if (RAM(0xCC + x) != 0) TrackScriptOpcode((Regs){ RAM(0xCC + x), x, 0, 0 });
+        if (RiderPendingOp(x) != 0) TrackScriptOpcode((Regs){ RiderPendingOp(x), x, 0, 0 });
     }
 }
 
 void RunTrackScriptRider(Regs r) {            /* $E73B: advance one rider through the script of the piece it is on */
     uint8_t x = r.x, c = 0, a;
-    RAM(0xC8 + x) = adc8(RAM(0x60 + x), RAM(0xC8 + x), &c);
-    if (RAM(0x58 + x) == 0) {
-        a = (uint8_t)(RAM(0xC0 + x) - 0x40);
+    RiderScriptClock(x) = adc8(RiderMoveX(x), RiderScriptClock(x), &c);
+    if (RiderScriptId(x) == 0) {
+        a = (uint8_t)(RiderTrackPiece(x) - 0x40);
         if (a & 0x80) return;
         a >>= 2;
         if (a >= 0x16) return;
-        RAM(0x58 + x) = a + 1;
-        RAM(0xC4 + x) = 0;
-        RAM(0xC8 + x) = RAM(0x64 + x) - 1;
+        RiderScriptId(x) = a + 1;
+        RiderScriptPos(x) = 0;
+        RiderScriptClock(x) = RiderMoveFraction(x) - 1;
     }
     for (;;) {
-        uint8_t idx = RAM(0x58 + x);
+        uint8_t idx = RiderScriptId(x);
         RAM(0x0A) = ROMB(0xE559 + idx); RAM(0x0B) = ROMB(0xE56E + idx);
         uint16_t ptr = (uint16_t)(RAM(0x0A) | RAM(0x0B) << 8);
-        uint8_t y = RAM(0xC4 + x);
+        uint8_t y = RiderScriptPos(x);
         a = rd16mem((uint16_t)(ptr + y));
         if (a == 0xFF) {                        /* $E7D0: script finished */
-            RAM(0x58 + x) = 0; RAM(0xD4 + x) = 0;
-            if (RAM(0xA0 + x) == 0 && RAM(0xA4 + x) != 1) {
-                RAM(0xBC + x) = 0;
-                if (RAM(0xA4 + x) == 2) RAM(0xA4 + x)++;
+            RiderScriptId(x) = 0; RiderScriptShape(x) = 0;
+            if (RiderBumpState(x) == 0 && RiderTerrainState(x) != 1) {
+                RiderHeight(x) = 0;
+                if (RiderTerrainState(x) == 2) RiderTerrainState(x)++;
             }
-            RAM(0x036C + x) = 0;
+            RiderSkid(x) = 0;
             return;
         }
         RAM(0x0F) = a;
-        if (a > RAM(0xC8 + x)) return;
+        if (a > RiderScriptClock(x)) return;
         y++;
         a = rd16mem((uint16_t)(ptr + y));
         if (a & ROMB(0xE703)) {                 /* $E7A3: pitch command */
-            if ((RAM(0xB0 + x) | RAM(0x98 + x)) == 0) {
+            if ((RiderAirborne(x) | RiderCrash(x)) == 0) {
                 uint8_t v = rd16mem((uint16_t)(ptr + y)) & 0x0F;
                 RAM(0x00) = v;
-                if (RAM(0xA4 + x) != 1) {
-                    RAM(0xAC + x) = v;
-                    if (RAM(0x58 + x) != 3) RAM(0xD4 + x) = ROMB(0xE6AD + (uint8_t)(v - 2));
+                if (RiderTerrainState(x) != 1) {
+                    RiderPitch(x) = v;
+                    if (RiderScriptId(x) != 3) RiderScriptShape(x) = ROMB(0xE6AD + (uint8_t)(v - 2));
                 }
             }
         } else if (a & ROMB(0xE6FB)) {           /* $E7F2: deferred command */
-            RAM(0xCC + x) = a & 0x0F;
-            RAM(0xD0 + x) = RAM(0x0F);
+            RiderPendingOp(x) = a & 0x0F;
+            RiderScriptBase(x) = RAM(0x0F);
         } else {
             TrackScriptOpcode((Regs){ a, x, y, 0 });
         }
-        RAM(0xC4 + x) += 2;
+        RiderScriptPos(x) += 2;
     }
 }
 
@@ -1093,11 +1094,11 @@ void ErasePassedRiderSprites(void) {          /* $E456 */
     do {
         RAM(0x05) = (uint8_t)y;
         RAM(0x07) = ROMB(0xD8C0 + y);
-        uint8_t x = RAM(0x88 + y);
+        uint8_t x = RiderSortOrder(y);
         if (x != 0) {
-            uint8_t a = RAM(0x84 + x);
+            uint8_t a = RiderXHi(x);
             RAM(0x02) = RAM(0x03) = RAM(0x04) = a;
-            uint8_t lo = RAM(0x80 + x);
+            uint8_t lo = RiderXLo(x);
             if (!(a & 1) && lo >= 0x70 && lo < 0x90) {
                 ClearRider((Regs){ 0, x, 0, 0 });
                 RAM(0x03A6) = 1;
@@ -1114,32 +1115,32 @@ void ErasePassedRiderSprites(void) {          /* $E456 */
 Regs RiderSpriteFrame(Regs r) {               /* $E1F9: returns the animation frame for a rider (also sets $0E and $039F) */
     uint8_t x = r.x, a, y;
     RAM(0x0E) = 0; RAM(0x039F) = 0;
-    a = RAM(0x9C + x);
+    a = RiderState(x);
     if (a != 0 && a != 5) {
         y = 6;
-        if (RAM(0xBC + x) != 0 || RAM(0x0370 + x) == 0) y = 2;
-        a = y; y = RAM(0x36 + x);
+        if (RiderHeight(x) != 0 || RiderGateWait(x) == 0) y = 2;
+        a = y; y = RiderReleaseTimer(x);
         if (y != 0) { y--; a = y; }
         r.a = a | 0x10; return r;
     }
-    if (RAM(0x52) == 1 && RAM(0xAC + x) == 0x0A) { RAM(0x0E) = 2; r.a = 0x0A; return r; }
-    if ((RAM(0x98 + x) | RAM(0xB0 + x)) == 0) {
-        a = RAM(0x58 + x);
-        if (a == 0 || (a == 0x0D && RAM(0xB8 + x) >= 0x20)) {
-            if ((RAM(0x90 + x) | RAM(0x94 + x)) == 0) { RAM(0x0E)++; }
-            else if (RAM(0xAC + x) == 6) {
-                y = 0x14; a = RAM(0xDC + x);
+    if (RaceEndState == 1 && RiderPitch(x) == 0x0A) { RAM(0x0E) = 2; r.a = 0x0A; return r; }
+    if ((RiderCrash(x) | RiderAirborne(x)) == 0) {
+        a = RiderScriptId(x);
+        if (a == 0 || (a == 0x0D && RiderY(x) >= 0x20)) {
+            if ((RiderSpeedLo(x) | RiderSpeedHi(x)) == 0) { RAM(0x0E)++; }
+            else if (RiderPitch(x) == 6) {
+                y = 0x14; a = RiderLaneStep(x);
                 if (a != 0) { if (a & 0x80) y++; r.a = y; return r; }
-                if (RAM(0x3F) & 2) { r.a = 0x13; return r; }
+                if (FrameCounter & 2) { r.a = 0x13; return r; }
             }
         }
     }
-    r.a = RAM(0xAC + x); return r;
+    r.a = RiderPitch(x); return r;
 }
 
 void DrawRider(Regs r) {                      /* $E1A3 */
     uint8_t x = r.x;
-    RAM(0x00) = RAM(0x80 + x); RAM(0x01) = RAM(0x8C + x);
+    RAM(0x00) = RiderXLo(x); RAM(0x01) = RiderScreenY(x);
     uint8_t y = RiderSpriteFrame(r).a;
     RAM(0x02) = ROMB(0xD892 + y); RAM(0x03) = 0x33;
     if (y == 0x16) {
@@ -1160,16 +1161,16 @@ void DrawRider(Regs r) {                      /* $E1A3 */
 void DrawRiderShadow(Regs r) {                /* $E26A */
     uint8_t x = r.x, a;
     if (RAM(0x039F) == 0) return;
-    if (RAM(0x84 + x) == 2) return;
-    a = RAM(0x0390 + x);
-    if (a >= 0xF8 || a < RAM(0x80 + x)) return;
+    if (RiderXHi(x) == 2) return;
+    a = RiderShadowX(x);
+    if (a >= 0xF8 || a < RiderXLo(x)) return;
     RAM(0x00) = a;
-    RAM(0x01) = (uint8_t)(0xA8 - RAM(0x6C + x));
+    RAM(0x01) = (uint8_t)(0xA8 - RiderShadowY(x));
     RAM(0x03) = 0x22;
     RAM(0x04) = RAM(0x039F);
-    a = RAM(0xA4 + x) ? 0x20 : 0;
+    a = RiderTerrainState(x) ? 0x20 : 0;
     RAM(0x0B) = a | RAM(0x0B);
-    uint8_t y = RAM(0x0398 + x);
+    uint8_t y = RiderShadowFrame(x);
     RAM(0x02) = ROMB(0xD90B + y);
     a = y ? (y ^ 3) : 0;
     DrawMetasprite((Regs){ a, x, y, 0 });
@@ -1180,8 +1181,8 @@ void DrawRiders(void) {                       /* $E17F: back to front by Y */
     for (int8_t x = 3; x >= 0; x--) {
         RAM(0x0D) = (uint8_t)x;
         RAM(0x04) = ROMB(0xD8C0 + x);
-        uint8_t xx = RAM(0x88 + x);
-        if (RAM(0xA8 + xx) != 0) {
+        uint8_t xx = RiderSortOrder(x);
+        if (RiderActive(xx) != 0) {
             RAM(0x0B) = ROMB(0xD8C9 + xx);
             DrawRider((Regs){ 0, xx, 0, 0 });
             DrawRiderShadow((Regs){ 0, xx, 0, 0 });
@@ -1192,34 +1193,34 @@ void DrawRiders(void) {                       /* $E17F: back to front by Y */
 
 void DrawSkidSmoke(Regs r) {                  /* $E2F6: Y = OAM offset of the rider's smoke sprites */
     uint8_t x = r.x, y = r.y, a, c = 0;
-    if (RAM(0x036C + x) == 0) return;
-    if ((RAM(0x94 + x) | RAM(0x90 + x)) == 0) return;
-    if (RAM(0xBC + x) != 0) return;
-    if (!(RAM(0x84 + x) & 1)) return;
-    a = RAM(0x80 + x);
+    if (RiderSkid(x) == 0) return;
+    if ((RiderSpeedHi(x) | RiderSpeedLo(x)) == 0) return;
+    if (RiderHeight(x) != 0) return;
+    if (!(RiderXHi(x) & 1)) return;
+    a = RiderXLo(x);
     if (a < 0x10) return;
     c = 0; a = adc8(a, 0xF9, &c); RAM(0x0297 + y) = a;
     c = 0; a = adc8(a, 0xF8, &c); RAM(0x029B + y) = a;
-    c = 0; a = adc8(RAM(0x8C + x), 8, &c); RAM(0x0298 + y) = a;
+    c = 0; a = adc8(RiderScreenY(x), 8, &c); RAM(0x0298 + y) = a;
     c = 0; a = adc8(a, 8, &c); RAM(0x0294 + y) = a;
     RAM(0x0295 + y) = 0xF6; RAM(0x0299 + y) = 0xF7;
-    if (RAM(0x3F) & 4) { RAM(0x0295 + y) = 0xF7; RAM(0x0299 + y) = 0xF6; }
-    a = RAM(0x036C + x) & 2;
+    if (FrameCounter & 4) { RAM(0x0295 + y) = 0xF7; RAM(0x0299 + y) = 0xF6; }
+    a = RiderSkid(x) & 2;
     RAM(0x0296 + y) = a; RAM(0x029A + y) = a;
-    if (RAM(0x94 + x) == 0) RAM(0x0298 + y) = 0xF8;
+    if (RiderSpeedHi(x) == 0) RAM(0x0298 + y) = 0xF8;
 }
 
 void DrawJumpShadows(void) {                  /* $EA44: shadow under airborne riders near the right edge, or skid smoke */
     for (int8_t i = 3; i >= 0; i--) {
-        uint8_t x = (uint8_t)i, y = (uint8_t)(x << 3), a = RAM(0x84 + x), draw = 0;
-        if (a & 1) draw = RAM(0x80 + x) < 0xF4;
-        else if (!((a >> 1) & 1)) draw = RAM(0x80 + x) >= 0xF6;
-        if (draw && RAM(0xB0 + x) != 0) {
+        uint8_t x = (uint8_t)i, y = (uint8_t)(x << 3), a = RiderXHi(x), draw = 0;
+        if (a & 1) draw = RiderXLo(x) < 0xF4;
+        else if (!((a >> 1) & 1)) draw = RiderXLo(x) >= 0xF6;
+        if (draw && RiderAirborne(x) != 0) {
             uint8_t c = 0;
             RAM(0x0294 + y) = RiderBaseYFrom((Regs){ 0xB6, x, 0, 0 }).a;
-            RAM(0x0297 + y) = adc8(RAM(0x80 + x), 0x0A, &c);
+            RAM(0x0297 + y) = adc8(RiderXLo(x), 0x0A, &c);
             RAM(0x01) = y;
-            RAM(0x0295 + y) = ROMB(0xE69A + RAM(0xB4 + x));
+            RAM(0x0295 + y) = ROMB(0xE69A + RiderScriptShapeB(x));
             RAM(0x0296 + y) = 0;
         } else DrawSkidSmoke((Regs){ 0, x, y, 0 });
     }
@@ -1227,43 +1228,43 @@ void DrawJumpShadows(void) {                  /* $EA44: shadow under airborne ri
 
 void UpdateTempGauge(void) {                  /* $E359: turbo temperature: updates $03B5/$03B6 and draws the gauge sprites */
     uint8_t a, y = 0, c;
-    if (RAM(0x52) != 0) { a = 0xFE; goto draw; }
-    if (RAM(0x03E0) != 0) {
-        if (RAM(0x3C) & 1) { a = 0xFE; goto draw; }
+    if (RaceEndState != 0) { a = 0xFE; goto draw; }
+    if (RiderOverheated(0) != 0) {
+        if (OverheatTimer & 1) { a = 0xFE; goto draw; }
         a = 0xFC; goto draw;
     }
-    a = RAM(0x5C) & 0xC0;
+    a = RiderInput(0) & 0xC0;
     if (a != 0) {
-        if (RAM(0x4F) == 0) a = 0x80;
+        if (RaceStarted == 0) a = 0x80;
         c = a >> 7; a <<= 1;                                   /* ASL */
         { uint8_t n = a >> 7; a = (uint8_t)((a << 1) | c); c = n; }   /* ROL */
         { uint8_t n = a >> 7; a = (uint8_t)((a << 1) | c); c = n; }   /* ROL */
     }
     y = a;
     {
-        uint8_t t = ROMB(0xD8FB + y), h = RAM(0x03B6);
+        uint8_t t = ROMB(0xD8FB + y), h = TempGauge;
         if (h < t) {
-            c = 0; RAM(0x03B5) = adc8(RAM(0x03B5), ROMB(0xD8F7 + y), &c);
-            if (c) RAM(0x03B6)++;
+            c = 0; TempGaugeFraction = adc8(TempGaugeFraction, ROMB(0xD8F7 + y), &c);
+            if (c) TempGauge++;
         } else if (h != t) {
-            uint8_t v = RAM(0x03B5), nv = (uint8_t)(v - 0x0B);
-            RAM(0x03B5) = nv;
-            if (v < 0x0B && RAM(0x03B6) != 0) RAM(0x03B6)--;
+            uint8_t v = TempGaugeFraction, nv = (uint8_t)(v - 0x0B);
+            TempGaugeFraction = nv;
+            if (v < 0x0B && TempGauge != 0) TempGauge--;
         }
     }
     {
-        uint8_t x = 0, h = RAM(0x03B6);
+        uint8_t x = 0, h = TempGauge;
         if (h >= 0x20) {
-            if (g_rules.overheat) { RAM(0x3C) = h; RAM(0x03E0) = h; }
-            else { RAM(0x03B6) = h = 0x1F; }                      /* rule: the engine never overheats */
+            if (g_rules.overheat) { OverheatTimer = h; RiderOverheated(0) = h; }
+            else { TempGauge = h = 0x1F; }                      /* rule: the engine never overheats */
         }
         if (h >= 0x1A) { y--; if (y == 0) x = 0xB0; }
-        RAM(0xFC) = x | RAM(0xFC);
+        EngineSoundRequest = x | EngineSoundRequest;
     }
     a = 0xFE;
 draw:
     RAM(0x01) = a;
-    RAM(0x00) = (uint8_t)(RAM(0x03B6) + 0x50);
+    RAM(0x00) = (uint8_t)(TempGauge + 0x50);
     for (int8_t x = 0x0C; x >= 0; x -= 4) {
         RAM(0x02F0 + x) = 0xCF; RAM(0x02F1 + x) = RAM(0x01);
         RAM(0x02F2 + x) = 0x20; RAM(0x02F3 + x) = RAM(0x00);
@@ -1272,7 +1273,7 @@ draw:
 }
 
 static uint8_t ryo_z(uint8_t x, uint8_t y) {   /* Z flag RiderYOverlapTest leaves: set for the "far apart" result or a difference of exactly $EC */
-    uint8_t d = (uint8_t)(RAM(0x8C + x) - RAM(0x8C + y));
+    uint8_t d = (uint8_t)(RiderScreenY(x) - RiderScreenY(y));
     if (d >= 0xEC) return d == 0xEC;
     if (d < 0x12) return 0;
     return 1;
@@ -1281,14 +1282,14 @@ void DetectRiderOverlap(void) {               /* $E4C8: flags in $03A3 when two 
     uint8_t x = 1, y, a, n;
     for (;;) {
         RAM(0x0C) = x;
-        a = RAM(0x84 + x);
-        if ((a & 1) || ((a >> 1) == 0 && RAM(0x80 + x) >= 0xF8)) {
+        a = RiderXHi(x);
+        if ((a & 1) || ((a >> 1) == 0 && RiderXLo(x) >= 0xF8)) {
             RAM(0x0A) = 0;
             y = x + 1;
             do {
                 RAM(0x05) = y;
-                a = RAM(0x84 + y);
-                if ((a & 1) || ((a >> 1) == 0 && RAM(0x80 + x) >= 0xF8)) {
+                a = RiderXHi(y);
+                if ((a & 1) || ((a >> 1) == 0 && RiderXLo(x) >= 0xF8)) {
                     if (!ryo_z(x, y)) {
                         RAM(0x0A)++;
                         RAM(0x0B) = (uint8_t)((RAM(0x0B) << 2) | RAM(0x05));
@@ -1304,64 +1305,64 @@ void DetectRiderOverlap(void) {               /* $E4C8: flags in $03A3 when two 
             }
         }
         x = RAM(0x0C) - 1;
-        if (x & 0x80) { RAM(0x03A3) = 0; return; }
+        if (x & 0x80) { RidersOverlap(0) = 0; return; }
     }
 set1:
-    RAM(0x03A3) = 1;
+    RidersOverlap(0) = 1;
 }
 
 /* ---- batch 11: crash recovery, track edge, start-light animation ---- */
 void RiderCrashUpdate(void) {                 /* $DDD1: tumbling riders slow down, then stand up */
     for (int8_t i = (int8_t)g_rhi; i >= g_rlo; i--) {
         uint8_t x = (uint8_t)i, y = 4;
-        if (RAM(0x98 + x) == 0) continue;
+        if (RiderCrash(x) == 0) continue;
         if (x == 0) {
-            RAM(0x03A9) = 0; RAM(0xFC) = 0;
-            if (RAM(0x4C) == 0) RAM(0xFD) = 1;
+            EngineRunning = 0; EngineSoundRequest = 0;
+            if (FrameMod4 == 0) SfxNoiseRequest = 1;
             y = RAM(0x1B) & 3;
         }
-        RAM(0x03E4 + x) = y;
-        if (RAM(0x4C) & 1) continue;
-        if (RAM(0x94 + x) == 0) {
-            if ((RAM(0xB0 + x) | RAM(0x58 + x)) == 0) {
-                RAM(0x90 + x) = 0; RAM(0x60 + x) = 0; RAM(0x98 + x) = 0;
-                RAM(0xAC + x) = 6;
-                RAM(0x0390 + x) = RAM(0x80 + x) + 8;
+        RiderCrashFacing(x) = y;
+        if (FrameMod4 & 1) continue;
+        if (RiderSpeedHi(x) == 0) {
+            if ((RiderAirborne(x) | RiderScriptId(x)) == 0) {
+                RiderSpeedLo(x) = 0; RiderMoveX(x) = 0; RiderCrash(x) = 0;
+                RiderPitch(x) = 6;
+                RiderShadowX(x) = RiderXLo(x) + 8;
                 ComputeRiderShadowY((Regs){ 0, x, 0, 0 });
-                RAM(0x0398 + x) = 2; RAM(0x9C + x) = 1;
+                RiderShadowFrame(x) = 2; RiderState(x) = 1;
                 continue;
             }
-            RAM(0x90 + x) = 0x88;
+            RiderSpeedLo(x) = 0x88;
         }
-        RAM(0xAC + x) = (uint8_t)((RAM(0xAC + x) + RAM(0x98 + x)) & 0x0F);
+        RiderPitch(x) = (uint8_t)((RiderPitch(x) + RiderCrash(x)) & 0x0F);
     }
 }
 
 void CheckTrackEdge(void) {                   /* $DEBB: tracks whether riders 1-3 are on the grass strip at the left edge */
     for (uint8_t x = 3; x != 0; x--) {
-        if (!(RAM(0x84 + x) & 1)) continue;
-        uint8_t lo = RAM(0x80 + x);
+        if (!(RiderXHi(x) & 1)) continue;
+        uint8_t lo = RiderXLo(x);
         if (lo >= 0x30 && lo < 0x40) RAM(0x03A9 + x) = 1;
-        else if (RAM(0x03A9 + x) != 0) { RAM(0xFF) = 0x40; RAM(0x03A9 + x) = 0; }
+        else if (RAM(0x03A9 + x) != 0) { SfxPulse1Request = 0x40; RAM(0x03A9 + x) = 0; }
     }
 }
 
 void UpdateExhaustSprites(void) {             /* $DE31: start-light countdown ($24) drawn with sprites at $02C0 */
-    uint8_t a = RAM(0x24), y, c;
+    uint8_t a = StartLightTimer, y, c;
     if (a == 1) {
-        RAM(0x4F) = 1;
+        RaceStarted = 1;
         uint8_t v = RAM(0x03B4);
-        RAM(0x03B4) = (uint8_t)(v - RAM(0x60));
-        if (v < RAM(0x60)) return;
-        RAM(0x24) = 2;
+        RAM(0x03B4) = (uint8_t)(v - RiderMoveX(0));
+        if (v < RiderMoveX(0)) return;
+        StartLightTimer = 2;
     } else {
-        if (RAM(0x4F) != 0) return;
-        if (a < 0x60 && RAM(0x03A9) != 0 && (RAM(0x5C) & 0xC0) != 0) RAM(0xFE) = 1;
+        if (RaceStarted != 0) return;
+        if (a < 0x60 && EngineRunning != 0 && (RiderInput(0) & 0xC0) != 0) SfxPulse2Request = 1;
     }
-    a = RAM(0x24);                              /* $DE4E */
+    a = StartLightTimer;                              /* $DE4E */
     y = 0xF0;
     if (a < 0x10) { y = 0xF2; if (a < 0x08) y = 0xF4; }
-    if (a == 0x72) RAM(0xFB) = 0x20;
+    if (a == 0x72) MusicRequest = 0x20;
     RAM(0x00) = y; RAM(0x01) = RAM(0x03B4);
     for (int8_t i = 7; i >= 0; i--) {
         uint8_t yy = (uint8_t)i, x = (uint8_t)(yy << 2);
@@ -1377,63 +1378,63 @@ void UpdateExhaustSprites(void) {             /* $DE31: start-light countdown ($
         RAM(0x01) = (uint8_t)(RAM(0x01) - 0x10);
         if (c) break;
     }
-    if (RAM(0x34) != 0) RAM(0x24) = 0x88;
+    if (MenuHintTimer != 0) StartLightTimer = 0x88;
 }
 
 /* ---- batch 12: landing, rider collisions, obstacle hit, Y movement, state dispatch, menu cursor ---- */
 void RiderLandingCheck(Regs r) {              /* $DC1A: an airborne rider touches down (or crashes if the pitch is wrong) */
     uint8_t x = r.x, a, y;
-    if (RAM(0xB0 + x) == 0) return;
+    if (RiderAirborne(x) == 0) return;
     a = RiderBaseY(r).a;
     RAM(0x01) = a;
-    if (a >= RAM(0x8C + x)) return;
-    if (RAM(0x8C + x) >= 0xA8) return;
-    if (RAM(0x0364 + x) == 0) return;
-    if (x == 0) RAM(0xFF) = 2;
-    RAM(0xB0 + x) = 0; RAM(0x0364 + x) = 0;
-    if (RAM(0x98 + x) == 0) {
-        if (RAM(0x52) != 0) {                   /* $DC8E: race over, just level out */
-            if (RAM(0xD4 + x) == 0) RAM(0xAC + x) = 6;
+    if (a >= RiderScreenY(x)) return;
+    if (RiderScreenY(x) >= 0xA8) return;
+    if (RiderLandingArmed(x) == 0) return;
+    if (x == 0) SfxPulse1Request = 2;
+    RiderAirborne(x) = 0; RiderLandingArmed(x) = 0;
+    if (RiderCrash(x) == 0) {
+        if (RaceEndState != 0) {                   /* $DC8E: race over, just level out */
+            if (RiderScriptShape(x) == 0) RiderPitch(x) = 6;
             return;
         }
-        y = RAM(0x0388 + x); RAM(0x0388 + x) = 0;
+        y = RiderJumpMode(x); RiderJumpMode(x) = 0;
         if (y == 0) {
-            a = RAM(0xD4 + x);
-            if ((int8_t)(RAM(0x94 + x) - 2) < 0) a += 8;
+            a = RiderScriptShape(x);
+            if ((int8_t)(RiderSpeedHi(x) - 2) < 0) a += 8;
             y = a;
-            uint8_t p = RAM(0xAC + x);
-            if (p < ROMB(0xD86C + y) || p >= ROMB(0xD87C + y)) { RAM(0x98 + x) = 0xFF; return; }
-            if (RAM(0x0368 + x) != p && (RAM(0xD4 + x) | RAM(0xCC + x)) == 0) {
-                RAM(0x0374 + x) = 4; RAM(0x0388 + x) = 2; RAM(0xB0 + x) = 1;
+            uint8_t p = RiderPitch(x);
+            if (p < ROMB(0xD86C + y) || p >= ROMB(0xD87C + y)) { RiderCrash(x) = 0xFF; return; }
+            if (RiderPitchGoal(x) != p && (RiderScriptShape(x) | RiderPendingOp(x)) == 0) {
+                RiderPitchLock(x) = 4; RiderJumpMode(x) = 2; RiderAirborne(x) = 1;
             }
         }
     }
     RAM(0x01)--;                                /* $DC87 */
-    RAM(0x8C + x) = RAM(0x01);
+    RiderScreenY(x) = RAM(0x01);
 }
 
 void RiderCollisions(void) {                  /* $DFD5: rider-vs-rider contact; crashes the rider on the left and the other */
     uint8_t x = 0, y = 1, a, ax, ay, lx, ly;
     for (;;) {
-        if (RAM(0xA8 + x) == 0) goto next_x;
+        if (RiderActive(x) == 0) goto next_x;
         for (;;) {
-            if (RAM(0xA8 + y) == 0) goto next_y;
-            if (!(RAM(0x84 + x) & 1)) goto next_x;
-            if (!(RAM(0x84 + y) & 1)) goto next_y;
-            a = RAM(0x70 + x);
+            if (RiderActive(y) == 0) goto next_y;
+            if (!(RiderXHi(x) & 1)) goto next_x;
+            if (!(RiderXHi(y) & 1)) goto next_y;
+            a = RiderLane(x);
             if (a == 0) goto next_x;
-            if (a != RAM(0x70 + y)) goto next_y;
-            if ((RAM(0x98 + x) | RAM(0x03E0 + x)) != 0) goto next_x;
-            if (RAM(0x98 + y) != 0) goto next_y;
-            if (RAM(0xB0 + x) != 0 || RAM(0xB0 + y) != 0) {
-                ax = RAM(0x8C + x); ay = RAM(0x8C + y);
+            if (a != RiderLane(y)) goto next_y;
+            if ((RiderCrash(x) | RiderOverheated(x)) != 0) goto next_x;
+            if (RiderCrash(y) != 0) goto next_y;
+            if (RiderAirborne(x) != 0 || RiderAirborne(y) != 0) {
+                ax = RiderScreenY(x); ay = RiderScreenY(y);
                 if (ax >= ay) {
                     if (AddCollisionHeight((Regs){ ay, 0, 0, 0 }).a < ax) goto next_y;
                 } else {
                     if (AddCollisionHeight((Regs){ ax, 0, 0, 0 }).a < ay) goto next_y;
                 }
             }
-            lx = RAM(0x80 + x); ly = RAM(0x80 + y);
+            lx = RiderXLo(x); ly = RiderXLo(y);
             if (lx < ly) {
                 if (AddCollisionWidth((Regs){ lx, 0, 0, 0 }).a >= ly) goto e061;
                 if (AddCollisionHeight((Regs){ lx, 0, 0, 0 }).a >= ly) goto e05b;
@@ -1443,11 +1444,11 @@ void RiderCollisions(void) {                  /* $DFD5: rider-vs-rider contact; 
                 if (AddCollisionHeight((Regs){ ly, 0, 0, 0 }).a >= lx) goto e065;
                 goto next_y;
             }
-        e05b: RAM(0x98 + x) = 0xFF; goto e076;
-        e061: RAM(0x98 + x) = 0xFF;
+        e05b: RiderCrash(x) = 0xFF; goto e076;
+        e061: RiderCrash(x) = 0xFF;
         e065: if (x == 0 && y == 3) RAM(0x3B) = 0x10;
-            RAM(0x98 + y) = 0xFF;
-        e076: if (x == 0) RAM(0xFD) = 1;
+            RiderCrash(y) = 0xFF;
+        e076: if (x == 0) SfxNoiseRequest = 1;
         next_y:
             y++;
             if (y == 4) break;
@@ -1460,81 +1461,81 @@ void RiderCollisions(void) {                  /* $DFD5: rider-vs-rider contact; 
 
 void BikeVsObstacleCheck(void) {              /* $E09F: rider 0 hits the obstacle sprite at $0393 */
     uint8_t a;
-    if (RAM(0x9C) != 0) return;
+    if (RiderState(0) != 0) return;
     if (!(RAM(0x87) & 1)) return;
     if (RAM(0x0373) == 0) return;
-    a = (uint8_t)(RAM(0xB8) - 3);
+    a = (uint8_t)(RiderY(0) - 3);
     if (a >= RAM(0x6F)) return;
     a += 7;
     if (a < RAM(0x6F)) return;
-    a = RAM(0x80);
+    a = RiderXLo(0);
     if (a >= RAM(0x0393)) return;
     a += 0x12;
     if (a < RAM(0x0393)) return;
     a = (uint8_t)(RiderBaseY((Regs){ 0, 0, 0, 0 }).a - 8);
-    if (a >= RAM(0x8C)) return;
-    RAM(0x98) = 0xFF; RAM(0xDF) = 0; RAM(0x9F) = 1; RAM(0xFD) = 1; RAM(0x039B) = 2;
+    if (a >= RiderScreenY(0)) return;
+    RiderCrash(0) = 0xFF; RAM(0xDF) = 0; RAM(0x9F) = 1; SfxNoiseRequest = 1; RAM(0x039B) = 2;
 }
 
 void UpdateRiderGroundDistance(void) {        /* $E836 */
     for (int8_t i = (int8_t)g_rhi; i >= g_rlo; i--)
-        if (RAM(0xB0 + i) == 0) RAM(0x8C + i) = RiderBaseY((Regs){ 0, (uint8_t)i, 0, 0 }).a;
+        if (RiderAirborne(i) == 0) RiderScreenY(i) = RiderBaseY((Regs){ 0, (uint8_t)i, 0, 0 }).a;
 }
 
 void UpdateRiderY(void) {                     /* $E96C: lane change movement, ramps and screen limits for each rider, then rider 0 steering */
     uint8_t a;
     for (int8_t i = (int8_t)g_rhi; i >= g_rlo; i--) {
         uint8_t x = (uint8_t)i, y;
-        a = RAM(0x58 + x);
-        if (a != 0x15 && a != 0x14) RAM(0xB8 + x) += RAM(0xDC + x);
-        for (y = 0; y < 4; y++) if (RAM(0xB8 + x) == ROMB(0xE53D + y)) break;
-        if (y < 4) { RAM(0xDC + x) = 0; continue; }
-        a = RAM(0xA4 + x);
+        a = RiderScriptId(x);
+        if (a != 0x15 && a != 0x14) RiderY(x) += RiderLaneStep(x);
+        for (y = 0; y < 4; y++) if (RiderY(x) == ROMB(0xE53D + y)) break;
+        if (y < 4) { RiderLaneStep(x) = 0; continue; }
+        a = RiderTerrainState(x);
         if (a != 0) {
             if (a == 1) {
-                if (RAM(0xB8 + x) < 0x20) {
-                    RAM(0xA4 + x) = 4;
-                    a = RAM(0x58 + x);
+                if (RiderY(x) < 0x20) {
+                    RiderTerrainState(x) = 4;
+                    a = RiderScriptId(x);
                     if (a == 0 || a == 0x12 || a == 0x10 || a == 0x0D) {
-                        RAM(0xBC + x) = 0;
+                        RiderHeight(x) = 0;
                         RiderStartJump((Regs){ 0, x, 0, 0 });
-                        RAM(0xA4 + x)--;
+                        RiderTerrainState(x)--;
                     }
                     continue;
                 }
-            } else if (a != 3 && RAM(0xB8 + x) >= 0x20) RAM(0xB8 + x)--;
+            } else if (a != 3 && RiderY(x) >= 0x20) RiderY(x)--;
         }
-        a = RAM(0xB8 + x);                      /* $E9C4 */
+        a = RiderY(x);                      /* $E9C4 */
         if (a < 8) {
-            if (RAM(0x9C + x) == 0) a = 7;
-            else { a = RAM(0xB8 + x); if (a < 2) a = 1; }
-            RAM(0xB8 + x) = a;
+            if (RiderState(x) == 0) a = 7;
+            else { a = RiderY(x); if (a < 2) a = 1; }
+            RiderY(x) = a;
             if (x != 0) goto e9d2;
             goto e9d9;
         }
         if (a < 0x3A) continue;
-        RAM(0xB8 + x) = 0x39;
+        RiderY(x) = 0x39;
     e9d2:
-        if ((RAM(0x9C + x) | RAM(0x03E0 + x)) != 0) continue;
+        if ((RiderState(x) | RiderOverheated(x)) != 0) continue;
     e9d9:
-        a = RAM(0xDC + x);
+        a = RiderLaneStep(x);
         if (a == 0) a = 0xFF;
-        RAM(0xDC + x) = a ^ 0xFE;
+        RiderLaneStep(x) = a ^ 0xFE;
     }
     if (g_rlo != 0) return;                     /* range-limited call (extra riders): skip the player-only steering */
-    if (RAM(0x4F) == 0) return;
-    if ((RAM(0x98) | RAM(0x03E0) | RAM(0x03F7)) != 0) return;
-    if (RAM(0xB0) != 0) { if (RAM(0x0388) != 2) return; RAM(0x0388)++; }
-    a = RAM(0x9C);
+    if (RaceStarted == 0) return;
+    if ((RiderCrash(0) | RiderOverheated(0) | DemoMode) != 0) return;
+    if (RiderAirborne(0) != 0) { if (RiderJumpMode(0) != 2) return; RiderJumpMode(0)++; }
+    a = RiderState(0);
     if (a != 0 && a != 5) return;
-    a = RAM(0x14) & 0x0C;
+    a = Joy1Held & 0x0C;
     if (a == 0) return;
-    RAM(0xDC) = (a & 4) ? 0xFF : 1;
-    RAM(0xFD) |= 4;
+    RiderLaneStep(0) = (a & 4) ? 0xFF : 1;
+    SfxNoiseRequest |= 4;
 }
 
 void RiderStateDispatch(Regs r) {             /* $D924: runs the handler for the rider's state (0 = racing, 1-5 = start/finish sequence) */
-    uint8_t x = r.x, y = RAM(0x9C + x);
+    uint8_t x = r.x, y = RiderState(x);
     RAM(0x00) = ROMB(0xD8FF + y); RAM(0x01) = ROMB(0xD905 + y);
     switch (y) {
     case 1: RiderState1Gate(r); break;
@@ -1554,13 +1555,13 @@ void UpdateRiderStates(void) {                /* $D918 */
 }
 
 Regs MenuHandleInput(Regs r) {                /* $C7DE: A = number of items; moves $42 with the d-pad. Returns X = 4 for a button press, Y = cursor */
-    uint8_t y = RAM(0x42), a, xo = 0, y0 = y;
+    uint8_t y = MenuCursor, a, xo = 0, y0 = y;
     RAM(0x00) = r.a;
-    a = RAM(0x15) & 0x3C;
-    if (a == 0) { RAM(0x49) = 0; return (Regs){ 0, 0, y0, r.c }; }
+    a = Joy1Trigger & 0x3C;
+    if (a == 0) { InputLatch = 0; return (Regs){ 0, 0, y0, r.c }; }
     RAM(0x31) = 0x5D;
-    if (RAM(0x49) != 0) return (Regs){ 0, 0, y0, r.c };
-    a = RAM(0x15);
+    if (InputLatch != 0) return (Regs){ 0, 0, y0, r.c };
+    a = Joy1Trigger;
     int step = 0;                                /* 1 = down, 2 = up */
     if (a & ROMB(0xC0CE)) step = 1;
     else if ((a >> 2) & 1) step = 1;
@@ -1570,23 +1571,23 @@ Regs MenuHandleInput(Regs r) {                /* $C7DE: A = number of items; mov
     y--;
     if (y & 0x80) y = (uint8_t)(RAM(0x00) - 1);
 beep:
-    RAM(0xFF) = 1;
+    SfxPulse1Request = 1;
 store:
-    RAM(0x42) = y;
-    RAM(0x49)++;
+    MenuCursor = y;
+    InputLatch++;
     return (Regs){ 0, xo, y, r.c };
 }
 
 /* ---- batch 13: overheating, race end, game-state advance ---- */
-void GameStateClearSteps(void) { RAM(0x40) = 0; RAM(0x44) = 0; }          /* $C3B1 */
-void GameStateAdvance(void) { RAM(0x41)++; GameStateClearSteps(); }       /* $C3AF */
+void GameStateClearSteps(void) { GameStateActive = 0; GameSubStep = 0; }          /* $C3B1 */
+void GameStateAdvance(void) { GameState++; GameStateClearSteps(); }       /* $C3AF */
 
 void HudSpriteTemplate(void) {                /* $CD13: copies the 8-byte template to sprite slots $02C0 */
     for (int8_t x = 7; x >= 0; x--) RAM(0x02C0 + x) = ROMB(0xC150 + x);
 }
 void OverheatMessage(void) {                  /* $CCDD: flashing "overheat" letters while $3C is odd */
-    if (!(RAM(0x3C) & 1)) return;
-    RAM(0xFB) = 0x40;
+    if (!(OverheatTimer & 1)) return;
+    MusicRequest = 0x40;
     RAM(0x00) = 0x58;
     for (int8_t x = 8; x >= 0; x--) {
         uint8_t y = (uint8_t)(x << 2);
@@ -1599,44 +1600,44 @@ void OverheatMessage(void) {                  /* $CCDD: flashing "overheat" lett
     RAM(0x02D0) = 0xF8;
 }
 void OverheatUpdate(void) {                   /* $DD8D: engine overheat stall for rider 0 */
-    uint8_t a = RAM(0x3C);
-    if ((a | RAM(0x03E0)) == 0) return;
-    if (a == 8) { RAM(0x03E0) = 0; RAM(0x03B6) = 5; RAM(0x9C) = 5; RAM(0x0374) = 5; HudSpriteTemplate(); return; }
+    uint8_t a = OverheatTimer;
+    if ((a | RiderOverheated(0)) == 0) return;
+    if (a == 8) { RiderOverheated(0) = 0; TempGauge = 5; RiderState(0) = 5; RiderPitchLock(0) = 5; HudSpriteTemplate(); return; }
     if (a < 8) { HudSpriteTemplate(); return; }
-    if ((RAM(0x94) | RAM(0x98) | RAM(0x9C)) == 0) {
-        if (RAM(0x58) != 0) RAM(0x90) = 0xC0;
-        else { RAM(0x90) = 0; RAM(0xDC) = (RAM(0xB8) == ROMB(0xD8C4)) ? 0 : 1; }
+    if ((RiderSpeedHi(0) | RiderCrash(0) | RiderState(0)) == 0) {
+        if (RiderScriptId(0) != 0) RiderSpeedLo(0) = 0xC0;
+        else { RiderSpeedLo(0) = 0; RiderLaneStep(0) = (RiderY(0) == ROMB(0xD8C4)) ? 0 : 1; }
     }
     OverheatMessage();
 }
 
 void RaceEndSequence(void) {                  /* $CA9B: end-of-race flashing and screen advance */
     uint8_t a, y, x;
-    if (RAM(0x32) == 0) {
+    if (RaceEndTimer == 0) {
         GameStateAdvance();
-        if (RAM(0x03F7) != 0) { ResetGameRam(); return; }
-        RAM(0x47) = 0; return;
+        if (DemoMode != 0) { ResetGameRam(); return; }
+        RaceActive = 0; return;
     }
-    RAM(0xFC) = 0; RAM(0x03A9) = 0; RAM(0x03E0) = 0; RAM(0x3C) = 0;
-    if ((uint8_t)(RAM(0x52) - 1) != 0) return;
-    a = RAM(0x3F);
+    EngineSoundRequest = 0; EngineRunning = 0; RiderOverheated(0) = 0; OverheatTimer = 0;
+    if ((uint8_t)(RaceEndState - 1) != 0) return;
+    a = FrameCounter;
     if (!(a & 1) && !(a & 2)) {
         y = (a >> 2) & 3;
         RAM(0x0312) = 0x3F; RAM(0x0313) = 0; RAM(0x0319) = 0; RAM(0x0314) = 4;
         RAM(0x0316) = ROMB(0xC166 + y); RAM(0x0318) = ROMB(0xC170 + y);
-        y = RAM(0x43);
+        y = TrackIndex;
         RAM(0x0315) = ROMB(0xC160 + y); RAM(0x0317) = ROMB(0xC16A + y);
         return;
     }
     x = 0x11;
-    if (RAM(0x32) & 1) return;
+    if (RaceEndTimer & 1) return;
     for (int8_t n = 6; n >= 0; n--) RAM(0x0304 + x++) = 0xFE;
 }
 
 /* ---- batch 14: results screen ---- */
 void WriteTimeTextHeader(void) {              /* $C94B: queues the PPU text block header for a time line (type in $03) */
     uint8_t x = AdvanceBufferPos((Regs){ 0x0A, 0, 0, 0 }).x, y = RAM(0x03);
-    RAM(0x0301 + x) = ROMB(0xC0EC + y);
+    PpuBuffer(x) = ROMB(0xC0EC + y);
     RAM(0x0302 + x) = ROMB(0xC0ED + y);
     RAM(0x0305 + x) = 0xFB; RAM(0x0308 + x) = 0xFB;
     RAM(0x0303 + x) = 0x07;
@@ -1644,7 +1645,7 @@ void WriteTimeTextHeader(void) {              /* $C94B: queues the PPU text bloc
 }
 void WriteTimeDigitsToBuffer(void) {          /* $C935 */
     SplitDigits3((Regs){ 0, 5, 0, 0 });
-    uint8_t x = RAM(0x0300);
+    uint8_t x = PpuBufferLen;
     for (uint8_t y = 0; y < 7; y++) RAM(0x0304 + x++) = RAM(0x03D1 + y);
     WriteTimeTextHeader();
 }
@@ -1657,23 +1658,23 @@ void ResultsDrawLine(Regs r) {                /* $CCCA: one result sprite block;
     DrawMetasprite((Regs){ 0, x, r.y, 0 });
 }
 
-static void results_next_step(uint8_t a) { RAM(0x33) = a; RAM(0x44)++; }                 /* $CB9F */
+static void results_next_step(uint8_t a) { RAM(0x33) = a; GameSubStep++; }                 /* $CB9F */
 
 void ResultsStepInit(void) {                  /* $CB3B */
-    if (RAM(0x41) < 8) {
-        RAM(0x42) = RAM(0x03F2);
-        if (RAM(0x53) < 4) {
-            if (RAM(0x46) != 0) {
-                uint8_t t = RAM(0x43);
+    if (GameState < 8) {
+        MenuCursor = SelectionB;
+        if (PlaceResult < 4) {
+            if (ModeFlagB != 0) {
+                uint8_t t = TrackIndex;
                 if (t == 4) {
                     RAM(0x03F3)++;
                     if (!(RAM(0x03F3) & 1)) {
-                        uint8_t a = RAM(0x03F8) >> 1;
-                        if (a != 0) RAM(0x03F8) = a;
+                        uint8_t a = LapSpeedScale >> 1;
+                        if (a != 0) LapSpeedScale = a;
                     }
-                } else if (t < 4) RAM(0x43)++;
+                } else if (t < 4) TrackIndex++;
             }
-            RAM(0x46) = 1; RAM(0x4B) = 1;
+            ModeFlagB = 1; ResultsFlag = 1;
         }
     }
     results_next_step(4);
@@ -1683,29 +1684,29 @@ void ResultsStepDrawText(void) {              /* $CB77 */
     uint8_t y = RAM(0x33), x, a;
     if (y != 0) return;
     RAM(0x03) = 4;
-    x = RAM(0x0300);
+    x = PpuBufferLen;
     for (y = 0; y != 7; y++) RAM(0x0304 + x++) = RAM(0x03D9 + y);
     WriteTimeTextHeader();
-    a = RAM(0x4B) ? 0x20 : 0x31;
+    a = ResultsFlag ? 0x20 : 0x31;
     RAM(0x03AD) = a;
     results_next_step((uint8_t)(a + 3));
 }
 
 Regs ResultsDrawRank(Regs r) {                /* $CC15: blinking rank number; returns the 6502 carry in .c */
     uint8_t a = (uint8_t)(RAM(0x03AD) - 0x10), c = a >= RAM(0x33);
-    if (a == RAM(0x33) && RAM(0x20) == 0) {
+    if (a == RAM(0x33) && TimerPrescaler == 0) {
         a = 0x0D;
-        if ((uint8_t)(RAM(0x52) - 1) == 0) { c = 0; a = adc8(RAM(0x4B), 0x0B, &c); }
-        RAM(0x45) = a; r.c = c; return r;
+        if ((uint8_t)(RaceEndState - 1) == 0) { c = 0; a = adc8(ResultsFlag, 0x0B, &c); }
+        PpuUpdateIndex = a; r.c = c; return r;
     }
     Regs q = AdvanceBufferPos((Regs){ 7, 0, 0, 0 });
     uint8_t x = q.x, y0 = x;
     c = q.c;
     RAM(0x05) = x;
-    for (int8_t y = 7; y >= 0; y--) RAM(0x0301 + x++) = ROMB(0xC134 + y);
-    if (RAM(0x3F) & 0x10) { r.c = c; return r; }
+    for (int8_t y = 7; y >= 0; y--) PpuBuffer(x++) = ROMB(0xC134 + y);
+    if (FrameCounter & 0x10) { r.c = c; return r; }
     y0 = RAM(0x05);
-    q = DivMod10((Regs){ RAM(0x53), 0, 0, 0 });
+    q = DivMod10((Regs){ PlaceResult, 0, 0, 0 });
     RAM(0x0307 + y0) = q.a;
     q = DivMod10((Regs){ q.x, 0, 0, 0 });
     c = q.c;
@@ -1717,8 +1718,8 @@ Regs ResultsDrawRank(Regs r) {                /* $CC15: blinking rank number; re
 
 void ResultsStepFinish(void) {                /* $CC6B */
     GameStateAdvance();
-    if (RAM(0x4B) != 0) return;
-    RAM(0x41) = (RAM(0x41) < 9) ? 0 : 8;
+    if (ResultsFlag != 0) return;
+    GameState = (GameState < 9) ? 0 : 8;
 }
 
 static void results_tail(uint8_t c) {         /* $CC7D: draws the result marker and animates it with the jump-arc routine */
@@ -1726,16 +1727,16 @@ static void results_tail(uint8_t c) {         /* $CC7D: draws the result marker 
     RAM(0x01) = RAM(0x55);
     if (RAM(0x56) != 0) y = 0xBB;
     else if (RAM(0x2F) != 0) {
-        RAM(0x0380) = 0x1F; RAM(0x038C) = 0x1F; RAM(0x0378) = 0xAF; RAM(0x037C) = 1; RAM(0x0384) = 0;
+        RiderJumpArcLo(0) = 0x1F; RiderJumpGravity(0) = 0x1F; RiderJumpSpeedLo(0) = 0xAF; RiderJumpSpeedHi(0) = 1; RiderJumpArcHi(0) = 0;
         y = 0xBD;
     } else {
         Regs q = JumpArcStep((Regs){ 0, 0, 0, c });
         RAM(0x55) = q.a; RAM(0x01) = q.a;
-        if (RAM(0x03F1) < RAM(0x55)) { RAM(0x55) = RAM(0x03F1); RAM(0x2F) = 0x0A; }
+        if (LandingBaseY < RAM(0x55)) { RAM(0x55) = LandingBaseY; RAM(0x2F) = 0x0A; }
         y = 0xBB;
     }
     RAM(0x02) = y;
-    uint8_t x = (uint8_t)(RAM(0x53) - 1);
+    uint8_t x = (uint8_t)(PlaceResult - 1);
     if (x >= 3) x = 3;
     RAM(0x0B) = 2;
     ResultsDrawLine((Regs){ 0, x, 0, 0 });
@@ -1745,25 +1746,25 @@ void ResultsStepWait(void) {                  /* $CBA4 */
     uint8_t a = RAM(0x33);
     if (a == 0) { results_next_step(0); return; }
     if (a == RAM(0x03AD)) {                     /* $CBC9: final pose */
-        if (RAM(0x20) != 0) return;
+        if (TimerPrescaler != 0) return;
         RAM(0x2F) = 3; RAM(0x0D) = 3;
         for (int8_t x = 2; x >= 0; x--) {
             RAM(0x01) = ROMB(0xC0DE + x); RAM(0x02) = ROMB(0xC0E2 + x); RAM(0x0B) = ROMB(0xC0E5 + x);
             ResultsDrawLine((Regs){ 0, (uint8_t)x, 0, 0 });
         }
-        uint8_t m = 1, x = (uint8_t)(RAM(0x53) - 1);
+        uint8_t m = 1, x = (uint8_t)(PlaceResult - 1);
         RAM(0x00) = x;
         if (x < 3) { RAM(0x0D) = x; m = 2; }
-        RAM(0xFB) = m; RAM(0x56) = m ^ 2;
+        MusicRequest = m; RAM(0x56) = m ^ 2;
         x = RAM(0x0D);
-        RAM(0x54) = ROMB(0xC0DA + x); RAM(0x55) = ROMB(0xC0DE + x); RAM(0x03F1) = RAM(0x55);
-        if (RAM(0x00) == 0) RAM(0x45) = 0x0A;
+        RAM(0x54) = ROMB(0xC0DA + x); RAM(0x55) = ROMB(0xC0DE + x); LandingBaseY = RAM(0x55);
+        if (RAM(0x00) == 0) PpuUpdateIndex = 0x0A;
         return;
     }
     if (a > RAM(0x03AD)) return;
-    if (RAM(0x4B) == 0 && (RAM(0x14) & 0xF0) != 0) {
+    if (ResultsFlag == 0 && (Joy1Held & 0xF0) != 0) {
         ResultsStepFinish();
-        if (RAM(0x41) != 0) return;
+        if (GameState != 0) return;
         GameStateAdvance();
         return;
     }
@@ -1772,7 +1773,7 @@ void ResultsStepWait(void) {                  /* $CBA4 */
 }
 
 void StateSubStepDispatch(void) {             /* $CB2C: results sub-steps 0-3 */
-    uint8_t y = RAM(0x44);
+    uint8_t y = GameSubStep;
     RAM(0x00) = ROMB(0xC12C + y); RAM(0x01) = ROMB(0xC130 + y);
     switch (y) {
     case 0: ResultsStepInit(); break;
@@ -1785,46 +1786,46 @@ void StateSubStepDispatch(void) {             /* $CB2C: results sub-steps 0-3 */
 
 /* ---- batch 15: menus, best-time tables, race result ---- */
 void LoadBestTime(void) {                     /* $C522: built-in record for the current track -> $05-$07 */
-    RAM(0x02) = RAM(0x43);
+    RAM(0x02) = TrackIndex;
     uint8_t y = TimeTableIndexForTrack((Regs){ 0, 0, 0, 0 }).a;
     RAM(0x05) = ROMB(0xC091 + y); RAM(0x06) = ROMB(0xC092 + y); RAM(0x07) = ROMB(0xC093 + y);
 }
 void LoadSavedTimeForIndex(void) {            /* $C53E: saved best time for track $02 -> $05-$07 */
     uint8_t y = TimeTableIndexForSelection((Regs){ 0, 0, 0, 0 }).y;
-    RAM(0x05) = RAM(0x0580 + y); RAM(0x06) = RAM(0x0581 + y); RAM(0x07) = RAM(0x0582 + y);
+    RAM(0x05) = BestTimes(y); RAM(0x06) = RAM(0x0581 + y); RAM(0x07) = RAM(0x0582 + y);
 }
-void LoadSavedTime(void) { RAM(0x02) = RAM(0x43); LoadSavedTimeForIndex(); }   /* $C53A */
+void LoadSavedTime(void) { RAM(0x02) = TrackIndex; LoadSavedTimeForIndex(); }   /* $C53A */
 void WriteTimeTextSaved(Regs r) {             /* $C92C: A = text type; writes the saved time of the current track to the PPU buffer */
-    RAM(0x02) = RAM(0x43); RAM(0x03) = r.a;
+    RAM(0x02) = TrackIndex; RAM(0x03) = r.a;
     LoadSavedTimeForIndex();
     WriteTimeDigitsToBuffer();
 }
 
-static void menu_cursor_tail(uint8_t a) { RAM(0x0203) = a; RAM(0x0202) = 0; RAM(0x46) = 0; }   /* $C411 */
+static void menu_cursor_tail(uint8_t a) { RAM(0x0203) = a; RAM(0x0202) = 0; ModeFlagB = 0; }   /* $C411 */
 void SetMenuCursorSprite(Regs r) { RAM(0x0201) = 0xFA; menu_cursor_tail(ROMB(0xC088 + r.y)); }  /* $C409 */
 
 void StateMenuChoice6(void) {                 /* $C3BD */
     Regs q = MenuHandleInput((Regs){ 6, 0, 0, 0 });
-    if (q.x == 0) { RAM(0x0200) = ROMB(0xC08B + RAM(0x42)); return; }
-    uint8_t a = RAM(0x42);
+    if (q.x == 0) { OamBuffer(0) = ROMB(0xC08B + MenuCursor); return; }
+    uint8_t a = MenuCursor;
     if (a == 2) { GameStateAdvance(); return; }
     if (a > 2) {
-        if (a == 5) { RAM(0x42) = a >> 1; ResetGameRam(); return; }
-        RAM(0x41) = (uint8_t)(a + 9); RAM(0x42) = 0; GameStateClearSteps(); return;
+        if (a == 5) { MenuCursor = a >> 1; ResetGameRam(); return; }
+        GameState = (uint8_t)(a + 9); MenuCursor = 0; GameStateClearSteps(); return;
     }
-    RAM(0x03F2) = a; RAM(0x41)++; GameStateAdvance();
+    SelectionB = a; GameState++; GameStateAdvance();
 }
 void StateMenuChoice5(void) {                 /* $C395 */
-    uint8_t t = RAM(0x15) & 0xF3;
+    uint8_t t = Joy1Trigger & 0xF3;
     t |= (uint8_t)((t & 3) << 2);
-    RAM(0x15) = t;
+    Joy1Trigger = t;
     Regs q = MenuHandleInput((Regs){ 5, 0, 0, 0 });
     if (q.x == 0) {
         uint8_t a = ROMB(0xC083 + q.y);
         if (a != 0) { menu_cursor_tail(a); return; }
         StateMenuChoice6(); return;
     }
-    RAM(0x43) = RAM(0x42);
+    TrackIndex = MenuCursor;
     GameStateAdvance();
 }
 
@@ -1835,15 +1836,15 @@ void ComputeRaceResult(void) {                /* $C485: place/record from the fi
     if (i == 3) { a = 1; goto done; }
     if (RAM(0x05 + i) >= RAM(0x68 + i)) {
         y = TimeTableIndexForSelection((Regs){ 0, 0, 0, 0 }).y;      /* LoadSavedTime left Y = table slot */
-        for (k = 0; k < 3; k++) RAM(0x0580 + y++) = RAM(0x68 + k);
+        for (k = 0; k < 3; k++) BestTimes(y++) = RAM(0x68 + k);
         a = 1; goto done;
     }
-    if (RAM(0x41) < 8) {
+    if (GameState < 8) {
         LoadBestTime();
         for (i = 0; i < 3; i++) if (RAM(0x05 + i) != RAM(0x68 + i)) break;
         if (i == 3 || RAM(0x05 + i) >= RAM(0x68 + i)) { a = 2; goto done; }
     }
-    RAM(0x0A) = RAM(0x03F8);
+    RAM(0x0A) = LapSpeedScale;
     RAM(0x09) = (uint8_t)(RAM(0x0A) << 1);
     y = (uint8_t)(RAM(0x68) - RAM(0x05));
     a = 0;
@@ -1871,7 +1872,7 @@ void ComputeRaceResult(void) {                /* $C485: place/record from the fi
 scale:
     a = (uint8_t)(((uint8_t)(a - RAM(0x09)) >> 1) + 4);
 done:
-    RAM(0x53) = a; RAM(0x45) = 0x18; RAM(0x49) = 1; RAM(0x40) = 1; RAM(0x44) = 0;
+    PlaceResult = a; PpuUpdateIndex = 0x18; InputLatch = 1; GameStateActive = 1; GameSubStep = 0;
 }
 
 /* ---- batch 16: track column streaming helpers and track-design (editor) helpers ---- */
@@ -1918,7 +1919,7 @@ void WriteColumnToRows(void) {                /* $F64E: store the buffered colum
 
 void DrawTrackColumn(void) {                  /* $F6FB: advance the design-mode draw column; flips the nametable every 32 columns */
     RAM(0xB1)++;
-    if (RAM(0xB1) == 0x20) { RAM(0xB1) = 0; RAM(0xB0) ^= 4; }
+    if (RAM(0xB1) == 0x20) { RAM(0xB1) = 0; RiderAirborne(0) ^= 4; }
 }
 Regs DesignCheckSlotFree(Regs r) {            /* $ECC9: A = 0 when column Y of the design rows is empty */
     uint8_t y = r.y;
@@ -1928,30 +1929,30 @@ Regs DesignCheckSlotFree(Regs r) {            /* $ECC9: A = 0 when column Y of t
 }
 void DesignLoadPiece(void) {                  /* $EC75 */
     uint8_t a;
-    RAM(0xCA) = 0; RAM(0xC8) = 0; RAM(0xC9) = 0;
-    RAM(0xBA) = RAM(0xB2); RAM(0xBB) = RAM(0xB0); RAM(0xBC) = RAM(0xB1);
+    RAM(0xCA) = 0; RiderScriptClock(0) = 0; RAM(0xC9) = 0;
+    RAM(0xBA) = RAM(0xB2); RAM(0xBB) = RiderAirborne(0); RiderHeight(0) = RAM(0xB1);
     a = ROMB(0xE6E1 + RAM(0xC2));
-    RAM(0xB8) = a;
-    if (a >= 0x11) RAM(0xC8) = a & 0x0F;
+    RiderY(0) = a;
+    if (a >= 0x11) RiderScriptClock(0) = a & 0x0F;
 }
 void DesignScrollStep(void) {                 /* $EC99 */
-    uint8_t a = RAM(0x60);
+    uint8_t a = RiderMoveX(0);
     if (a == 0) return;
     a += RAM(0xB9); RAM(0xB9) = a;
     if (a != 8) return;
-    RAM(0xC0) = 1; RAM(0xB9) = 0;
+    RiderTrackPiece(0) = 1; RAM(0xB9) = 0;
     DrawTrackColumn();
     RAM(0xB2) = IncMod64((Regs){ RAM(0xB2), 0, 0, 0 }).a;
     RAM(0xB3) = IncMod64((Regs){ RAM(0xB3), 0, 0, 0 }).a;
 }
-void CopyBackupToDesign(void) { for (int i = 0; i < 256; i++) RAM(0x06E0 + i) = RAM(0x05E0 + i); }   /* $EC3B */
+void CopyBackupToDesign(void) { for (int i = 0; i < 256; i++) TrackDesignWork(i) = TrackDesign(i); }   /* $EC3B */
 void DrawDesignCursorSprite(Regs r) {         /* $EC25: A = Y position */
     RAM(0x0230) = r.a; RAM(0x0231) = 0xCA; RAM(0x0232) = 0;
     RAM(0x0233) = ROMB(0xE6F6 + RAM(0xC2));
 }
 void DesignBlinkCursor(void) {                /* $EC5D */
     DrawDesignCursorSprite((Regs){ 0xF8, 0, 0, 0 });
-    uint8_t a = (RAM(0x3F) & 0x10) ? 0xF8 : 0xC7;
+    uint8_t a = (FrameCounter & 0x10) ? 0xF8 : 0xC7;
     RAM(0x0228) = a; RAM(0x022C) = a;
 }
 
@@ -1961,28 +1962,28 @@ void DesignBlinkCursor(void) {                /* $EC5D */
 
 void TrackRenderUpdate(void) {                /* $F4FF: streams the next column of the track (script at ROM $ED3A,X) into the PPU buffer and the row tables */
     uint8_t x, y, a;
-    x = RAM(0x43);
+    x = TrackIndex;
     RAM(0x07) = ROMB(0xED3A + x); RAM(0x08) = ROMB(0xED40 + x);
-    if (RAM(0xEB) != RAM(0xE0)) return;
+    if (RAM(0xEB) != RiderTrackPos(0)) return;
     if (RAM(0xEC) != 0) goto f591;
     if (RAM(0xEF) != 0) goto f597;
 f51a:
     y = RAM(0xED);
     if (y == 0) { RAM(0x57) = P07(y); RAM(0x03A4)++; }
 f525:
-    if (RAM(0x41) == 9 && RAM(0x03BC) != 0) { RAM(0xEE) = 0; RAM(0xED) = 0; a = 0x7F; goto f58d; }
+    if (GameState == 9 && SceneObjectKind != 0) { RAM(0xEE) = 0; RAM(0xED) = 0; a = 0x7F; goto f58d; }
     RAM(0xED)++;
     y = RAM(0xED);
     a = P07(y);
     if (a == 0) return;
-    if ((a & ROMB(0xF3D8)) != 0 && RAM(0x46) == 0) goto f51a;
+    if ((a & ROMB(0xF3D8)) != 0 && ModeFlagB == 0) goto f51a;
     a = P07(y);
     if ((a & ROMB(0xF0B5)) == 0) goto f576;
     x = a & 0x0F;
     RAM(0xEE) = ROMB(0xF4C6 + x);
     RAM(0xED)++;
     y++;
-    if (RAM(0x41) == 9 && y == 2) {
+    if (GameState == 9 && y == 2) {
         RAM(0x57) = 1;
         a = (uint8_t)(P07(y) - 0x3D);
         if (a != 0) goto f58d;
@@ -1994,7 +1995,7 @@ f576:
     a &= 0x3F;
     RAM(0xEE) = a;
     if (a < 0x30) goto f597;
-    if (a == 0x30 && RAM(0x03BC) == 0) goto f588;
+    if (a == 0x30 && SceneObjectKind == 0) goto f588;
     x--;
 f588:
     RAM(0x03A8) = x;
@@ -2014,7 +2015,7 @@ f597:
         if (RAM(0xEE) != 9) goto f51a;
         RAM(0x03A4)++;
         RAM(0x57)--;
-        if (RAM(0x57) == 0) RAM(0x03BC) = 1;
+        if (RAM(0x57) == 0) SceneObjectKind = 1;
         RAM(0xED) = 0; RAM(0x03A5) = 0;
         goto f525;
     }
@@ -2038,36 +2039,36 @@ f597:
         if (x == 5) RAM(0x0310) = RAM(0x03A4);
     }
     RAM(0x0303) = 0x8E;
-    RAM(0x0301) = RAM(0xEA); RAM(0x0302) = RAM(0xE9);
+    PpuBuffer(0) = RAM(0xEA); RAM(0x0302) = RAM(0xE9);
     RAM(0x0F) = RAM(0xE8);
     WriteColumnToRows();
     RAM(0xE8) = IncMod64((Regs){ RAM(0xE8), 0, 0, 0 }).a;
     RAM(0xE9)++;
     if (RAM(0xE9) == 0x20) { RAM(0xE9) = 0; RAM(0xEA) ^= 4; }
-    RAM(0xEB) = IncMod64((Regs){ RAM(0xE0), 0, 0, 0 }).a;
+    RAM(0xEB) = IncMod64((Regs){ RiderTrackPos(0), 0, 0, 0 }).a;
 }
 
 void DesignPlayback(void) {                   /* $F68D: replays the loaded design piece by piece into the track rows */
     uint8_t x, y, a;
     if (RAM(0xBE) == 0) return;
     if (RAM(0xCA) != 0 || RAM(0xC3) != 0) goto f6c7;
-    x = RAM(0xC8);
+    x = RiderScriptClock(0);
     if (x == 0) goto f6c7;
     x--;
     TrackColumnPointer07((Regs){ 0, x, 0, 0 });
     y = RAM(0xC9);
     a = P07(y);
     if (a == 0) goto f71e;
-    if ((a & ROMB(0xF0B5)) == 0) { RAM(0xB8) = a; y++; RAM(0xC9) = y; }
+    if ((a & ROMB(0xF0B5)) == 0) { RiderY(0) = a; y++; RAM(0xC9) = y; }
     else {
         x = a & 0x0F;
-        RAM(0xB8) = ROMB(0xF4C6 + x);
+        RiderY(0) = ROMB(0xF4C6 + x);
         y++;
         RAM(0xCA) = P07(y);
         y++; RAM(0xC9) = y;
     }
 f6c7:
-    x = RAM(0xB8);
+    x = RiderY(0);
     TrackColumnPointer05((Regs){ 0, x, 0, 0 });
     y = RAM(0xC3);
     a = P05(y);
@@ -2077,14 +2078,14 @@ f6c7:
     y++;
     RAM(0xC3) = y;
     RAM(0x0303) = 0x8E;
-    RAM(0x0301) = RAM(0xB0); RAM(0x0302) = RAM(0xB1);
+    PpuBuffer(0) = RiderAirborne(0); RAM(0x0302) = RAM(0xB1);
     RAM(0x0F) = RAM(0xB2);
     WriteColumnToRows();
     RAM(0xB2) = IncMod64((Regs){ RAM(0xB2), 0, 0, 0 }).a;
     DrawTrackColumn();
     return;
 f70e:
-    if (RAM(0xC8) == 0) goto f71e;
+    if (RiderScriptClock(0) == 0) goto f71e;
     RAM(0xC3) = 0;
     if (RAM(0xCA) == 0) goto f739;
     RAM(0xCA)--;
@@ -2096,20 +2097,20 @@ f71e:
         if (y == 0x40) y = 0;
         if (DesignCheckSlotFree((Regs){ 0, 0, y, 0 }).a == 0) goto f73e;
     }
-    RAM(0xB8) = 0; RAM(0xC3) = 0; RAM(0xC8) = 0;
+    RiderY(0) = 0; RAM(0xC3) = 0; RiderScriptClock(0) = 0;
 f739:
     RAM(0xBE) = 1;
     return;
 f73e:
-    RAM(0xC3) = 0; RAM(0xBE) = 0; RAM(0xBD) = 0; RAM(0xC8) = 0;
-    RAM(0xB2) = RAM(0xBA); RAM(0xB0) = RAM(0xBB); RAM(0xB1) = RAM(0xBC);
+    RAM(0xC3) = 0; RAM(0xBE) = 0; RAM(0xBD) = 0; RiderScriptClock(0) = 0;
+    RAM(0xB2) = RAM(0xBA); RiderAirborne(0) = RAM(0xBB); RAM(0xB1) = RiderHeight(0);
 }
 
 void DesignCapture(void) {                    /* $F755: records the track the rider is laying into the design buffer ($05E0...) */
     uint8_t x, y, a;
     Regs q;
-    if (RAM(0xB4) != 0) return;
-    if (RAM(0xC0) == 0) return;
+    if (RiderScriptShapeB(0) != 0) return;
+    if (RiderTrackPiece(0) == 0) return;
     x = 0x15;
     for (;;) {
         TrackColumnPointer05((Regs){ 0, x, 0, 0 });
@@ -2129,11 +2130,11 @@ void DesignCapture(void) {                    /* $F755: records the track the ri
         x = RAM(0x04);
         if (x & 0x80) return;
     }
-    if (RAM(0xC4) == 0) {
+    if (RiderScriptPos(0) == 0) {
         RAM(0xC6) = RAM(0xC7);
         DesignMarkRecord((Regs){ 0, RAM(0xB7), 0, 0 });
         RAM(0xC5) = 0x3D;
-        RAM(0xC4)++;
+        RiderScriptPos(0)++;
     }
     if (RAM(0xC7) == RAM(0xC6)) {
         if (RAM(0xC6) != 0) return;
@@ -2171,7 +2172,7 @@ void DesignCapture(void) {                    /* $F755: records the track the ri
     q = DesignEndRecord((Regs){ 0, x, 0, 0 });
 f7ec:
     RAM(0xC6) = RAM(0xC7);
-    if (RAM(0xC7) == 9) { RAM(0xBF) = 2; RAM(0x49) = 2; }
+    if (RAM(0xC7) == 9) { RAM(0xBF) = 2; InputLatch = 2; }
 f7fa:
     if (RAM(0xB7) >= 0xED && RAM(0xC1) == 0) RAM(0xC1) = 1;
     (void)q;
@@ -2180,36 +2181,36 @@ f7fa:
 void DesignModeUpdate(void) {                 /* $EB17: the track editor's per-frame update (cursor, piece placement, scrolling, piece-slot menu) */
     uint8_t a, y;
     if (RAM(0xBE) != 0) return;
-    if (RAM(0xB4) != 0) { RAM(0xB4)--; if (RAM(0xB4) != 0) goto eb5e; }
+    if (RiderScriptShapeB(0) != 0) { RiderScriptShapeB(0)--; if (RiderScriptShapeB(0) != 0) goto eb5e; }
     if ((RAM(0xBD) | RAM(0xB9)) != 0) goto eb5e;
-    RAM(0x60) = 0; RAM(0xC0) = 0;
+    RiderMoveX(0) = 0; RiderTrackPiece(0) = 0;
     a = RAM(0xBF);
     if (a != 0 && a != 1) goto eb9e;
     a = RAM(0xC1);
     if (a == 2) goto eb5e;
-    if (RAM(0xC1) != 0) { RAM(0xB8) = 9; goto eb43; }
+    if (RAM(0xC1) != 0) { RiderY(0) = 9; goto eb43; }
     if (RAM(0xBF) != 0) goto eb5e;
-    a = RAM(0x5C);
+    a = RiderInput(0);
     if (a & 0x80) {
-        RAM(0x49) = 0;
+        InputLatch = 0;
         if (RAM(0x2B) != 0) return;
         RAM(0x2B) = 5;
         goto eb5e;
     }
     if (!(a & 0x40)) goto ebf6;
-    if (RAM(0x49) != 0) return;
+    if (InputLatch != 0) return;
     DesignLoadPiece();
-    a = RAM(0xB8);
+    a = RiderY(0);
     if (a == 0xFF) return;
     if (a == 9) goto eb43;
     goto eb93;
 eb43:
     RAM(0xC1) = 2;
 eb93:
-    RAM(0xBE) = 1; RAM(0x49) = 1; RAM(0xFB) = 0x40;
+    RAM(0xBE) = 1; InputLatch = 1; MusicRequest = 0x40;
     return;
 eb5e:
-    RAM(0x60) = 4;
+    RiderMoveX(0) = 4;
     DesignScrollStep();
     y = RAM(0xB3);
     RAM(0xBD) = 0;
@@ -2221,37 +2222,37 @@ eb5e:
     RAM(0xBD)++;
     return;
 eb9e:
-    if (RAM(0x49) == 0) {
-        a = RAM(0x5C);
+    if (InputLatch == 0) {
+        a = RiderInput(0);
         if (!(a & 0x40)) goto ebbd;
         GameStateClearSteps();
         CopyBackupToDesign();
-        RAM(0x47) = 0; RAM(0x42) = 0;
-        RAM(0x41) = 8;
+        RaceActive = 0; MenuCursor = 0;
+        GameState = 8;
     }
 ebb6:
-    if (RAM(0x5C) == 0) RAM(0x49) = 0;
+    if (RiderInput(0) == 0) InputLatch = 0;
     return;
 ebbd:
     DesignBlinkCursor();
-    if (RAM(0x3A) != 0) return;
-    RAM(0x3A)++;
-    a = RAM(0x5C);
+    if (FinishGateTimer != 0) return;
+    FinishGateTimer++;
+    a = RiderInput(0);
     if (a == 0x80 || a == 0x08) {
-        RAM(0x05E0)++;
-        a = RAM(0x05E0);
-        if (!((uint8_t)(a - 0x0A) & 0x80)) { a = 1; RAM(0x05E0) = a; }
+        TrackDesign(0)++;
+        a = TrackDesign(0);
+        if (!((uint8_t)(a - 0x0A) & 0x80)) { a = 1; TrackDesign(0) = a; }
     } else if (a == 0x04) {
-        RAM(0x05E0)--;
-        if (RAM(0x05E0) == 0) RAM(0x05E0) = 9;
+        TrackDesign(0)--;
+        if (TrackDesign(0) == 0) TrackDesign(0) = 9;
     } else goto ebb6;
-    RAM(0xFF) = 1; RAM(0x49) = 0;
-    RAM(0x0234) = 0xCF; RAM(0x0235) = RAM(0x05E0); RAM(0x0236) = 0; RAM(0x0237) = 0xE4;
+    SfxPulse1Request = 1; InputLatch = 0;
+    RAM(0x0234) = 0xCF; RAM(0x0235) = TrackDesign(0); RAM(0x0236) = 0; RAM(0x0237) = 0xE4;
     return;
 ebf6:
     if (RAM(0x2C) != 0) return;
     RAM(0x2C) = 8;
-    a = RAM(0x5C);
+    a = RiderInput(0);
     if (a & 1) {
         RAM(0xC2)++;
         a = RAM(0xC2);
@@ -2263,7 +2264,7 @@ ebf6:
         a = RAM(0xC2);
         if (a & 0x80) { a = 0x14; RAM(0xC2) = a; }
     }
-    RAM(0xFF) = 1; RAM(0x49) = 0;
+    SfxPulse1Request = 1; InputLatch = 0;
     DrawDesignCursorSprite((Regs){ 0xD0, 0, 0, 0 });
 }
 
@@ -2274,7 +2275,7 @@ void FetchTrackWindow(void) {                 /* $D0C6: copies the 4 track piece
         RAM(0x0C) = (uint8_t)(x << 2);
         RAM(0x0B) = 4;
         Regs q = TrackPieceAtRiderLane((Regs){ 0, x, 0, 0 });
-        RAM(0xC0 + x) = q.a; a = q.a; y = q.y;
+        RiderTrackPiece(x) = q.a; a = q.a; y = q.y;
         for (;;) {
             y++;
             RAM(0x08) = y & 0x3F;
@@ -2293,7 +2294,7 @@ void FetchTrackWindow(void) {                 /* $D0C6: copies the 4 track piece
 static int ppu_buffer_advance(uint8_t *x) {
     (*x)++;
     if (*x < 0x3F) return 0;
-    *x = RAM(0x0300); RAM(0x0301 + *x) = 0;
+    *x = PpuBufferLen; PpuBuffer(*x) = 0;
     return 1;
 }
 void QueueNametableRect(void) {               /* $D2A3: queues a w*h nametable rectangle; $00/$01 = PPU address, ($02) = data (first byte: h<<4 | w) */
@@ -2301,28 +2302,28 @@ void QueueNametableRect(void) {               /* $D2A3: queues a w*h nametable r
     hdr = rd16mem((uint16_t)(RAM(0x02) | RAM(0x03) << 8));
     RAM(0x05) = hdr & 0x0F;
     RAM(0x04) = hdr >> 4;
-    x = RAM(0x0300);
+    x = PpuBufferLen;
     do {
-        RAM(0x0301 + x) = RAM(0x01);
+        PpuBuffer(x) = RAM(0x01);
         if (ppu_buffer_advance(&x)) return;
-        RAM(0x0301 + x) = RAM(0x00);
+        PpuBuffer(x) = RAM(0x00);
         if (ppu_buffer_advance(&x)) return;
         RAM(0x06) = RAM(0x05);
-        RAM(0x0301 + x) = RAM(0x05);
+        PpuBuffer(x) = RAM(0x05);
         do {
             if (ppu_buffer_advance(&x)) return;
             y++;
-            RAM(0x0301 + x) = rdp(RAM(0x02), RAM(0x03), y);
+            PpuBuffer(x) = rdp(RAM(0x02), RAM(0x03), y);
             RAM(0x06)--;
         } while (RAM(0x06) != 0);
         if (ppu_buffer_advance(&x)) return;
-        RAM(0x0300) = x;
+        PpuBufferLen = x;
         uint16_t lo = (uint16_t)(0x20 + RAM(0x00));
         RAM(0x00) = (uint8_t)lo;
         RAM(0x01) = (uint8_t)(RAM(0x01) + (lo >> 8));
         RAM(0x04)--;
     } while (RAM(0x04) != 0);
-    RAM(0x0301 + x) = 0;
+    PpuBuffer(x) = 0;
 }
 void CopyTimeDigitsToHud(void) {              /* $D0F4 */
     for (int8_t x = 6; x >= 0; x--) RAM(0x03D1 + x) = RAM(0x03D9 + x);
@@ -2333,7 +2334,7 @@ void CopyTimeDigitsToHud(void) {              /* $D0F4 */
     QueueNametableRect();
 }
 void InitHudBuffer(void) {                    /* $D11F: resets the PPU buffer to the attribute-table update at $23A0 */
-    RAM(0x0300) = 0x11; RAM(0x0301) = 0x23; RAM(0x0302) = 0xA0;
+    PpuBufferLen = 0x11; PpuBuffer(0) = 0x23; RAM(0x0302) = 0xA0;
     RAM(0x0303) = 0x0E;
     for (uint8_t x = 0x0E; x != 0; x--) RAM(0x0303 + x) = 0xFE;
     RAM(0x0312) = 0;
@@ -2341,12 +2342,12 @@ void InitHudBuffer(void) {                    /* $D11F: resets the PPU buffer to
 
 void DrawFinishGate(void) {                   /* $EAC5: countdown banner sprites ($3A) at the finish line */
     uint8_t a, x = 0, y = 3;
-    if ((RAM(0x52) | RAM(0x3C)) != 0) { RAM(0x3A) = 0; return; }
-    a = RAM(0x3A);
+    if ((RaceEndState | OverheatTimer) != 0) { FinishGateTimer = 0; return; }
+    a = FinishGateTimer;
     if (a == 0) return;
     if (a >= 0x0D) {
         if (!(a & 1)) return;
-        RAM(0xFB) = 0x40;
+        MusicRequest = 0x40;
     }
     do {
         RAM(0x02B4 + x++) = 0x42;
@@ -2371,34 +2372,34 @@ static void obstacle_wheels(void) {           /* $E16C */
     }
 }
 void UpdateTrackObstacle(void) {              /* $E0E6: the scrolling obstacle sprite that BikeVsObstacleCheck tests against */
-    if ((RAM(0x3A) | RAM(0x52) | RAM(0x24)) != 0) return;
-    if (RAM(0x03A0) == 0) {
-        if (RAM(0x2E) != 0) return;
-        RAM(0x03A1) = ROMB(0xD8F3 + (RAM(0x18) & 3));
-        RAM(0x03B9) = 0xF8; RAM(0x03A0) = 0xF8;
+    if ((FinishGateTimer | RaceEndState | StartLightTimer) != 0) return;
+    if (ObstacleActive == 0) {
+        if (ObstacleCooldown != 0) return;
+        ObstacleTile = ROMB(0xD8F3 + (RandomState(0) & 3));
+        ObstacleX = 0xF8; ObstacleActive = 0xF8;
     }
     RAM(0x01) = 0x50;
-    RAM(0x03B9) = (uint8_t)(RAM(0x03B9) - RAM(0x60));
-    if (RAM(0x60) != 0 && (RAM(0x3F) & 0x0F) == 0) RAM(0x03B9)--;
-    RAM(0x00) = RAM(0x03B9);
-    if (RAM(0x03B9) >= 0xFC) { RAM(0x2E) = RAM(0x18) & 0xA0; RAM(0x03A0) = 0; return; }
-    RAM(0x02) = RAM(0x03A1); RAM(0x03) = 0x22; RAM(0x04) = 0xC0; RAM(0x0B) = 0x20;
+    ObstacleX = (uint8_t)(ObstacleX - RiderMoveX(0));
+    if (RiderMoveX(0) != 0 && (FrameCounter & 0x0F) == 0) ObstacleX--;
+    RAM(0x00) = ObstacleX;
+    if (ObstacleX >= 0xFC) { ObstacleCooldown = RandomState(0) & 0xA0; ObstacleActive = 0; return; }
+    RAM(0x02) = ObstacleTile; RAM(0x03) = 0x22; RAM(0x04) = 0xC0; RAM(0x0B) = 0x20;
     DrawMetasprite((Regs){ 0x20, 0, 0, 0 });
-    if (RAM(0x03B9) >= 0x60) return;
-    RAM(0x00) = (uint8_t)(RAM(0x03A1) + 3);
+    if (ObstacleX >= 0x60) return;
+    RAM(0x00) = (uint8_t)(ObstacleTile + 3);
     obstacle_wheels();
-    RAM(0x00) = (uint8_t)(RAM(0x03A1) + 1);
+    RAM(0x00) = (uint8_t)(ObstacleTile + 1);
     RAM(0x04) += 8;
     obstacle_wheels();
 }
 void UpdateScrollingBanner(void) {            /* $E2AF */
     uint8_t v = RAM(0x03BD), y;
-    RAM(0x03BD) = (uint8_t)(v - RAM(0x60));
-    if (v < RAM(0x60)) RAM(0x03BE)--;
-    y = RAM(0x52);
+    RAM(0x03BD) = (uint8_t)(v - RiderMoveX(0));
+    if (v < RiderMoveX(0)) RAM(0x03BE)--;
+    y = RaceEndState;
     if (y != 0) {
         if ((uint8_t)(y - 1) != 0) return;
-        if (RAM(0x20) == 0) RAM(0x03BB) ^= 1;
+        if (TimerPrescaler == 0) RAM(0x03BB) ^= 1;
     }
     if ((uint8_t)(RAM(0x03BE) - 1) != 0) return;
     RAM(0x00) = RAM(0x03BD); RAM(0x01) = 0x50;
@@ -2408,7 +2409,7 @@ void UpdateScrollingBanner(void) {            /* $E2AF */
 }
 
 void MoveRiders(void) {                       /* $DA26: per-frame movement of the four riders and the world */
-    if (RAM(0x4F) == 0) return;
+    if (RaceStarted == 0) return;
     for (int8_t i = 3; i >= 0; i--) {
         Regs q = { 0, (uint8_t)i, 0, 0 };
         AccumulateRiderMove(q);
@@ -2419,8 +2420,8 @@ void MoveRiders(void) {                       /* $DA26: per-frame movement of th
     ScrollWorld();
     ShiftRidersByScroll();
     ScrollSplitLayer();
-    if (RAM(0x3C) != 0) return;
-    uint8_t y = RAM(0x03BC);
+    if (OverheatTimer != 0) return;
+    uint8_t y = SceneObjectKind;
     RAM(0x00) = ROMB(0xD8EF + y); RAM(0x01) = ROMB(0xD8F1 + y);        /* jump-table pointer, as the original leaves it in $00/$01 */
     if (y == 0) UpdateTrackObstacle();
     else if (y == 1) UpdateScrollingBanner();
@@ -2429,33 +2430,33 @@ void MoveRiders(void) {                       /* $DA26: per-frame movement of th
 /* ---- batch 19: backup RAM, tape bookkeeping, design-mode result states, race setup ---- */
 void ResetSavedTimes(void) {                  /* $C229: default saved times (0:0A:0 style) in both slots */
     uint8_t a = 0x0A;
-    for (uint8_t x = 0; x < 3; x++) { RAM(0x05A0 + x) = a; RAM(0x05C3 + x) = a; a = 0; }
+    for (uint8_t x = 0; x < 3; x++) { SavedTimes(x) = a; RAM(0x05C3 + x) = a; a = 0; }
 }
 void InitBackupRam(void) {                    /* $C1FD: first-boot contents of the battery/recorder RAM and its $A5/$5A signature */
-    for (int8_t x = 0x1E; x >= 0; x--) { RAM(0x0580 + x) = ROMB(0xC091 + x); RAM(0x05A3 + x) = ROMB(0xC091 + x); }
-    RAM(0x06E0) = 1;
+    for (int8_t x = 0x1E; x >= 0; x--) { BestTimes(x) = ROMB(0xC091 + x); RAM(0x05A3 + x) = ROMB(0xC091 + x); }
+    TrackDesignWork(0) = 1;
     uint8_t x = 1;
-    do { RAM(0x06E0 + x) = 0x40; x++; } while (x < 0xCF);
-    RAM(0x06E0 + x) = 9;
-    RAM(0x05CE) = 0xA5; RAM(0x05CF) = 0x5A;
+    do { TrackDesignWork(x) = 0x40; x++; } while (x < 0xCF);
+    TrackDesignWork(x) = 9;
+    BackupRamSigA5 = 0xA5; BackupRamSig5A = 0x5A;
     ResetSavedTimes();
 }
-void CopyTrackDesignToBackup(void) { for (int i = 0; i < 256; i++) RAM(0x05E0 + i) = RAM(0x06E0 + i); }   /* $C621 */
+void CopyTrackDesignToBackup(void) { for (int i = 0; i < 256; i++) TrackDesign(i) = TrackDesignWork(i); }   /* $C621 */
 void TapeCountBit(void) { RAM(0x08)++; if (RAM(0x08) == 0) RAM(0x09)++; }                                  /* $C68A */
 static void tape_block_sizes(uint8_t a) { RAM(0x05) = a; RAM(0x06) = a; }
 void TapeSelectBlockA(void) { RAM(0x0D) = 0x40; RAM(0x0E) = 0x60; RAM(0x0F) = 0x00; tape_block_sizes(0x28); }   /* $C716 */
 void TapeSelectBlockB(void) { RAM(0x0D) = 0x00; RAM(0x0E) = 0xE0; RAM(0x0F) = 0x05; tape_block_sizes(0x14); }   /* $C726 */
 
-static void design_state_finish(void) { RAM(0xFB) = 0x40; ResultsStepFinish(); }                          /* $C447 */
+static void design_state_finish(void) { MusicRequest = 0x40; ResultsStepFinish(); }                          /* $C447 */
 void StateDesignEnd(void) {                   /* $C43D */
-    if (RAM(0x44) == 0) { RAM(0x48) = 1; RAM(0x44) = 1; return; }
-    if (RAM(0x48) != 0xFF) return;
+    if (GameSubStep == 0) { ResetState = 1; GameSubStep = 1; return; }
+    if (ResetState != 0xFF) return;
     design_state_finish();
 }
 void StateDesignSaveCheck(void) {             /* $C41C */
-    if (RAM(0x44) == 0) { RAM(0x48) = 2; RAM(0x44) = 2; return; }
-    if (RAM(0x48) != 0xFF) return;
-    for (int8_t x = 2; x >= 0; x--) { RAM(0x05A0 + x) = RAM(0x65 + x); RAM(0x05C3 + x) = RAM(0x68 + x); }
+    if (GameSubStep == 0) { ResetState = 2; GameSubStep = 2; return; }
+    if (ResetState != 0xFF) return;
+    for (int8_t x = 2; x >= 0; x--) { SavedTimes(x) = RAM(0x65 + x); RAM(0x05C3 + x) = RAM(0x68 + x); }
     CopyBackupToDesign();
     design_state_finish();
 }
@@ -2464,38 +2465,38 @@ void ClearRaceZeroPage(void) { for (uint8_t x = 0xEF; x != 0x4C; x--) RAM(x) = 0
 
 void StartRaceSetup(void) {                   /* $C875: initial rider positions, pace targets, best-time HUD text for a new race */
     uint8_t a, x;
-    RAM(0x47)++; RAM(0x40)++;
-    a = RAM(0x34); if (a == 0) a = 5; RAM(0x34) = a;
+    RaceActive++; GameStateActive++;
+    a = MenuHintTimer; if (a == 0) a = 5; MenuHintTimer = a;
     RAM(0xE8) = 0x34; RAM(0xE9) = 0x14;
-    RAM(0x03F1) = 0xA0;
+    LandingBaseY = 0xA0;
     RAM(0x03B4) = 0x80; RAM(0x03B0) = 0x80; RAM(0x03BD) = 0xFF;
-    RAM(0x0370) = 1; RAM(0x03BE) = 2;
-    x = RAM(0x03F2) ? 3 : 0;
+    RiderGateWait(0) = 1; RAM(0x03BE) = 2;
+    x = SelectionB ? 3 : 0;
     for (;;) {
-        RAM(0xB8 + x) = ROMB(0xC0B4 + x);
-        RAM(0x64 + x) = 8;
-        RAM(0xE0 + x) = ROMB(0xC0B0 + x);
-        RAM(0x80 + x) = ROMB(0xC0B8 + x);
-        RAM(0xAC + x) = 6; RAM(0x78 + x) = 6;
-        RAM(0x84 + x) = 1; RAM(0xA8 + x) = 1;
-        RAM(0x74 + x) = RAM(0x19 + x) >> 1;
+        RiderY(x) = ROMB(0xC0B4 + x);
+        RiderMoveFraction(x) = 8;
+        RiderTrackPos(x) = ROMB(0xC0B0 + x);
+        RiderXLo(x) = ROMB(0xC0B8 + x);
+        RiderPitch(x) = 6; RiderTargetSpeedHi(x) = 6;
+        RiderXHi(x) = 1; RiderActive(x) = 1;
+        RiderTargetSpeedLo(x) = RAM(0x19 + x) >> 1;
         x--;
         if (x & 0x80) break;
     }
-    a = RAM(0x18) & 3;                          /* ZP indexing wraps: $19 + $FF = $18 */
+    a = RandomState(0) & 3;                          /* ZP indexing wraps: $19 + $FF = $18 */
     if (a == 0) a = 2;
-    RAM(0x78 + a) >>= 1;
-    if (RAM(0x46) != 0 && RAM(0x43) == 4) {
+    RiderTargetSpeedHi(a) >>= 1;
+    if (ModeFlagB != 0 && TrackIndex == 4) {
         for (int8_t i = 7; i >= 0; i--) RAM(0x0300 + i) = ROMB(0xC158 + i);
         Regs q = DivMod10((Regs){ RAM(0x03F3), 0, 0, 0 });
         RAM(0x0307) = q.a;
         if (q.x != 0) RAM(0x0306) = q.x;
     }
     LoadBestTime();
-    if (RAM(0x41) >= 8) LoadSavedTime();
+    if (GameState >= 8) LoadSavedTime();
     {
         uint8_t c = 0;
-        a = adc8((uint8_t)(RAM(0x03F8) << 1), RAM(0x06), &c);
+        a = adc8((uint8_t)(LapSpeedScale << 1), RAM(0x06), &c);
         if (a >= 0x3C) { a -= 0x3C; RAM(0x05)++; }
     }
     RAM(0x06) = a; RAM(0x07) = 0; RAM(0x03) = 2;
@@ -2512,11 +2513,11 @@ void StartRaceSetup(void) {                   /* $C875: initial rider positions,
 #define PPU_ADDR_REG   0x2006
 #define PPU_DATA_REG   0x2007
 
-void SetPpuCtrl(Regs r) { io_w(PPU_CTRL_REG, r.a); RAM(0x10) = r.a; }                           /* $C333 */
-void DisableNmi(void) { SetPpuCtrl((Regs){ RAM(0x10) & 0x7F, 0, 0, 0 }); }                       /* $C32F */
+void SetPpuCtrl(Regs r) { io_w(PPU_CTRL_REG, r.a); PpuCtrlShadow = r.a; }                           /* $C333 */
+void DisableNmi(void) { SetPpuCtrl((Regs){ PpuCtrlShadow & 0x7F, 0, 0, 0 }); }                       /* $C32F */
 void WaitVblankEndEnableNmi(void) {                                                               /* $C339 */
     while (io_r(PPU_STATUS_REG) & 0x80) { }
-    SetPpuCtrl((Regs){ RAM(0x10) | 0x80, 0, 0, 0 });
+    SetPpuCtrl((Regs){ PpuCtrlShadow | 0x80, 0, 0, 0 });
 }
 void DisableRendering(void) { io_w(PPU_MASK_REG, 0); }                                           /* $D24F */
 void ResetPpuScroll(void) { (void)io_r(PPU_STATUS_REG); io_w(PPU_SCROLL_REG, 0); io_w(PPU_SCROLL_REG, 0); }   /* $D1A9 */
@@ -2524,7 +2525,7 @@ void ResetPpuScroll(void) { (void)io_r(PPU_STATUS_REG); io_w(PPU_SCROLL_REG, 0);
 void ClearNametable(void) {                   /* $D260: fills nametable ($01 selects which) with tile $FC and clears its attributes */
     uint8_t a = 0x1C, c = 0, x, y;
     (void)io_r(PPU_STATUS_REG);
-    SetPpuCtrl((Regs){ RAM(0x10) & 0xFB, 0, 0, 0 });
+    SetPpuCtrl((Regs){ PpuCtrlShadow & 0xFB, 0, 0, 0 });
     do { a = adc8(a, 4, &c); RAM(0x01)--; } while (RAM(0x01) != 0);
     RAM(0x02) = a;
     io_w(PPU_ADDR_REG, a); io_w(PPU_ADDR_REG, 0);
@@ -2541,36 +2542,36 @@ void InitScreenState(void) {                  /* $C318 */
     ClearOam();
     ClearNametables();
     ResetPpuScroll();
-    RAM(0x12) = 0; RAM(0x50) = 0; RAM(0x13) = 0; RAM(0x51) = 0; RAM(0xFC) = 0;
+    ScrollX = 0; SplitScrollX = 0; ScrollY = 0; SplitScrollY = 0; EngineSoundRequest = 0;
     SetPpuCtrl((Regs){ 0x10, 0, 0, 0 });
 }
 
 void ApplySplitScroll(void) {                 /* $D1B3: scroll values for the status bar below the sprite-0 hit */
-    io_w(PPU_CTRL_REG, RAM(0x10) | RAM(0x4E));
+    io_w(PPU_CTRL_REG, PpuCtrlShadow | SplitNametableBits);
     (void)io_r(PPU_STATUS_REG);
-    io_w(PPU_SCROLL_REG, RAM(0x50)); io_w(PPU_SCROLL_REG, RAM(0x51));
+    io_w(PPU_SCROLL_REG, SplitScrollX); io_w(PPU_SCROLL_REG, SplitScrollY);
 }
 void WaitSprite0ThenResetScroll(void) {       /* $D19B */
     while (!(io_r(PPU_STATUS_REG) & 0x40)) { }
-    SetPpuCtrl((Regs){ RAM(0x10) & 0xF0, 0, 0, 0 });
+    SetPpuCtrl((Regs){ PpuCtrlShadow & 0xF0, 0, 0, 0 });
     ResetPpuScroll();
 }
 void SplitScreenScrollHandler(void) {         /* $D14E: runs at the sprite-0 hit: status-bar scroll, then prepares the next frame's HUD */
     while (io_r(PPU_STATUS_REG) & 0x40) { }
     ApplySplitScroll();
-    RAM(0x4C) = RAM(0x3F) & 3;
+    FrameMod4 = FrameCounter & 3;
     InitHudBuffer();
     uint8_t delay = 0x43;                       /* the original burns this many 96-cycle loops here, so the scroll change below lands a few scanlines into the frame */
-    if (RAM(0x41) != 9) {
-        for (uint8_t y = 0xEC; y != 0; y -= 4) RAM(0x0200 + y) = 0xF8;
+    if (GameState != 9) {
+        for (uint8_t y = 0xEC; y != 0; y -= 4) OamBuffer(y) = 0xF8;
         FetchTrackWindow();
         CopyTimeDigitsToHud();
         delay = ROMB(0xD17D);
     }
     if (g_hal_event) g_hal_event(HAL_EV_DELAY, delay * 96);
-    io_w(PPU_CTRL_REG, RAM(0x10) | RAM(0x4D));
+    io_w(PPU_CTRL_REG, PpuCtrlShadow | PpuCtrlNametableBits);
     (void)io_r(PPU_STATUS_REG);
-    io_w(PPU_SCROLL_REG, RAM(0x12)); io_w(PPU_SCROLL_REG, RAM(0x13));
+    io_w(PPU_SCROLL_REG, ScrollX); io_w(PPU_SCROLL_REG, ScrollY);
 }
 
 void RunPpuWriteList(void) {                  /* $D3C1: list at ($00): { addr hi, addr lo, flags(bit7 = +32, bit6 = repeat, low 6 bits = count), data... } ... 0 */
@@ -2582,7 +2583,7 @@ void RunPpuWriteList(void) {                  /* $D3C1: list at ($00): { addr hi
         io_w(PPU_ADDR_REG, a);
         y++; io_w(PPU_ADDR_REG, rdp(RAM(0x00), RAM(0x01), y));
         y++; v = rdp(RAM(0x00), RAM(0x01), y);
-        a = RAM(0x10) | 0x04;
+        a = PpuCtrlShadow | 0x04;
         if (!(v & 0x80)) a &= 0xFB;
         SetPpuCtrl((Regs){ a, 0, 0, 0 });
         rep = (v >> 6) & 1;
@@ -2600,11 +2601,11 @@ void RunPpuWriteList(void) {                  /* $D3C1: list at ($00): { addr hi
 void FlushPpuUpdateAt(Regs r) {               /* $C289: A = high byte of the list address ($00 already set) */
     RAM(0x01) = r.a;
     RunPpuWriteList();
-    RAM(0x0300) = 0; RAM(0x0301) = 0; RAM(0x45) = 0;
+    PpuBufferLen = 0; PpuBuffer(0) = 0; PpuUpdateIndex = 0;
     io_w(PPU_ADDR_REG, 0x3F); io_w(PPU_ADDR_REG, 0); io_w(PPU_ADDR_REG, 0); io_w(PPU_ADDR_REG, 0);
 }
 void FlushPpuUpdate(void) {                   /* $C27F: runs the PPU write list selected by $45 */
-    uint8_t x = RAM(0x45);
+    uint8_t x = PpuUpdateIndex;
     RAM(0x00) = ROMB(0xC0F6 + x);
     FlushPpuUpdateAt((Regs){ ROMB(0xC111 + x), 0, 0, 0 });
 }
@@ -2652,16 +2653,16 @@ void ReadJoypads(void) {                      /* $D347 */
 
 /* ---- batch 21: game states, setup-list entry points, pause, per-frame race loop ---- */
 #define APU_SND_CHN_REG 0x4015
-static void set_ppu_update(uint8_t a) { RAM(0x45) = a; }                                  /* $C56E */
+static void set_ppu_update(uint8_t a) { PpuUpdateIndex = a; }                                  /* $C56E */
 
 void ResultScreenActivate(void) {             /* $C514 (+$C518): show the results screen */
     set_ppu_update(0x18);
-    RAM(0x49) = 1; RAM(0x40) = 1; RAM(0x44) = 0;
+    InputLatch = 1; GameStateActive = 1; GameSubStep = 0;
 }
-void ResultScreenActivateKeep(void) { RAM(0x49) = 1; RAM(0x40) = 1; RAM(0x44) = 0; }    /* $C518 */
+void ResultScreenActivateKeep(void) { InputLatch = 1; GameStateActive = 1; GameSubStep = 0; }    /* $C518 */
 void SetupPpuUpdateTrack(void) {              /* $C551: PPU list $12 + track for the race screens, $12 for design screens */
     uint8_t a = 0x12;
-    if (RAM(0x41) < 8) { a = (uint8_t)(a + RAM(0x43)); if (a == 0) a = 6; }
+    if (GameState < 8) { a = (uint8_t)(a + TrackIndex); if (a == 0) a = 6; }
     set_ppu_update(a);
 }
 void SetupPpuUpdate06(void) { set_ppu_update(0x06); }                                      /* $C55E */
@@ -2672,7 +2673,7 @@ void SetupPpuUpdate09(void) { set_ppu_update(0x09); }                           
 void SetupPpuUpdate11(void) { set_ppu_update(0x11); }                                      /* $C582 */
 void SetupPpuUpdate17(void) { set_ppu_update(0x17); }                                      /* $C5A3 */
 void SetupMenuCursorTrack5(void) {            /* $C575 */
-    RAM(0x43) = 5;
+    TrackIndex = 5;
     SetMenuCursorSprite((Regs){ 0, 0, 2, 0 });
     set_ppu_update(0x0F);
 }
@@ -2681,7 +2682,7 @@ void SetupDesignTimes(void) {                 /* $C586: copies the saved times i
     int8_t x = 3;
     RAM(0x61 + x) = ROMB(0xC180 + x);
     for (x = 2; x >= 0; x--) {
-        RAM(0x65 + x) = RAM(0x05A0 + x);
+        RAM(0x65 + x) = SavedTimes(x);
         RAM(0x68 + x) = RAM(0x05C3 + x);
         RAM(0x61 + x) = ROMB(0xC180 + x);
     }
@@ -2689,104 +2690,104 @@ void SetupDesignTimes(void) {                 /* $C586: copies the saved times i
     set_ppu_update(0x10);
 }
 void SetupTrackPicker(void) {                 /* $C5AC */
-    RAM(0x34) = 0x12;
+    MenuHintTimer = 0x12;
     for (int8_t x = 5; x >= 0; x--) RAM(0x0300 + x) = ROMB(0xC13C + x);
-    RAM(0x0304) = (uint8_t)(RAM(0x43) + 1);
+    RAM(0x0304) = (uint8_t)(TrackIndex + 1);
 }
 void DesignShowSlotSprite(void) {             /* $EC47 */
-    RAM(0x0234) = 0xCF; RAM(0x0235) = RAM(0x05E0); RAM(0x0236) = 0; RAM(0x0237) = 0xE4;
+    RAM(0x0234) = 0xCF; RAM(0x0235) = TrackDesign(0); RAM(0x0236) = 0; RAM(0x0237) = 0xE4;
 }
 void SetupDesignMode(void) {                  /* $C5C2: initial editor state: cursor, rider sprite, scroll positions */
     RAM(0xB7) = 1;
     CopyTrackDesignToBackup();
-    RAM(0xBD) = 0; RAM(0xBE) = 0; RAM(0xC4) = 0; RAM(0xC0) = 0; RAM(0x49) = 0; RAM(0xC2) = 0;
-    RAM(0x05E0) = 1;
-    RAM(0xAC) = 6; RAM(0x8C) = 0xA0; RAM(0x80) = 0x10; RAM(0x04) = 4; RAM(0x0B) = 0;
+    RAM(0xBD) = 0; RAM(0xBE) = 0; RiderScriptPos(0) = 0; RiderTrackPiece(0) = 0; InputLatch = 0; RAM(0xC2) = 0;
+    TrackDesign(0) = 1;
+    RiderPitch(0) = 6; RiderScreenY(0) = 0xA0; RiderXLo(0) = 0x10; RAM(0x04) = 4; RAM(0x0B) = 0;
     DrawRider((Regs){ 0, 0, 0, 0 });
     for (int8_t x = 7; x >= 0; x--) RAM(0x0228 + x) = ROMB(0xC178 + x);
-    RAM(0xB1) = 5; RAM(0xB2) = 5; RAM(0xB0) = 0x21; RAM(0xB3) = 3;
-    RAM(0x64) = 8; RAM(0xE0) = 8; RAM(0xE0)++;
-    RAM(0xB4) = 0x7A;
-    RAM(0x40)++; RAM(0x47)++;
+    RAM(0xB1) = 5; RAM(0xB2) = 5; RiderAirborne(0) = 0x21; RAM(0xB3) = 3;
+    RiderMoveFraction(0) = 8; RiderTrackPos(0) = 8; RiderTrackPos(0)++;
+    RiderScriptShapeB(0) = 0x7A;
+    GameStateActive++; RaceActive++;
     DrawDesignCursorSprite((Regs){ 0xD0, 0, 0, 0 });
     DesignShowSlotSprite();
 }
 void SetupTitleSubMenu(void) {                /* $C3F3 */
-    RAM(0xFB) = 4; set_ppu_update(3);
+    MusicRequest = 4; set_ppu_update(3);
     SetMenuCursorSprite((Regs){ 0, 0, 1, 0 });
-    RAM(0x42) = 0; RAM(0x34) = 0x2D; RAM(0x0200) = 0xB0;
+    MenuCursor = 0; MenuHintTimer = 0x2D; OamBuffer(0) = 0xB0;
 }
 void SetupTitleScreen(void) {                 /* $C2BD */
     uint8_t x;
-    RAM(0x03F8) = 4; set_ppu_update(2);
+    LapSpeedScale = 4; set_ppu_update(2);
     SetMenuCursorSprite((Regs){ 0, 0, 0, 0 });
     x = RAM(0x03F0);
-    if (x == 0) RAM(0xFB) = 1;
+    if (x == 0) MusicRequest = 1;
     if (!((uint8_t)(x - 2) & 0x80)) x = 0xFF;
     RAM(0x03F0) = (uint8_t)(x + 1);
     RAM(0x31) = 0x38;
     io_w(APU_SND_CHN_REG, 0x0F);
-    RAM(0x0200) = ROMB(0xC080);
+    OamBuffer(0) = ROMB(0xC080);
 }
 void SetupResultsPpu(void) {                  /* $C455 */
     uint8_t y = 8;
-    if (RAM(0x41) < 8) { if (RAM(0x46) == 0) return; y--; }
-    RAM(0x45) = y;
+    if (GameState < 8) { if (ModeFlagB == 0) return; y--; }
+    PpuUpdateIndex = y;
 }
 void StateRaceEndWait(void) {                 /* $C465: shows the saved time for the finished race, blinking, until $34 runs out */
-    if (RAM(0x34) != 0) {
-        uint8_t x = RAM(0x0300);
+    if (MenuHintTimer != 0) {
+        uint8_t x = PpuBufferLen;
         WriteTimeTextSaved((Regs){ 6, 0, 0, 0 });
-        if (RAM(0x3F) & 0x10) return;
+        if (FrameCounter & 0x10) return;
         for (int8_t y = 6; y >= 0; y--) RAM(0x0304 + x++) = 0xFE;
         return;
     }
     GameStateAdvance();
-    RAM(0x41) = (RAM(0x41) >= 8) ? 2 : RAM(0x41);
+    GameState = (GameState >= 8) ? 2 : GameState;
 }
 
 static void title_menu_chosen(void) {         /* $C36A */
-    uint8_t y = RAM(0x42);
-    RAM(0x03F7) = 0; RAM(0x43) = 0; RAM(0x42) = 0;
-    RAM(0x03F3) = 1; RAM(0x4A) = 1; RAM(0x03F0) = 1;
-    RAM(0x41) = (y == 2) ? 8 : 1;
-    RAM(0x03F2) = y;
+    uint8_t y = MenuCursor;
+    DemoMode = 0; TrackIndex = 0; MenuCursor = 0;
+    RAM(0x03F3) = 1; FirstAiRider = 1; RAM(0x03F0) = 1;
+    GameState = (y == 2) ? 8 : 1;
+    SelectionB = y;
     GameStateClearSteps();
-    io_w(APU_SND_CHN_REG, RAM(0x03F7) ^ 0x0F);
+    io_w(APU_SND_CHN_REG, DemoMode ^ 0x0F);
 }
 void StateTitleMenu(void) {                   /* $C346 */
     if (RAM(0x31) == 0) {
-        RAM(0x43) = 0; RAM(0x4A) = 0; RAM(0x03F7) = 0x0F; RAM(0x41) = 2;
+        TrackIndex = 0; FirstAiRider = 0; DemoMode = 0x0F; GameState = 2;
         GameStateClearSteps();
-        io_w(APU_SND_CHN_REG, RAM(0x03F7) ^ 0x0F);
+        io_w(APU_SND_CHN_REG, DemoMode ^ 0x0F);
         return;
     }
     Regs q = MenuHandleInput((Regs){ 3, 0, 0, 0 });
     if (q.x != 0) { title_menu_chosen(); return; }
-    RAM(0x03F2) = 0;
-    RAM(0x0200) = ROMB(0xC080 + q.y);
+    SelectionB = 0;
+    OamBuffer(0) = ROMB(0xC080 + q.y);
 }
 
 void HandlePause(void) {                      /* $CA38: Start toggles pause; the APU is muted while paused */
     uint8_t a;
-    if (RAM(0x03B2) != 0) { RAM(0x03B2)--; return; }
-    a = RAM(0x15) & 0x10;
+    if (PauseDebounce != 0) { PauseDebounce--; return; }
+    a = Joy1Trigger & 0x10;
     if (a != 0) {
         a = RAM(0x03B0);
         if (a == 0) {
-            RAM(0xFB) = 0x80; RAM(0x03B0) = 0x80; RAM(0xFC) = 0;
-            RAM(0x03B1) ^= 1;
-            if (RAM(0x03B1) == 0) io_w(APU_SND_CHN_REG, 0x0F);
-            RAM(0x03B2) = 0x28;
+            MusicRequest = 0x80; RAM(0x03B0) = 0x80; EngineSoundRequest = 0;
+            PauseFlag ^= 1;
+            if (PauseFlag == 0) io_w(APU_SND_CHN_REG, 0x0F);
+            PauseDebounce = 0x28;
             return;
         }
     }
     RAM(0x03B0) = a;
-    if (RAM(0x03B1) == 0) return;
+    if (PauseFlag == 0) return;
     io_w(APU_SND_CHN_REG, 0);
-    if ((RAM(0x15) & 0x0F) == 0) return;
-    if (RAM(0x03B2) != 0) return;
-    RAM(0x03B2) = 0x28;
+    if ((Joy1Trigger & 0x0F) == 0) return;
+    if (PauseDebounce != 0) return;
+    PauseDebounce = 0x28;
 }
 void RacePreUpdate(void) {                    /* $CA08 */
     for (int8_t x = 3; x >= 0; x--) {
@@ -2794,16 +2795,16 @@ void RacePreUpdate(void) {                    /* $CA08 */
         SetRiderTargetPitch(q);
         RiderLaneFromY(q);
     }
-    if (RAM(0x03F7) == 0) { HandlePause(); SaveInputToRider0(); return; }
-    uint8_t a = RAM(0x15);
+    if (DemoMode == 0) { HandlePause(); SaveInputToRider0(); return; }
+    uint8_t a = Joy1Trigger;
     if (a & 0x20) { ResetGameRam(); return; }
-    if (a & 0x10) { RAM(0x42) = 0; RAM(0x47) = 0; title_menu_chosen(); }
+    if (a & 0x10) { MenuCursor = 0; RaceActive = 0; title_menu_chosen(); }
 }
 
 void ClearOverlappedRiderSprites(void) {      /* $E42B */
-    if (RAM(0x03A3) == 0) return;
+    if (RidersOverlap(0) == 0) return;
     for (int8_t x = 3; x >= 0; x--) {
-        uint8_t o = RAM(0x88 + x);
+        uint8_t o = RiderSortOrder(x);
         if (o == 0 || (o == 3 && RAM(0x0373) != 0)) continue;
         RAM(0x07) = ROMB(0xD8C0 + x);
         ClearSpriteBlock((Regs){ 0, 0, RAM(0x03B3), 0 });
@@ -2825,14 +2826,14 @@ void StateDesignFrame(void) {                 /* $C97C */
 }
 void StateRaceFrame(void) {                   /* $C99A: one frame of racing, in the original's order */
     RacePreUpdate();
-    if ((RAM(0x03B1) | RAM(0x03B2)) != 0) { WaitSprite0ThenResetScroll(); return; }
+    if ((PauseFlag | PauseDebounce) != 0) { WaitSprite0ThenResetScroll(); return; }
     UpdateRiderStates();
     OverheatUpdate();
     RunTrackScripts();
     RunPendingTrackScripts();
-    if (RAM(0x52) != 0) RaceEndSequence();
+    if (RaceEndState != 0) RaceEndSequence();
     else {
-        if (RAM(0x03F2) != 0) { SpawnCpuRiders(); HandleLostRider(); CheckTrackEdge(); }
+        if (SelectionB != 0) { SpawnCpuRiders(); HandleLostRider(); CheckTrackEdge(); }
         UpdateRaceClock();
         DrawFinishGate();
         RiderCollisions();
@@ -2865,7 +2866,7 @@ int WideRiderSprites(WideSprite *out, int max, int width) {
     static uint8_t keep[0x800];
     int n = 0;
     for (int xx = 0; xx < 4; xx++) {
-        if (RAM(0xA8 + xx) == 0 || RAM(0x84 + xx) != 2 || RAM(0x80 + xx) + 24 >= width - 256) continue;
+        if (RiderActive(xx) == 0 || RiderXHi(xx) != 2 || RiderXLo(xx) + 24 >= width - 256) continue;
         memcpy(keep, g_ram, sizeof keep);
         for (int i = 0; i < 256; i++) g_ram[0x0200 + i] = 0xF8;
         RAM(0x04) = 0x80; RAM(0x0B) = ROMB(0xD8C9 + xx);
@@ -2893,10 +2894,10 @@ static void SetPulse1Regs(void); static void PlayPulse1Note(void);
 /* ---- batch 22: frame driver (NMI), game-state dispatch, reset ---- */
 void RaceSetupScreen(void) {                  /* $C820: clears the PPU buffer area and loads the menu/race background rows */
     ClearRiderSprites();
-    RAM(0x01) = 3; RAM(0x45) = 1; RAM(0x00) = 0; RAM(0x4B) = 0;
+    RAM(0x01) = 3; PpuUpdateIndex = 1; RAM(0x00) = 0; ResultsFlag = 0;
     for (uint8_t y = 0xEF; y >= 0x40; y--) RAM(0x0300 + y) = 0;
     for (int8_t x = 0x7F; x >= 0; x--) { RAM(0x0400 + x) = 0x3B; RAM(0x0480 + x) = 0x3D; RAM(0x0500 + x) = 0x3D; }
-    RAM(0x0200) = 0xBF; RAM(0x0203) = 0xF7; RAM(0x0201) = 0xFF;
+    OamBuffer(0) = 0xBF; RAM(0x0203) = 0xF7; RAM(0x0201) = 0xFF;
     RAM(0xE8) = 0x3F; RAM(0xE9) = 0x1F; RAM(0xEB) = 0x0A; RAM(0xEA) = 0x25;
 }
 
@@ -2942,20 +2943,20 @@ static void run_setup_entry(uint16_t addr) {            /* the targets of the pe
     }
 }
 void GameStateDispatch(void) {                /* $C2A9: runs the current state's handler, or its next setup step while the state is still being prepared */
-    uint8_t x = RAM(0x40), a, y;
+    uint8_t x = GameStateActive, a, y;
     uint16_t t;
     if (x != 0) {
-        y = (uint8_t)(RAM(0x41) << 1);
+        y = (uint8_t)(GameState << 1);
         RAM(0x00) = ROMB(0xC000 + y); RAM(0x01) = ROMB(0xC001 + y);
         run_state_handler((uint16_t)(RAM(0x00) | RAM(0x01) << 8));
         return;
     }
     DisableRendering();
     if (RAM(0x30) != 0) return;
-    x = ROMB(0xC01C + RAM(0x41));
+    x = ROMB(0xC01C + GameState);
     RAM(0x02) = ROMB(0xC02A + x); RAM(0x03) = ROMB(0xC033 + x);
-    y = RAM(0x44);
-    RAM(0x44)++;
+    y = GameSubStep;
+    GameSubStep++;
     y--;
     if (y & 0x80) { InitScreenState(); return; }
     y = (uint8_t)(y << 1);
@@ -2968,12 +2969,12 @@ void GameStateDispatch(void) {                /* $C2A9: runs the current state's
 
 void Nmi(void) {                              /* $C23B: the vblank interrupt: sprite DMA, PPU updates, HUD split, timers, input, sound, then the game state */
     DisableNmi();
-    if (RAM(0x45) == 0) { uint8_t m = RAM(0x11) | 0x1A; io_w(PPU_MASK_REG, m); RAM(0x11) = m; }
+    if (PpuUpdateIndex == 0) { uint8_t m = PpuMaskShadow | 0x1A; io_w(PPU_MASK_REG, m); PpuMaskShadow = m; }
     io_w(0x2003, 0);
     io_w(0x4014, 2);
     FlushPpuUpdate();
-    if (RAM(0x47) != 0) { ComputeRiderLanes(); SplitScreenScrollHandler(); }
-    if ((RAM(0x03B1) | RAM(0x03B2)) == 0) { RAM(0x3F)++; TickTimers(); }
+    if (RaceActive != 0) { ComputeRiderLanes(); SplitScreenScrollHandler(); }
+    if ((PauseFlag | PauseDebounce) == 0) { FrameCounter++; TickTimers(); }
     ReadJoypads();
     SoundUpdate();
     GameStateDispatch();
@@ -2986,23 +2987,23 @@ void ResetInit(void) {                        /* $C184: power-on/reset up to the
     io_w(PPU_CTRL_REG, 0);
     while (!(io_r(PPU_STATUS_REG) & 0x80)) { }
     while (!(io_r(PPU_STATUS_REG) & 0x80)) { }
-    hi = (RAM(0x05CE) == 0xA5 && RAM(0x05CF) == 0x5A) ? 4 : 7;
+    hi = (BackupRamSigA5 == 0xA5 && BackupRamSig5A == 0x5A) ? 4 : 7;
     for (int p = hi; p >= 0; p--) for (int i = 0; i < 256; i++) g_ram[(p * 256 + i) & 0x7FF] = 0;
-    uint8_t a = RAM(0x05CE);                    /* A is what the original writes to the DMC register: the signature, or 0 after InitBackupRam */
+    uint8_t a = BackupRamSigA5;                    /* A is what the original writes to the DMC register: the signature, or 0 after InitBackupRam */
     if (a == 0) { InitBackupRam(); a = 0; }
     io_w(0x4011, a);
     io_w(PPU_MASK_REG, 0x06);
-    RAM(0x18) = 0x06;
+    RandomState(0) = 0x06;
     InitScreenState();
     SetPpuCtrl((Regs){ 0x90, 0, 0, 0 });
 }
 int MainLoopStep(void) {                      /* $C1D8: one pass of the idle loop (random numbers); returns 1 when a save/load request ran */
     UpdateRandom();
-    uint8_t a = RAM(0x48);
+    uint8_t a = ResetState;
     if ((a & 0x80) || a == 0) return 0;
     DisableNmi();
-    if (RAM(0x48) == 1) T_TapeSaveDesigns(); else T_TapeLoadDesigns();
-    RAM(0x48) = 0xFF;
+    if (ResetState == 1) T_TapeSaveDesigns(); else T_TapeLoadDesigns();
+    ResetState = 0xFF;
     WaitVblankEndEnableNmi();
     return 1;
 }

@@ -95,24 +95,24 @@ Loc_C86D:
   rts                          ; $C874
   inc z:RaceActive             ; $C875
   inc z:GameStateActive        ; $C877
-  lda z:$34                    ; $C879
+  lda z:MenuHintTimer          ; $C879
   bne Loc_C87F                 ; $C87B
   lda #$05                     ; $C87D
 Loc_C87F:
-  sta z:$34                    ; $C87F
+  sta z:MenuHintTimer          ; $C87F
   lda #$34                     ; $C881
   sta z:$E8                    ; $C883
   lda #$14                     ; $C885
   sta z:$E9                    ; $C887
   lda #$A0                     ; $C889
-  sta $03F1                    ; $C88B
+  sta LandingBaseY             ; $C88B
   lda #$80                     ; $C88E
   sta $03B4                    ; $C890
   sta $03B0                    ; $C893
   lda #$FF                     ; $C896
   sta $03BD                    ; $C898
   ldx #$01                     ; $C89B
-  stx $0370                    ; $C89D
+  stx RiderGateWait            ; $C89D
   inx                          ; $C8A0
   stx $03BE                    ; $C8A1
   inx                          ; $C8A4
@@ -286,7 +286,7 @@ Loc_CA0A:
   jsr RiderLaneFromY           ; $CA0D
   dex                          ; $CA10
   bpl Loc_CA0A                 ; $CA11
-  lda $03F7                    ; $CA13
+  lda DemoMode                 ; $CA13
   bne Loc_CA20                 ; $CA16
   jsr HandlePause              ; $CA18
 SaveInputToRider0:
@@ -294,7 +294,7 @@ SaveInputToRider0:
   sta z:RiderInput             ; $CA1D
   rts                          ; $CA1F
 Loc_CA20:
-  lda $03F7                    ; $CA20
+  lda DemoMode                 ; $CA20
   beq Loc_CA84                 ; $CA23
   lda z:Joy1Trigger            ; $CA25
   asl a                        ; $CA27
@@ -362,10 +362,10 @@ Loc_CA8C:
   sta z:MenuCursor             ; $CA98
   rts                          ; $CA9A
 RaceEndSequence:
-  lda z:$32                    ; $CA9B
+  lda z:RaceEndTimer           ; $CA9B
   bne Loc_CAAA                 ; $CA9D
   jsr Sub_C3AF                 ; $CA9F
-  lda $03F7                    ; $CAA2
+  lda DemoMode                 ; $CAA2
   bne ResetGameRam             ; $CAA5
   sta z:RaceActive             ; $CAA7
 Loc_CAA9:
@@ -373,9 +373,9 @@ Loc_CAA9:
 Loc_CAAA:
   lda #$00                     ; $CAAA
   sta z:EngineSoundRequest     ; $CAAC
-  sta $03A9                    ; $CAAE
-  sta $03E0                    ; $CAB1
-  sta z:$3C                    ; $CAB4
+  sta EngineRunning            ; $CAAE
+  sta RiderOverheated          ; $CAB1
+  sta z:OverheatTimer          ; $CAB4
   ldx z:RaceEndState           ; $CAB6
   dex                          ; $CAB8
   bne Loc_CAA9                 ; $CAB9
@@ -405,7 +405,7 @@ Loc_CAAA:
   rts                          ; $CAF2
 Loc_CAF3:
   ldx #$11                     ; $CAF3
-  lda z:$32                    ; $CAF5
+  lda z:RaceEndTimer           ; $CAF5
   lsr a                        ; $CAF7
   bcs Loc_CB05                 ; $CAF8
 Loc_CAFA:

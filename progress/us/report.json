@@ -1,18 +1,18 @@
 {
  "measures": {
   "fuzzy_match_percent": 100.0,
-  "total_code": "11299",
-  "matched_code": "11299",
+  "total_code": "11349",
+  "matched_code": "11349",
   "matched_code_percent": 100.0,
-  "total_data": "13277",
-  "matched_data": "13277",
+  "total_data": "13227",
+  "matched_data": "13227",
   "matched_data_percent": 100.0,
-  "total_functions": 216,
-  "matched_functions": 216,
+  "total_functions": 215,
+  "matched_functions": 215,
   "matched_functions_percent": 100.0,
-  "complete_code": "11299",
+  "complete_code": "11349",
   "complete_code_percent": 100.0,
-  "complete_data": "13277",
+  "complete_data": "13227",
   "complete_data_percent": 100.0,
   "total_units": 17,
   "complete_units": 17
@@ -161,31 +161,26 @@
    "name": "main/game_states",
    "measures": {
     "fuzzy_match_percent": 100.0,
-    "total_code": "681",
-    "matched_code": "681",
+    "total_code": "731",
+    "matched_code": "731",
     "matched_code_percent": 100.0,
-    "total_data": "50",
-    "matched_data": "50",
-    "matched_data_percent": 100.0,
-    "total_functions": 13,
-    "matched_functions": 13,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 12,
+    "matched_functions": 12,
     "matched_functions_percent": 100.0,
-    "complete_code": "681",
+    "complete_code": "731",
     "complete_code_percent": 100.0,
-    "complete_data": "50",
-    "complete_data_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
     "total_units": 1,
     "complete_units": 1
    },
    "sections": [
     {
      "name": ".text",
-     "size": "681",
-     "fuzzy_match_percent": 100.0
-    },
-    {
-     "name": ".data",
-     "size": "50",
+     "size": "731",
      "fuzzy_match_percent": 100.0
     }
    ],
@@ -280,18 +275,10 @@
     },
     {
      "name": "LoadSavedTimeForIndex",
-     "size": "51",
+     "size": "227",
      "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1358"
-     }
-    },
-    {
-     "name": "Loc_C5A3",
-     "size": "126",
-     "fuzzy_match_percent": 100.0,
-     "metadata": {
-      "virtual_address": "1459"
      }
     }
    ],

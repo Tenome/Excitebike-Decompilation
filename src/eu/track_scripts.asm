@@ -38,9 +38,9 @@ Loc_E735:
 RunTrackScriptRider:
   lda z:RiderMoveX,x           ; $E73B
   clc                          ; $E73D
-  adc z:$C8,x                  ; $E73E
-  sta z:$C8,x                  ; $E740
-  lda z:$58,x                  ; $E742
+  adc z:RiderScriptClock,x     ; $E73E
+  sta z:RiderScriptClock,x     ; $E740
+  lda z:RiderScriptId,x        ; $E742
   bne Loc_E762                 ; $E744
   lda z:RiderTrackPiece,x      ; $E746
   sec                          ; $E748
@@ -53,25 +53,25 @@ RunTrackScriptRider:
 Loc_E753:
   rts                          ; $E753
 Loc_E754:
-  sta z:$58,x                  ; $E754
-  inc z:$58,x                  ; $E756
+  sta z:RiderScriptId,x        ; $E754
+  inc z:RiderScriptId,x        ; $E756
   lda #$00                     ; $E758
-  sta z:$C4,x                  ; $E75A
+  sta z:RiderScriptPos,x       ; $E75A
   lda z:RiderMoveFraction,x    ; $E75C
-  sta z:$C8,x                  ; $E75E
-  dec z:$C8,x                  ; $E760
+  sta z:RiderScriptClock,x     ; $E75E
+  dec z:RiderScriptClock,x     ; $E760
 Loc_E762:
-  ldy z:$58,x                  ; $E762
+  ldy z:RiderScriptId,x        ; $E762
   lda Data_E559,y              ; $E764
   sta z:$0A                    ; $E767
   lda Data_E56E,y              ; $E769
   sta z:$0B                    ; $E76C
-  ldy z:$C4,x                  ; $E76E
+  ldy z:RiderScriptPos,x       ; $E76E
   lda ($0A),y                  ; $E770
   cmp #$FF                     ; $E772
   beq Loc_E7D0                 ; $E774
   sta z:$0F                    ; $E776
-  cmp z:$C8,x                  ; $E778
+  cmp z:RiderScriptClock,x     ; $E778
   beq Loc_E77E                 ; $E77A
   bcs Loc_E753                 ; $E77C
 Loc_E77E:
@@ -82,8 +82,8 @@ Loc_E77E:
   bit Data_E6FB                ; $E786
   bne Loc_E7F2                 ; $E789
   jsr TrackScriptOpcode        ; $E78B
-  inc z:$C4,x                  ; $E78E
-  inc z:$C4,x                  ; $E790
+  inc z:RiderScriptPos,x       ; $E78E
+  inc z:RiderScriptPos,x       ; $E790
   bne Loc_E762                 ; $E792
 TrackScriptOpcode:
   asl a                        ; $E794
@@ -105,7 +105,7 @@ Loc_E7A3:
   beq Loc_E7CA                 ; $E7B3
   lda z:$00                    ; $E7B5
   sta z:RiderPitch,x           ; $E7B7
-  lda z:$58,x                  ; $E7B9
+  lda z:RiderScriptId,x        ; $E7B9
   cmp #$03                     ; $E7BB
   beq Loc_E7CA                 ; $E7BD
   lda z:RiderPitch,x           ; $E7BF
@@ -113,15 +113,15 @@ Loc_E7A3:
   sbc #$02                     ; $E7C2
   tay                          ; $E7C4
   lda Data_E6AD,y              ; $E7C5
-  sta z:$D4,x                  ; $E7C8
+  sta z:RiderScriptShape,x     ; $E7C8
 Loc_E7CA:
-  inc z:$C4,x                  ; $E7CA
-  inc z:$C4,x                  ; $E7CC
+  inc z:RiderScriptPos,x       ; $E7CA
+  inc z:RiderScriptPos,x       ; $E7CC
   bne Loc_E762                 ; $E7CE
 Loc_E7D0:
   lda #$00                     ; $E7D0
-  sta z:$58,x                  ; $E7D2
-  sta z:$D4,x                  ; $E7D4
+  sta z:RiderScriptId,x        ; $E7D2
+  sta z:RiderScriptShape,x     ; $E7D4
   lda z:RiderBumpState,x       ; $E7D6
   bne Loc_E7EC                 ; $E7D8
   lda z:RiderTerrainState,x    ; $E7DA
@@ -135,16 +135,16 @@ Loc_E7D0:
   inc z:RiderTerrainState,x    ; $E7EA
 Loc_E7EC:
   lda #$00                     ; $E7EC
-  sta $036C,x                  ; $E7EE
+  sta RiderSkid,x              ; $E7EE
   rts                          ; $E7F1
 Loc_E7F2:
   and #$0F                     ; $E7F2
-  sta z:$CC,x                  ; $E7F4
+  sta z:RiderPendingOp,x       ; $E7F4
   lda z:$0F                    ; $E7F6
-  sta z:$D0,x                  ; $E7F8
+  sta z:RiderScriptBase,x      ; $E7F8
   bpl Loc_E7CA                 ; $E7FA
 TrackPieceAtRiderLane:
-  ldy $0360,x                  ; $E7FC
+  ldy RiderLaneRow,x           ; $E7FC
 TrackPieceAtRow:
   lda z:RiderTrackPos,x        ; $E7FF
   sta z:$08                    ; $E801
@@ -198,7 +198,7 @@ Sub_E845:
   lsr a                        ; $E84E
 Sub_E84F:
   sta z:RiderHeight,x          ; $E84F
-  sta z:$E4,x                  ; $E851
+  sta z:RiderHeightBase,x      ; $E851
   rts                          ; $E853
 Sub_E854:
   lda #$02                     ; $E854
@@ -217,7 +217,7 @@ Sub_E86A:
   jsr TrackScriptSetHeight     ; $E86C
 Sub_E86F:
   sta z:$00                    ; $E86F
-  lda z:$E4,x                  ; $E871
+  lda z:RiderHeightBase,x      ; $E871
   sec                          ; $E873
   sbc z:$00                    ; $E874
   sta z:RiderHeight,x          ; $E876
@@ -238,11 +238,11 @@ Loc_E88E:
   sta z:RiderTrackFlags,x      ; $E890
   rts                          ; $E892
 TrackScriptSetHeight:
-  sta z:$D4,x                  ; $E893
-  sta z:$B4,x                  ; $E895
-  lda z:$C8,x                  ; $E897
+  sta z:RiderScriptShape,x     ; $E893
+  sta z:RiderScriptShapeB,x    ; $E895
+  lda z:RiderScriptClock,x     ; $E897
   sec                          ; $E899
-  sbc z:$D0,x                  ; $E89A
+  sbc z:RiderScriptBase,x      ; $E89A
   rts                          ; $E89C
 Sub_E89D:
   lda z:RiderTerrainState,x    ; $E89D
@@ -260,7 +260,7 @@ Loc_E8A5:
   jsr RiderStartJump           ; $E8B4
   lda #$02                     ; $E8B7
   sta z:RiderTerrainState,x    ; $E8B9
-  sta $0364,x                  ; $E8BB
+  sta RiderLandingArmed,x      ; $E8BB
 Loc_E8BE:
   rts                          ; $E8BE
 Sub_E8BF:
@@ -280,11 +280,11 @@ Loc_E8D2:
   rts                          ; $E8D2
   txa                          ; $E8D3
   ora z:RiderAirborne,x        ; $E8D4
-  ora $03E0                    ; $E8D6
-  ora z:$3C                    ; $E8D9
+  ora RiderOverheated          ; $E8D6
+  ora z:OverheatTimer          ; $E8D9
   bne Loc_E8E2                 ; $E8DB
   lda #$08                     ; $E8DD
-  sta $03B6                    ; $E8DF
+  sta TempGauge                ; $E8DF
 Loc_E8E2:
   rts                          ; $E8E2
 Sub_E8E3:
@@ -323,7 +323,7 @@ Loc_E90B:
   dey                          ; $E919
 Loc_E91A:
   lda #$01                     ; $E91A
-  sta $036C,x                  ; $E91C
+  sta RiderSkid,x              ; $E91C
   iny                          ; $E91F
   iny                          ; $E920
   jsr RiderDecelerateBy        ; $E921
@@ -334,7 +334,7 @@ Loc_E926:
 RunPendingTrackScripts:
   ldx #$03                     ; $E927
 Loc_E929:
-  lda z:$CC,x                  ; $E929
+  lda z:RiderPendingOp,x       ; $E929
   beq Loc_E930                 ; $E92B
   jsr TrackScriptOpcode        ; $E92D
 Loc_E930:
@@ -356,7 +356,7 @@ Sub_E934:
   iny                          ; $E948
 Loc_E949:
   tya                          ; $E949
-  sta $0388,x                  ; $E94A
+  sta RiderJumpMode,x          ; $E94A
   lda z:RiderBumpState,x       ; $E94D
   cmp #$02                     ; $E94F
   beq Loc_E960                 ; $E951
@@ -371,14 +371,14 @@ Loc_E960:
   jmp RiderStartJump           ; $E960
 Sub_E963:
   lda #$00                     ; $E963
-  sta z:$CC,x                  ; $E965
-  sta z:$D4,x                  ; $E967
-  sta z:$B4,x                  ; $E969
+  sta z:RiderPendingOp,x       ; $E965
+  sta z:RiderScriptShape,x     ; $E967
+  sta z:RiderScriptShapeB,x    ; $E969
   rts                          ; $E96B
 UpdateRiderY:
   ldx #$03                     ; $E96C
 Loc_E96E:
-  lda z:$58,x                  ; $E96E
+  lda z:RiderScriptId,x        ; $E96E
   cmp #$15                     ; $E970
   beq Loc_E97F                 ; $E972
   cmp #$14                     ; $E974
@@ -404,7 +404,7 @@ Loc_E981:
   bcs Loc_E9C4                 ; $E997
   lda #$04                     ; $E999
   sta z:RiderTerrainState,x    ; $E99B
-  lda z:$58,x                  ; $E99D
+  lda z:RiderScriptId,x        ; $E99D
   beq Loc_E9AD                 ; $E99F
   cmp #$12                     ; $E9A1
   beq Loc_E9AD                 ; $E9A3
@@ -435,7 +435,7 @@ Loc_E9C4:
   sta z:RiderY,x               ; $E9D0
 Loc_E9D2:
   lda z:RiderState,x           ; $E9D2
-  ora $03E0,x                  ; $E9D4
+  ora RiderOverheated,x        ; $E9D4
   bne Loc_E9E3                 ; $E9D7
 Loc_E9D9:
   lda z:RiderLaneStep,x        ; $E9D9
@@ -471,15 +471,15 @@ Loc_EA07:
   lda z:RaceStarted            ; $EA07
   beq Loc_EA43                 ; $EA09
   lda z:RiderCrash             ; $EA0B
-  ora $03E0                    ; $EA0D
-  ora $03F7                    ; $EA10
+  ora RiderOverheated          ; $EA0D
+  ora DemoMode                 ; $EA10
   bne Loc_EA43                 ; $EA13
   lda z:RiderAirborne          ; $EA15
   beq Loc_EA23                 ; $EA17
-  lda $0388                    ; $EA19
+  lda RiderJumpMode            ; $EA19
   cmp #$02                     ; $EA1C
   bne Loc_EA43                 ; $EA1E
-  inc $0388                    ; $EA20
+  inc RiderJumpMode            ; $EA20
 Loc_EA23:
   lda z:RiderState             ; $EA23
   beq Loc_EA2B                 ; $EA25
@@ -534,7 +534,7 @@ Loc_EA61:
   adc #$0A                     ; $EA70
   sta $0297,y                  ; $EA72
   sty z:$01                    ; $EA75
-  ldy z:$B4,x                  ; $EA77
+  ldy z:RiderScriptShapeB,x    ; $EA77
   lda Data_E69A,y              ; $EA79
   ldy z:$01                    ; $EA7C
   sta $0295,y                  ; $EA7E
@@ -551,10 +551,10 @@ TrackScriptFinishLine:
   cpx #$00                     ; $EA8F
   bne Loc_EAC4                 ; $EA91
   lda #$1D                     ; $EA93
-  sta z:$3A                    ; $EA95
+  sta z:FinishGateTimer        ; $EA95
   lda z:$57                    ; $EA97
   beq Loc_EAB5                 ; $EA99
-  lda z:$3C                    ; $EA9B
+  lda z:OverheatTimer          ; $EA9B
   bne Loc_EAC0                 ; $EA9D
   stx z:$0D                    ; $EA9F
   ldx #$06                     ; $EAA1
@@ -572,13 +572,13 @@ Loc_EAA5:
   rts                          ; $EAB4
 Loc_EAB5:
   lda #$10                     ; $EAB5
-  sta z:$32                    ; $EAB7
+  sta z:RaceEndTimer           ; $EAB7
   lda #$02                     ; $EAB9
   sta z:SfxNoiseRequest        ; $EABB
   lsr a                        ; $EABD
   sta z:RaceEndState           ; $EABE
 Loc_EAC0:
   lda #$00                     ; $EAC0
-  sta z:$3A                    ; $EAC2
+  sta z:FinishGateTimer        ; $EAC2
 Loc_EAC4:
   rts                          ; $EAC4

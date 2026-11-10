@@ -3,13 +3,13 @@
 
 DrawFinishGate:
   lda z:RaceEndState           ; $EAC5
-  ora z:$3C                    ; $EAC7
+  ora z:OverheatTimer          ; $EAC7
   bne Loc_EAC0                 ; $EAC9
-  lda z:$3A                    ; $EACB
+  lda z:FinishGateTimer        ; $EACB
   beq Loc_EAC4                 ; $EACD
   ldx #$00                     ; $EACF
   ldy #$03                     ; $EAD1
-  lda z:$3A                    ; $EAD3
+  lda z:FinishGateTimer        ; $EAD3
   cmp #$0D                     ; $EAD5
   bcc Loc_EAE0                 ; $EAD7
   lsr a                        ; $EAD9
@@ -50,9 +50,9 @@ Loc_EB16:
 DesignModeUpdate:
   lda z:$BE                    ; $EB17  [heuristic code]
   bne Loc_EB7E                 ; $EB19
-  lda z:$B4                    ; $EB1B
+  lda z:RiderScriptShapeB      ; $EB1B
   beq Loc_EB23                 ; $EB1D
-  dec z:$B4                    ; $EB1F
+  dec z:RiderScriptShapeB      ; $EB1F
   bne Loc_EB5E                 ; $EB21
 Loc_EB23:
   lda z:$BD                    ; $EB23
@@ -148,9 +148,9 @@ Loc_EBBC:
   rts                          ; $EBBC
 Loc_EBBD:
   jsr DesignBlinkCursor        ; $EBBD
-  lda z:$3A                    ; $EBC0
+  lda z:FinishGateTimer        ; $EBC0
   bne Loc_EBBC                 ; $EBC2
-  inc z:$3A                    ; $EBC4
+  inc z:FinishGateTimer        ; $EBC4
   lda z:RiderInput             ; $EBC6
   cmp #$80                     ; $EBC8
   beq Loc_EBD0                 ; $EBCA
@@ -252,7 +252,7 @@ Loc_EC6E:
 DesignLoadPiece:
   lda #$00                     ; $EC75
   sta z:$CA                    ; $EC77
-  sta z:$C8                    ; $EC79
+  sta z:RiderScriptClock       ; $EC79
   sta z:$C9                    ; $EC7B
   lda z:$B2                    ; $EC7D
   sta z:$BA                    ; $EC7F
@@ -266,7 +266,7 @@ DesignLoadPiece:
   cmp #$11                     ; $EC90
   bcc Loc_EC98                 ; $EC92
   and #$0F                     ; $EC94
-  sta z:$C8                    ; $EC96
+  sta z:RiderScriptClock       ; $EC96
 Loc_EC98:
   rts                          ; $EC98
 DesignScrollStep:

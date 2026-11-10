@@ -12,7 +12,7 @@ Loc_CD25:
   cmp #$05                     ; $CD2B
   beq Loc_CD3A                 ; $CD2D
   ora z:RiderCrash,x           ; $CD2F
-  ora $03E0,x                  ; $CD31
+  ora RiderOverheated,x        ; $CD31
   beq Loc_CD3A                 ; $CD34
   lda #$00                     ; $CD36
   sta z:RiderInput,x           ; $CD38
@@ -22,16 +22,16 @@ Loc_CD3D:
   dex                          ; $CD3D
   bpl Loc_CD25                 ; $CD3E
 Loc_CD40:
-  lda z:$34                    ; $CD40
+  lda z:MenuHintTimer          ; $CD40
   bne Loc_CD58                 ; $CD42
   lda z:RiderInput             ; $CD44
   and #$C0                     ; $CD46
   beq Loc_CD58                 ; $CD48
-  lda $03A9                    ; $CD4A
+  lda EngineRunning            ; $CD4A
   ora z:RaceEndState           ; $CD4D
   bne Loc_CD58                 ; $CD4F
   lda #$01                     ; $CD51
-  sta $03A9                    ; $CD53
+  sta EngineRunning            ; $CD53
   sta z:SfxPulse2Request       ; $CD56
 Loc_CD58:
   rts                          ; $CD58
@@ -40,7 +40,7 @@ RiderControlStep:
   and #$03                     ; $CD5B
   sta z:$0A                    ; $CD5D
   ldy #$00                     ; $CD5F
-  lda $0374,x                  ; $CD61
+  lda RiderPitchLock,x         ; $CD61
   ora z:RiderCrash,x           ; $CD64
   bne Loc_CDBA                 ; $CD66
   lda z:RiderState,x           ; $CD68
@@ -99,7 +99,7 @@ Loc_CDBD:
   bne Loc_CE1C                 ; $CDBF
   lda z:RiderAirborne,x        ; $CDC1
   bne Loc_CDD5                 ; $CDC3
-  lda z:$58,x                  ; $CDC5
+  lda z:RiderScriptId,x        ; $CDC5
   ora z:RaceEndState           ; $CDC7
   bne Loc_CDDE                 ; $CDC9
   lda z:RiderSpeedHi,x         ; $CDCB
@@ -115,7 +115,7 @@ Loc_CDD5:
 Loc_CDDE:
   lda z:RiderAirborne,x        ; $CDDE
   bne Loc_CE1C                 ; $CDE0
-  lda $0368,x                  ; $CDE2
+  lda RiderPitchGoal,x         ; $CDE2
   cmp z:RiderPitch,x           ; $CDE5
   beq Loc_CE1C                 ; $CDE7
   ldy #$05                     ; $CDE9
@@ -138,10 +138,10 @@ Loc_CE00:
   bcs Loc_CE1D                 ; $CE08
 Loc_CE0A:
   lda #$01                     ; $CE0A
-  cmp $036C,x                  ; $CE0C
+  cmp RiderSkid,x              ; $CE0C
   beq Loc_CE15                 ; $CE0F
   asl a                        ; $CE11
-  sta $036C,x                  ; $CE12
+  sta RiderSkid,x              ; $CE12
 Loc_CE15:
   txa                          ; $CE15
   bne Loc_CE28                 ; $CE16
@@ -151,10 +151,10 @@ Loc_CE1C:
   rts                          ; $CE1C
 Loc_CE1D:
   lda #$01                     ; $CE1D
-  cmp $036C,x                  ; $CE1F
+  cmp RiderSkid,x              ; $CE1F
   beq Loc_CE28                 ; $CE22
   lsr a                        ; $CE24
-  sta $036C,x                  ; $CE25
+  sta RiderSkid,x              ; $CE25
 Loc_CE28:
   rts                          ; $CE28
 RiderAccelerate:
@@ -214,13 +214,13 @@ Loc_CE80:
 Loc_CE82:
   rts                          ; $CE82
 Loc_CE83:
-  lda z:$26,x                  ; $CE83
+  lda z:RiderPitchRepeatTimer,x ; $CE83
   bne Loc_CE9F                 ; $CE85
   lda z:RiderAirborne,x        ; $CE87
   lsr a                        ; $CE89
   tay                          ; $CE8A
   lda Data_C0D4,y              ; $CE8B
-  sta z:$26,x                  ; $CE8E
+  sta z:RiderPitchRepeatTimer,x ; $CE8E
   lsr z:$00                    ; $CE90
   bcc Loc_CEA0                 ; $CE92
   lda z:RiderPitch,x           ; $CE94
@@ -231,9 +231,9 @@ Loc_CE83:
 Loc_CE9F:
   rts                          ; $CE9F
 Loc_CEA0:
-  lda $0388,x                  ; $CEA0
+  lda RiderJumpMode,x          ; $CEA0
   and #$02                     ; $CEA3
-  sta $0388,x                  ; $CEA5
+  sta RiderJumpMode,x          ; $CEA5
   lda z:RiderPitch,x           ; $CEA8
   cmp Data_C0CA,y              ; $CEAA
   bcs Loc_CEB2                 ; $CEAD
@@ -248,14 +248,14 @@ Loc_CEB2:
   bne Loc_CECF                 ; $CEBA
   inc z:RiderPitch,x           ; $CEBC
   lda #$0D                     ; $CEBE
-  sta z:$26,x                  ; $CEC0
+  sta z:RiderPitchRepeatTimer,x ; $CEC0
   lda z:RiderPitch,x           ; $CEC2
   cmp #$0D                     ; $CEC4
   bcc Loc_CECF                 ; $CEC6
   lda #$01                     ; $CEC8
   sta z:RiderCrash,x           ; $CECA
   asl a                        ; $CECC
-  sta z:$26,x                  ; $CECD
+  sta z:RiderPitchRepeatTimer,x ; $CECD
 Loc_CECF:
   rts                          ; $CECF
 UpdateAiRiders:
@@ -281,7 +281,7 @@ Loc_CED2:
   jsr AiConsiderLaneChange     ; $CEF9
   jmp Loc_CF04                 ; $CEFC
 Loc_CEFF:
-  lda $0368,x                  ; $CEFF
+  lda RiderPitchGoal,x         ; $CEFF
   sta z:RiderTargetPitch,x     ; $CF02
 Loc_CF04:
   ldx z:$0F                    ; $CF04
@@ -324,7 +324,7 @@ Loc_CF2B:
   cmp #$F8                     ; $CF43
   bcc Loc_CF64                 ; $CF45
 AiLaneChangeUp:
-  ldy $0360,x                  ; $CF47
+  ldy RiderLaneRow,x           ; $CF47
   dey                          ; $CF4A
   cpy #$01                     ; $CF4B
   bmi AiLaneChangeDown         ; $CF4D
@@ -343,7 +343,7 @@ Loc_CF64:
   cmp #$E6                     ; $CF66
   beq AiLaneChangeUp           ; $CF68
 AiLaneChangeDown:
-  ldy $0360,x                  ; $CF6A
+  ldy RiderLaneRow,x           ; $CF6A
   iny                          ; $CF6D
   cpy #$05                     ; $CF6E
   bpl AiLaneChangeUp           ; $CF70
@@ -485,9 +485,9 @@ Loc_D044:
   bpl Loc_D025                 ; $D049
 Loc_D04B:
   ldy #$00                     ; $D04B
-  lda z:$58,x                  ; $D04D
+  lda z:RiderScriptId,x        ; $D04D
   bne Loc_D054                 ; $D04F
-  ldy $0368,x                  ; $D051
+  ldy RiderPitchGoal,x         ; $D051
 Loc_D054:
   tya                          ; $D054
   jmp Loc_D0A6                 ; $D055
@@ -504,7 +504,7 @@ Loc_D058:
   sta z:$08                    ; $D066
   lda #$40                     ; $D068
   sta z:$09                    ; $D06A
-  ldy $0360,x                  ; $D06C
+  ldy RiderLaneRow,x           ; $D06C
 Loc_D06F:
   dey                          ; $D06F
   cpy #$01                     ; $D070
@@ -518,7 +518,7 @@ Loc_D06F:
   jsr AiLaneChangeUp           ; $D082
   jmp Loc_D04B                 ; $D085
 Loc_D088:
-  ldy $0360,x                  ; $D088
+  ldy RiderLaneRow,x           ; $D088
 Loc_D08B:
   iny                          ; $D08B
   cpy #$06                     ; $D08C

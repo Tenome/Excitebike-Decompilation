@@ -65,7 +65,7 @@ Loc_E513:
 Loc_E526:
   lda #$01                     ; $E526
 Loc_E528:
-  sta $03A3                    ; $E528
+  sta RidersOverlap            ; $E528
   rts                          ; $E52B
 RiderYOverlapTest:
   lda z:RiderScreenY,x         ; $E52C

@@ -27,7 +27,7 @@ Loc_F525:
   lda z:GameState              ; $F525
   cmp #$09                     ; $F527
   bne Loc_F53A                 ; $F529
-  lda $03BC                    ; $F52B
+  lda SceneObjectKind          ; $F52B
   beq Loc_F53A                 ; $F52E
   lda #$00                     ; $F530
   sta z:$EE                    ; $F532
@@ -74,7 +74,7 @@ Loc_F576:
   cmp #$30                     ; $F57C
   bcc Loc_F597                 ; $F57E
   bne Loc_F587                 ; $F580
-  lda $03BC                    ; $F582
+  lda SceneObjectKind          ; $F582
   beq Loc_F588                 ; $F585
 Loc_F587:
   dex                          ; $F587
@@ -172,7 +172,7 @@ Loc_F638:
   dec z:$57                    ; $F63B
   bne Loc_F644                 ; $F63D
   lda #$01                     ; $F63F
-  sta $03BC                    ; $F641
+  sta SceneObjectKind          ; $F641
 Loc_F644:
   lda #$00                     ; $F644
   sta z:$ED                    ; $F646
@@ -227,7 +227,7 @@ Sub_F68D:
   bne Loc_F6C7                 ; $F693
   lda z:$C3                    ; $F695
   bne Loc_F6C7                 ; $F697
-  ldx z:$C8                    ; $F699
+  ldx z:RiderScriptClock       ; $F699
   txa                          ; $F69B
   beq Loc_F6C7                 ; $F69C
   dex                          ; $F69E
@@ -290,7 +290,7 @@ DrawTrackColumn:
 Loc_F70D:
   rts                          ; $F70D
 Loc_F70E:
-  lda z:$C8                    ; $F70E
+  lda z:RiderScriptClock       ; $F70E
   beq Loc_F71E                 ; $F710
   lda #$00                     ; $F712
   sta z:$C3                    ; $F714
@@ -313,7 +313,7 @@ Loc_F731:
   lda #$00                     ; $F731
   sta z:RiderY                 ; $F733
   sta z:$C3                    ; $F735
-  sta z:$C8                    ; $F737
+  sta z:RiderScriptClock       ; $F737
 Loc_F739:
   lda #$01                     ; $F739
   sta z:$BE                    ; $F73B
@@ -323,7 +323,7 @@ Loc_F73E:
   sta z:$C3                    ; $F740
   sta z:$BE                    ; $F742
   sta z:$BD                    ; $F744
-  sta z:$C8                    ; $F746
+  sta z:RiderScriptClock       ; $F746
   lda z:$BA                    ; $F748
   sta z:$B2                    ; $F74A
   lda z:$BB                    ; $F74C
@@ -332,7 +332,7 @@ Loc_F73E:
   sta z:$B1                    ; $F752
   rts                          ; $F754
 Sub_F755:
-  lda z:$B4                    ; $F755
+  lda z:RiderScriptShapeB      ; $F755
   bne Loc_F798                 ; $F757
   lda z:RiderTrackPiece        ; $F759
   beq Loc_F798                 ; $F75B
@@ -372,7 +372,7 @@ Loc_F792:
 Loc_F798:
   rts                          ; $F798
 Loc_F799:
-  lda z:$C4                    ; $F799
+  lda z:RiderScriptPos         ; $F799
   bne Loc_F7AC                 ; $F79B
   lda z:$C7                    ; $F79D
   sta z:$C6                    ; $F79F
@@ -380,7 +380,7 @@ Loc_F799:
   jsr Sub_F821                 ; $F7A3
   lda #$3D                     ; $F7A6
   sta z:$C5                    ; $F7A8
-  inc z:$C4                    ; $F7AA
+  inc z:RiderScriptPos         ; $F7AA
 Loc_F7AC:
   lda z:$C7                    ; $F7AC
   cmp z:$C6                    ; $F7AE

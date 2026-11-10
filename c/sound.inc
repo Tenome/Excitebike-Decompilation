@@ -18,7 +18,7 @@ static void SoundNoiseSfx(void) {                       /* $FC3D */
     enum { E0_START, E0_RUN, E1_START, E1_RUN, E2_RUN, E2_START, TAIL } at;
     uint8_t y, a, step, c;
 restart:
-    y = RAM(0xFD); a = RAM(0xF2);
+    y = SfxNoiseRequest; a = RAM(0xF2);
     if (take_request_bit(0xFD)) at = E0_START;
     else {
         c = a & 1; a >>= 1;
@@ -139,7 +139,7 @@ static uint8_t music_byte(uint8_t index) { return rdp(RAM(0xF8), RAM(0xF9), inde
 static int play_note(void (*voice)(void), uint8_t note) { ra = note & 0x3E; voice(); return !fz; }   /* 1 when the pitch exists (not a rest) */
 
 static void SoundMusic(void) {                          /* $FC8D */
-    uint8_t a = RAM(0xFB), y, v, x;
+    uint8_t a = MusicRequest, y, v, x;
     if (a != 0) {                                        /* a new song starts */
         RAM(0xF4) = a;
         y = 0; do { y++; } while (!((a >> (y - 1)) & 1));
@@ -222,7 +222,7 @@ static void SoundPulse1Sfx(void) {                      /* $F8D4 */
     uint8_t y, a, c;
     ry = RAM(0xF4); SETNZ(ry);
     if (ry != 0) return;
-    y = RAM(0xFF); a = RAM(0xF0);
+    y = SfxPulse1Request; a = RAM(0xF0);
     ry = y; SETNZ(ry);
     if (take_request_bit(0xFF)) ev = A_START;
     else {
@@ -313,7 +313,7 @@ static void pulse2_silence(void) { WR(0x4004, 0x90); }                          
 
 static void SoundPulse2TriangleSfx(void) {             /* $FA74 */
     uint8_t y, a, d, c;
-    y = RAM(0xFE); ry = y; SETNZ(ry);
+    y = SfxPulse2Request; ry = y; SETNZ(ry);
     if (y != 0) { RAM(0xF1) = 0x15; pulse2_blip_step(0x15); return; }
     y = RAM(0xF1);
     if (y != 0) {
@@ -324,7 +324,7 @@ static void SoundPulse2TriangleSfx(void) {             /* $FA74 */
         pulse2_blip_step(y);
         return;
     }
-    a = RAM(0xFC) & 0x7F;
+    a = EngineSoundRequest & 0x7F;
     if (a == 0) {                                       /* no engine sound: stop it once */
         if (RAM(0xF3) == 0) return;
         RAM(0xF3) = 0; RAM(0xF7) = 0; RAM(0x07F8) = 0;
@@ -355,7 +355,7 @@ static void SoundPulse2TriangleSfx(void) {             /* $FA74 */
     if (a < 0x40) RAM(0x07FF) = a;
     y = RAM(0xF7);
     a = (uint8_t)(ROMB(0xF9C4 + RAM(0xF3)) + ROMB(0xF9B3 + y));
-    if (RAM(0xFC) & 0x80) { rx = ROMB(0xF9BF + y); ry = 0x89; }
+    if (EngineSoundRequest & 0x80) { rx = ROMB(0xF9BF + y); ry = 0x89; }
     else { rx = ROMB(0xF9B9 + y); ry = 0x7F; }
     ra = a;
     SetPulse2Pitch();
@@ -368,7 +368,7 @@ static void SoundUpdate(void) {                         /* $F844: runs every NMI
     SoundPulse2TriangleSfx();
     SoundNoiseSfx();
     SoundMusic();
-    RAM(0xFF) = 0; RAM(0xFE) = 0; RAM(0xFD) = 0; RAM(0xFB) = 0;      /* the requests last one pass */
+    SfxPulse1Request = 0; SfxPulse2Request = 0; SfxNoiseRequest = 0; MusicRequest = 0;      /* the requests last one pass */
     if (RAM(0x07FF) != 0) { WR(0x4011, RAM(0x07FF)); RAM(0x07FF)--; }  /* DMC volume ramp */
 }
 void V_SoundUpdate(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundUpdate(); }

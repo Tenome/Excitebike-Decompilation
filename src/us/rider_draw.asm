@@ -84,13 +84,13 @@ RiderSpriteFrame:
   ldy #$06                     ; $E208
   lda z:RiderHeight,x          ; $E20A
   bne Loc_E213                 ; $E20C
-  lda $0370,x                  ; $E20E
+  lda RiderGateWait,x          ; $E20E
   bne Loc_E215                 ; $E211
 Loc_E213:
   ldy #$02                     ; $E213
 Loc_E215:
   tya                          ; $E215
-  ldy z:$36,x                  ; $E216
+  ldy z:RiderReleaseTimer,x    ; $E216
   beq Loc_E21C                 ; $E218
   dey                          ; $E21A
   tya                          ; $E21B
@@ -111,7 +111,7 @@ Loc_E22F:
   lda z:RiderCrash,x           ; $E22F
   ora z:RiderAirborne,x        ; $E231
   bne Loc_E267                 ; $E233
-  lda z:$58,x                  ; $E235
+  lda z:RiderScriptId,x        ; $E235
   beq Loc_E243                 ; $E237
   cmp #$0D                     ; $E239
   bne Loc_E267                 ; $E23B
@@ -152,12 +152,12 @@ DrawRiderShadow:
   lda z:RiderXHi,x             ; $E26F
   cmp #$02                     ; $E271
   beq Loc_E269                 ; $E273
-  lda $0390,x                  ; $E275
+  lda RiderShadowX,x           ; $E275
   cmp #$F8                     ; $E278
   bcs Loc_E269                 ; $E27A
   cmp z:RiderXLo,x             ; $E27C
   bcc Loc_E269                 ; $E27E
-  lda $0390,x                  ; $E280
+  lda RiderShadowX,x           ; $E280
   sta z:$00                    ; $E283
   lda #$A8                     ; $E285
   sec                          ; $E287
@@ -173,7 +173,7 @@ DrawRiderShadow:
 Loc_E29B:
   ora z:$0B                    ; $E29B
   sta z:$0B                    ; $E29D
-  ldy $0398,x                  ; $E29F
+  ldy RiderShadowFrame,x       ; $E29F
   lda Data_D90B,y              ; $E2A2
   sta z:$02                    ; $E2A5
   tya                          ; $E2A7
@@ -216,7 +216,7 @@ Loc_E2D0:
   sta z:$0B                    ; $E2F1
   jmp DrawMetasprite           ; $E2F3
 DrawSkidSmoke:
-  lda $036C,x                  ; $E2F6
+  lda RiderSkid,x              ; $E2F6
   beq Loc_E358                 ; $E2F9
   lda z:RiderSpeedHi,x         ; $E2FB
   ora z:RiderSpeedLo,x         ; $E2FD
@@ -255,7 +255,7 @@ Loc_E303:
   lda #$F6                     ; $E33F
   sta $0299,y                  ; $E341
 Loc_E344:
-  lda $036C,x                  ; $E344
+  lda RiderSkid,x              ; $E344
   and #$02                     ; $E347
   sta $0296,y                  ; $E349
   sta $029A,y                  ; $E34C
@@ -268,9 +268,9 @@ Loc_E358:
 UpdateTempGauge:
   lda z:RaceEndState           ; $E359
   bne Loc_E3C6                 ; $E35B
-  lda $03E0                    ; $E35D
+  lda RiderOverheated          ; $E35D
   beq Loc_E36B                 ; $E360
-  lda z:$3C                    ; $E362
+  lda z:OverheatTimer          ; $E362
   lsr a                        ; $E364
   bcs Loc_E3C6                 ; $E365
   lda #$FC                     ; $E367
@@ -288,33 +288,33 @@ Loc_E377:
   rol a                        ; $E379
 Loc_E37A:
   tay                          ; $E37A
-  lda $03B6                    ; $E37B
+  lda TempGauge                ; $E37B
   cmp Data_D8FB,y              ; $E37E
   bcc Loc_E39B                 ; $E381
   beq Loc_E3AA                 ; $E383
-  lda $03B5                    ; $E385
+  lda TempGaugeFraction        ; $E385
   sec                          ; $E388
   sbc #$0B                     ; $E389
-  sta $03B5                    ; $E38B
+  sta TempGaugeFraction        ; $E38B
   bcs Loc_E3AA                 ; $E38E
-  lda $03B6                    ; $E390
+  lda TempGauge                ; $E390
   beq Loc_E3AA                 ; $E393
-  dec $03B6                    ; $E395
+  dec TempGauge                ; $E395
   jmp Loc_E3AA                 ; $E398
 Loc_E39B:
-  lda $03B5                    ; $E39B
+  lda TempGaugeFraction        ; $E39B
   clc                          ; $E39E
   adc Data_D8F7,y              ; $E39F
-  sta $03B5                    ; $E3A2
+  sta TempGaugeFraction        ; $E3A2
   bcc Loc_E3AA                 ; $E3A5
-  inc $03B6                    ; $E3A7
+  inc TempGauge                ; $E3A7
 Loc_E3AA:
   ldx #$00                     ; $E3AA
-  lda $03B6                    ; $E3AC
+  lda TempGauge                ; $E3AC
   cmp #$20                     ; $E3AF
   bcc Loc_E3B8                 ; $E3B1
-  sta z:$3C                    ; $E3B3
-  sta $03E0                    ; $E3B5
+  sta z:OverheatTimer          ; $E3B3
+  sta RiderOverheated          ; $E3B5
 Loc_E3B8:
   cmp #$1A                     ; $E3B8
   bcc Loc_E3C1                 ; $E3BA
@@ -329,7 +329,7 @@ Loc_E3C6:
   lda #$FE                     ; $E3C6
 Loc_E3C8:
   sta z:$01                    ; $E3C8
-  lda $03B6                    ; $E3CA
+  lda TempGauge                ; $E3CA
   clc                          ; $E3CD
   adc #$50                     ; $E3CE
   sta z:$00                    ; $E3D0
@@ -387,7 +387,7 @@ Loc_E421:
   bne Loc_E40D                 ; $E428
   rts                          ; $E42A
 Loc_E42B:
-  lda $03A3                    ; $E42B
+  lda RidersOverlap            ; $E42B
   beq Loc_E455                 ; $E42E
   ldx #$03                     ; $E430
 Loc_E432:

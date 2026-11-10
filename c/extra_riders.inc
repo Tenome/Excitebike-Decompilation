@@ -33,7 +33,7 @@ static void extra_spawn(ExtraRider *e, int index) {
     memcpy(keep, g_ram, sizeof keep);
     ExtraRider blank; memset(&blank, 0, sizeof blank);
     extra_load(&blank);
-    RAM(0x84 + 3) = RAM(0x94) & 2;                      /* ahead of or behind the player, like SpawnCpuRiders */
+    RiderXHi(3) = RiderSpeedHi(0) & 2;                      /* ahead of or behind the player, like SpawnCpuRiders */
     Regs q = SpawnRider((Regs){ 0, 3, (uint8_t)(1 + (index + extra_rand()) % 4), 0 });
     if (q.a != 0) { extra_store(e); e->active = 1; } else e->active = 0;
     memcpy(g_ram, keep, sizeof keep);                   /* spawn scratch writes (and the spawn-cooldown) must not leak into the game */
@@ -47,7 +47,7 @@ static void extra_pass(ExtraRider *e) {                 /* one frame for the ext
     Regs r3 = { 0, 3, 0, 0 };
     if (RAM(0x29) != 0) RAM(0x29)--;                    /* the per-rider timers the NMI would tick */
     if (RAM(0x2D) != 0) RAM(0x2D)--;
-    if (RAM(0x20) == 0x0A && RAM(0x39) != 0) RAM(0x39)--;
+    if (TimerPrescaler == 0x0A && RAM(0x39) != 0) RAM(0x39)--;
     SetRiderTargetPitch(r3); RiderLaneFromY(r3);
     RunTrackScriptRider(r3); RunPendingTrackScripts();
     UpdateRiderStates();
@@ -60,15 +60,15 @@ static void extra_pass(ExtraRider *e) {                 /* one frame for the ext
     AdvanceTrackPositions();
     ComputeRiderLanes();
     FetchTrackWindow();
-    if (RAM(0xA8 + 3) != 0 && RAM(0x98 + 3) == 0 && RAM(0x9C + 3) == 0) {   /* the AI, as UpdateAiRiders does for one rider */
+    if (RiderActive(3) != 0 && RiderCrash(3) == 0 && RiderState(3) == 0) {   /* the AI, as UpdateAiRiders does for one rider */
         RAM(0x0F) = 3;
         AiSetPitchInput(r3);
-        if (RAM(0xB0 + 3) != 0) RAM(0x7C + 3) = RAM(0x0368 + 3);
+        if (RiderAirborne(3) != 0) RiderTargetPitch(3) = RiderPitchGoal(3);
         else {
             AiMatchTargetSpeed(r3);
             if (AiScanObstacles(r3).a == 0 && RAM(0x03A6) != 0) {
                 AiJumpCheck(r3);
-                if (RAM(0x52) == 0) AiConsiderLaneChange(r3);
+                if (RaceEndState == 0) AiConsiderLaneChange(r3);
             }
         }
     }
@@ -77,7 +77,7 @@ static void extra_pass(ExtraRider *e) {                 /* one frame for the ext
 }
 
 void ExtraRidersFrame(void) {                           /* call once after each game frame (the NMI) */
-    if (g_extra_count <= 0 || !RAM(0x47) || !RAM(0x4F) || RAM(0x52) != 0 || RAM(0x03B1) || RAM(0x41) == 9) return;
+    if (g_extra_count <= 0 || !RaceActive || !RaceStarted || RaceEndState != 0 || PauseFlag || GameState == 9) return;
     static uint8_t keep[0x800];
     for (int k = 0; k < g_extra_count && k < EXTRA_MAX; k++) {
         ExtraRider *e = &g_extra[k];
@@ -90,7 +90,7 @@ void ExtraRidersFrame(void) {                           /* call once after each 
         memcpy(keep, g_ram, sizeof keep);
         extra_load(e);
         extra_pass(e);
-        int gone = (RAM(0xA8 + 3) == 0) || (RAM(0x84 + 3) == 0 && RAM(0x80 + 3) >= 0x70 && RAM(0x80 + 3) < 0x90);   /* passed far behind (or cleared) */
+        int gone = (RiderActive(3) == 0) || (RiderXHi(3) == 0 && RiderXLo(3) >= 0x70 && RiderXLo(3) < 0x90);   /* passed far behind (or cleared) */
         extra_store(e);
         /* only the extra rider's own record and its effects on shared scratch stay; everything else of the real game is put back */
         uint8_t scratch[16]; memcpy(scratch, g_ram, 16);
@@ -110,7 +110,7 @@ int ExtraRiderSprites(WideSprite *out, int max, int width) {   /* sprites of the
         Slot3Backup real; slot3_save(&real);
         memcpy(keep, g_ram, sizeof keep);
         extra_load(e);
-        uint8_t xhi = RAM(0x84 + 3), xlo = RAM(0x80 + 3);
+        uint8_t xhi = RiderXHi(3), xlo = RiderXLo(3);
         if (xhi == 1 || (xhi == 2 && xlo + 24 < width - 256)) {
             for (int i = 0; i < 256; i++) g_ram[0x0200 + i] = 0xF8;
             RAM(0x04) = 0x80; RAM(0x0B) = (uint8_t)(k + 1);

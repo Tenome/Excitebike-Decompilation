@@ -7,7 +7,7 @@ StateTitleMenu:
   sta z:TrackIndex             ; $C34A
   sta z:FirstAiRider           ; $C34C
   lda #$0F                     ; $C34E
-  sta $03F7                    ; $C350
+  sta DemoMode                 ; $C350
   lda #$02                     ; $C353
   sta z:GameState              ; $C355
   bne Loc_C389                 ; $C357
@@ -22,7 +22,7 @@ Loc_C359:
 Loc_C36A:
   ldy z:MenuCursor             ; $C36A
   ldx #$00                     ; $C36C
-  stx $03F7                    ; $C36E
+  stx DemoMode                 ; $C36E
   stx z:TrackIndex             ; $C371
   stx z:MenuCursor             ; $C373
   inx                          ; $C375
@@ -37,7 +37,7 @@ Loc_C384:
   sty SelectionB               ; $C386
 Loc_C389:
   jsr Sub_C3B1                 ; $C389
-  lda $03F7                    ; $C38C
+  lda DemoMode                 ; $C38C
   eor #$0F                     ; $C38F
   sta APU_SND_CHN              ; $C391
   rts                          ; $C394
@@ -106,7 +106,7 @@ Loc_C3EF:
   jsr SetMenuCursorSprite      ; $C3FC
   sta z:MenuCursor             ; $C3FF
   lda #$2D                     ; $C401
-  sta z:$34                    ; $C403
+  sta z:MenuHintTimer          ; $C403
   lda #$B0                     ; $C405
   bne Loc_C3EF                 ; $C407
 SetMenuCursorSprite:
@@ -165,7 +165,7 @@ Loc_C462:
 Loc_C464:
   rts                          ; $C464
 StateRaceEndWait:
-  lda z:$34                    ; $C465  [heuristic code]
+  lda z:MenuHintTimer          ; $C465  [heuristic code]
   beq Loc_C477                 ; $C467
   lda #$06                     ; $C469
   jsr WriteTimeTextSaved       ; $C46B
@@ -352,7 +352,7 @@ Loc_C594:
   lda #$00                     ; $C5A7
   jmp WriteTimeTextSaved       ; $C5A9
   lda #$12                     ; $C5AC
-  sta z:$34                    ; $C5AE
+  sta z:MenuHintTimer          ; $C5AE
   ldx #$05                     ; $C5B0
 Loc_C5B2:
   lda Data_C13C,x              ; $C5B2
@@ -368,7 +368,7 @@ Loc_C5B2:
   jsr CopyTrackDesignToBackup  ; $C5C6
   stx z:$BD                    ; $C5C9
   stx z:$BE                    ; $C5CB
-  stx z:$C4                    ; $C5CD
+  stx z:RiderScriptPos         ; $C5CD
   stx z:RiderTrackPiece        ; $C5CF
   stx z:InputLatch             ; $C5D1
   stx z:$C2                    ; $C5D3
@@ -403,7 +403,7 @@ Loc_C5F2:
   sta z:RiderTrackPos          ; $C60D
   inc z:RiderTrackPos          ; $C60F
   lda #$7A                     ; $C611
-  sta z:$B4                    ; $C613
+  sta z:RiderScriptShapeB      ; $C613
   inc z:GameStateActive        ; $C615
   inc z:RaceActive             ; $C617
   lda #$D0                     ; $C619

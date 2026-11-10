@@ -17,7 +17,7 @@ Loc_D0B6:
   bpl Loc_D0B6                 ; $D0BC
 Loc_D0BE:
   tya                          ; $D0BE
-  sta $0360,x                  ; $D0BF
+  sta RiderLaneRow,x           ; $D0BF
   dex                          ; $D0C2
   bpl Loc_D0AD                 ; $D0C3
   rts                          ; $D0C5

@@ -149,7 +149,7 @@ Loc_CBF8:
   sta z:$54                    ; $CC03
   lda Data_C0DE,x              ; $CC05
   sta z:$55                    ; $CC08
-  sta $03F1                    ; $CC0A
+  sta LandingBaseY             ; $CC0A
   lda z:$00                    ; $CC0D
   bne Loc_CC6A                 ; $CC0F
   lda #$0A                     ; $CC11
@@ -225,14 +225,14 @@ Loc_CC7D:
   lda z:$2F                    ; $CC85
   beq Loc_CCA3                 ; $CC87
   lda #$1F                     ; $CC89
-  sta $0380                    ; $CC8B
-  sta $038C                    ; $CC8E
+  sta RiderJumpArcLo           ; $CC8B
+  sta RiderJumpGravity         ; $CC8E
   lda #$AF                     ; $CC91
-  sta $0378                    ; $CC93
+  sta RiderJumpSpeedLo         ; $CC93
   lda #$01                     ; $CC96
-  sta $037C                    ; $CC98
+  sta RiderJumpSpeedHi         ; $CC98
   lsr a                        ; $CC9B
-  sta $0384                    ; $CC9C
+  sta RiderJumpArcHi           ; $CC9C
   ldy #$BD                     ; $CC9F
   bne Loc_CCBB                 ; $CCA1
 Loc_CCA3:
@@ -240,7 +240,7 @@ Loc_CCA3:
   jsr JumpArcStep              ; $CCA5
   sta z:$55                    ; $CCA8
   sta z:$01                    ; $CCAA
-  lda $03F1                    ; $CCAC
+  lda LandingBaseY             ; $CCAC
   cmp z:$55                    ; $CCAF
   bcs Loc_CCB9                 ; $CCB1
   sta z:$55                    ; $CCB3
@@ -268,7 +268,7 @@ ResultsDrawLine:
   lda #$00                     ; $CCD8
   jmp DrawMetasprite           ; $CCDA
 Loc_CCDD:
-  lda z:$3C                    ; $CCDD
+  lda z:OverheatTimer          ; $CCDD
   lsr a                        ; $CCDF
   bcc Loc_CD12                 ; $CCE0
   lda #$40                     ; $CCE2

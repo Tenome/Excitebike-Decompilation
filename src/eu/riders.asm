@@ -18,17 +18,17 @@ RiderStateDispatch:
   sta z:$01                    ; $D92E
   jmp ($0000)                  ; $D930
 RiderState1Gate:
-  lda $0370,x                  ; $D933
+  lda RiderGateWait,x          ; $D933
   beq Loc_D94E                 ; $D936
   lda z:FrameCounter           ; $D938
   lsr a                        ; $D93A
   bcs Loc_D952                 ; $D93B
-  inc $0390,x                  ; $D93D
-  ldy $03E4,x                  ; $D940
+  inc RiderShadowX,x           ; $D93D
+  ldy RiderCrashFacing,x       ; $D940
   lda z:RiderXLo,x             ; $D943
   clc                          ; $D945
   adc Data_D90E,y              ; $D946
-  cmp $0390,x                  ; $D949
+  cmp RiderShadowX,x           ; $D949
   bcs Loc_D952                 ; $D94C
 Loc_D94E:
   inc z:RiderState,x           ; $D94E
@@ -55,7 +55,7 @@ Loc_D96A:
   rts                          ; $D96D
 Loc_D96E:
   lda #$00                     ; $D96E
-  sta $0398,x                  ; $D970
+  sta RiderShadowFrame,x       ; $D970
   sta z:RiderLaneStep,x        ; $D973
   inc z:RiderState,x           ; $D975
   txa                          ; $D977
@@ -64,15 +64,15 @@ Loc_D96E:
   sta z:SfxNoiseRequest        ; $D97C
 Loc_D97E:
   lda #$08                     ; $D97E
-  sta z:$2A,x                  ; $D980
+  sta z:RiderPitchAdjustTimer,x ; $D980
   rts                          ; $D982
 RiderState3Wait:
-  lda $0370,x                  ; $D983
+  lda RiderGateWait,x          ; $D983
   beq Loc_D9C0                 ; $D986
-  lda z:$2A,x                  ; $D988
+  lda z:RiderPitchAdjustTimer,x ; $D988
   bne Loc_D9D2                 ; $D98A
   txa                          ; $D98C
-  ora $03F7                    ; $D98D
+  ora DemoMode                 ; $D98D
   bne Loc_D9A1                 ; $D990
   ldy z:InputLatch             ; $D992
   lda z:Joy1Held               ; $D994
@@ -88,22 +88,22 @@ Loc_D9A1:
   and #$0F                     ; $D9A3
   bne Loc_D9AA                 ; $D9A5
 Loc_D9A7:
-  dec $0390,x                  ; $D9A7
+  dec RiderShadowX,x           ; $D9A7
 Loc_D9AA:
   and #$07                     ; $D9AA
   bne Loc_D9B6                 ; $D9AC
-  lda $0398,x                  ; $D9AE
+  lda RiderShadowFrame,x       ; $D9AE
   eor #$01                     ; $D9B1
-  sta $0398,x                  ; $D9B3
+  sta RiderShadowFrame,x       ; $D9B3
 Loc_D9B6:
-  lda $0390,x                  ; $D9B6
+  lda RiderShadowX,x           ; $D9B6
   sec                          ; $D9B9
   sbc #$08                     ; $D9BA
   cmp z:RiderXLo,x             ; $D9BC
   bcs Loc_D9D2                 ; $D9BE
 Loc_D9C0:
   lda #$03                     ; $D9C0
-  sta z:$36,x                  ; $D9C2
+  sta z:RiderReleaseTimer,x    ; $D9C2
   inc z:RiderState,x           ; $D9C4
   lda #$00                     ; $D9C6
   cpx #$03                     ; $D9C8
@@ -113,13 +113,13 @@ Loc_D9C0:
 Loc_D9D2:
   rts                          ; $D9D2
 RiderState4Release:
-  lda z:$36,x                  ; $D9D3
+  lda z:RiderReleaseTimer,x    ; $D9D3
   bne Loc_D9F5                 ; $D9D5
   txa                          ; $D9D7
   bne Loc_D9E7                 ; $D9D8
-  lda $03E0                    ; $D9DA
+  lda RiderOverheated          ; $D9DA
   bne Loc_DA10                 ; $D9DD
-  lda $03F7                    ; $D9DF
+  lda DemoMode                 ; $D9DF
   beq Loc_D9F3                 ; $D9E2
   jmp ResetGameRam             ; $D9E4
 Loc_D9E7:
@@ -154,7 +154,7 @@ Loc_DA10:
 Loc_DA14:
   rts                          ; $DA14
 ComputeRiderShadowY:
-  lda $0390,x                  ; $DA15
+  lda RiderShadowX,x           ; $DA15
   sec                          ; $DA18
   sbc z:RiderXLo,x             ; $DA19
   sbc #$08                     ; $DA1B
@@ -180,9 +180,9 @@ Loc_DA2C:
   jsr ScrollWorld              ; $DA3B
   jsr ShiftRidersByScroll      ; $DA3E
   jsr ScrollSplitLayer         ; $DA41
-  lda z:$3C                    ; $DA44
+  lda z:OverheatTimer          ; $DA44
   bne Loc_DA69                 ; $DA46
-  ldy $03BC                    ; $DA48
+  ldy SceneObjectKind          ; $DA48
   lda Data_D8EF,y              ; $DA4B
   sta z:$00                    ; $DA4E
   lda Data_D8F1,y              ; $DA50
@@ -193,8 +193,8 @@ AccumulateRiderMove:
   sta z:RiderMoveX,x           ; $DA5A
   lda z:RiderSpeedLo,x         ; $DA5C
   clc                          ; $DA5E
-  adc $0394,x                  ; $DA5F
-  sta $0394,x                  ; $DA62
+  adc RiderMoveSubpixel,x      ; $DA5F
+  sta RiderMoveSubpixel,x      ; $DA62
   bcc Loc_DA69                 ; $DA65
   inc z:RiderMoveX,x           ; $DA67
 Loc_DA69:
@@ -227,10 +227,10 @@ Loc_DA89:
   bcs Loc_DA92                 ; $DA8E
   dec z:RiderXHi,x             ; $DA90
 Loc_DA92:
-  lda $0390,x                  ; $DA92
+  lda RiderShadowX,x           ; $DA92
   sec                          ; $DA95
   sbc z:RiderMoveX             ; $DA96
-  sta $0390,x                  ; $DA98
+  sta RiderShadowX,x           ; $DA98
 Loc_DA9B:
   dex                          ; $DA9B
   bne Loc_DA7C                 ; $DA9C
@@ -385,21 +385,21 @@ ClearRider:
   sta z:RiderHeight,x          ; $DB9B
   sta z:RiderBumpState,x       ; $DB9D
   sta z:RiderTerrainState,x    ; $DB9F
-  sta z:$58,x                  ; $DBA1
-  sta z:$CC,x                  ; $DBA3
-  sta $036C,x                  ; $DBA5
+  sta z:RiderScriptId,x        ; $DBA1
+  sta z:RiderPendingOp,x       ; $DBA3
+  sta RiderSkid,x              ; $DBA5
   sta z:RiderSpeedLo,x         ; $DBA8
   sta z:RiderSpeedHi,x         ; $DBAA
   sta z:RiderCrash,x           ; $DBAC
   sta z:RiderState,x           ; $DBAE
   sta z:RiderAirborne,x        ; $DBB0
-  sta z:$D4,x                  ; $DBB2
-  sta $0388,x                  ; $DBB4
+  sta z:RiderScriptShape,x     ; $DBB2
+  sta RiderJumpMode,x          ; $DBB4
   sta z:RiderTrackPiece,x      ; $DBB7
   sta $039C,x                  ; $DBB9
   sta z:RiderLaneStep,x        ; $DBBC
   sta z:RiderLane,x            ; $DBBE
-  sta $0370,x                  ; $DBC0
+  sta RiderGateWait,x          ; $DBC0
 Loc_DBC3:
   rts                          ; $DBC3
 HandleLostRider:
@@ -461,7 +461,7 @@ RiderLandingCheck:
   lda z:RiderScreenY,x         ; $DC27
   cmp #$A8                     ; $DC29
   bcs Loc_DC19                 ; $DC2B
-  lda $0364,x                  ; $DC2D
+  lda RiderLandingArmed,x      ; $DC2D
   beq Loc_DC19                 ; $DC30
   txa                          ; $DC32
   bne Loc_DC39                 ; $DC33
@@ -470,16 +470,16 @@ RiderLandingCheck:
 Loc_DC39:
   lda #$00                     ; $DC39
   sta z:RiderAirborne,x        ; $DC3B
-  sta $0364,x                  ; $DC3D
+  sta RiderLandingArmed,x      ; $DC3D
   lda z:RiderCrash,x           ; $DC40
   bne Loc_DC87                 ; $DC42
   lda z:RaceEndState           ; $DC44
   bne Loc_DC8E                 ; $DC46
-  ldy $0388,x                  ; $DC48
-  sta $0388,x                  ; $DC4B
+  ldy RiderJumpMode,x          ; $DC48
+  sta RiderJumpMode,x          ; $DC4B
   tya                          ; $DC4E
   bne Loc_DC87                 ; $DC4F
-  lda z:$D4,x                  ; $DC51
+  lda z:RiderScriptShape,x     ; $DC51
   ldy z:RiderSpeedHi,x         ; $DC53
   cpy #$02                     ; $DC55
   bpl Loc_DC5C                 ; $DC57
@@ -497,16 +497,16 @@ Loc_DC69:
   sta z:RiderCrash,x           ; $DC6B
   rts                          ; $DC6D
 Loc_DC6E:
-  lda $0368,x                  ; $DC6E
+  lda RiderPitchGoal,x         ; $DC6E
   cmp z:RiderPitch,x           ; $DC71
   beq Loc_DC87                 ; $DC73
-  lda z:$D4,x                  ; $DC75
-  ora z:$CC,x                  ; $DC77
+  lda z:RiderScriptShape,x     ; $DC75
+  ora z:RiderPendingOp,x       ; $DC77
   bne Loc_DC87                 ; $DC79
   lda #$04                     ; $DC7B
-  sta $0374,x                  ; $DC7D
+  sta RiderPitchLock,x         ; $DC7D
   lsr a                        ; $DC80
-  sta $0388,x                  ; $DC81
+  sta RiderJumpMode,x          ; $DC81
   lsr a                        ; $DC84
   sta z:RiderAirborne,x        ; $DC85
 Loc_DC87:
@@ -516,46 +516,46 @@ Loc_DC87:
 Loc_DC8D:
   rts                          ; $DC8D
 Loc_DC8E:
-  lda z:$D4,x                  ; $DC8E
+  lda z:RiderScriptShape,x     ; $DC8E
   bne Loc_DC8D                 ; $DC90
   lda #$06                     ; $DC92
   sta z:RiderPitch,x           ; $DC94
   rts                          ; $DC96
 RiderBaseY:
-  lda $03F1                    ; $DC97
+  lda LandingBaseY             ; $DC97
 RiderBaseYFrom:
   sec                          ; $DC9A
   sbc z:RiderHeight,x          ; $DC9B
   sbc z:RiderY,x               ; $DC9D
   rts                          ; $DC9F
 SetRiderTargetPitch:
-  ldy z:$D4,x                  ; $DCA0
+  ldy z:RiderScriptShape,x     ; $DCA0
   lda z:RaceEndState           ; $DCA2
   cmp #$01                     ; $DCA4
   bne Loc_DCB5                 ; $DCA6
   txa                          ; $DCA8
   ora z:RiderCrash             ; $DCA9
   ora z:RiderState             ; $DCAB
-  ora z:$58                    ; $DCAD
+  ora z:RiderScriptId          ; $DCAD
   bne Loc_DCB5                 ; $DCAF
   lda #$0A                     ; $DCB1
   bne Loc_DCB8                 ; $DCB3
 Loc_DCB5:
   lda Data_D88B,y              ; $DCB5
 Loc_DCB8:
-  sta $0368,x                  ; $DCB8
+  sta RiderPitchGoal,x         ; $DCB8
   lda z:RiderTerrainState,x    ; $DCBB
   cmp #$01                     ; $DCBD
   bne Loc_DCC6                 ; $DCBF
   lda #$06                     ; $DCC1
-  sta $0368,x                  ; $DCC3
+  sta RiderPitchGoal,x         ; $DCC3
 Loc_DCC6:
   rts                          ; $DCC6
 Loc_DCC7:
   sta z:$00                    ; $DCC7
-  lda z:$2A,x                  ; $DCC9
+  lda z:RiderPitchAdjustTimer,x ; $DCC9
   bne Loc_DCDD                 ; $DCCB
-  sty z:$2A,x                  ; $DCCD
+  sty z:RiderPitchAdjustTimer,x ; $DCCD
   lda z:RiderPitch,x           ; $DCCF
   cmp z:$00                    ; $DCD1
   beq Loc_DCDD                 ; $DCD3
@@ -567,14 +567,14 @@ Loc_DCDB:
 Loc_DCDD:
   rts                          ; $DCDD
 RiderPitchTimer:
-  lda $0374,x                  ; $DCDE
+  lda RiderPitchLock,x         ; $DCDE
   beq Loc_DCF1                 ; $DCE1
-  dec $0374,x                  ; $DCE3
+  dec RiderPitchLock,x         ; $DCE3
   lda z:RiderInput,x           ; $DCE6
   and #$C0                     ; $DCE8
   beq Loc_DCF1                 ; $DCEA
   lda #$00                     ; $DCEC
-  sta $0374,x                  ; $DCEE
+  sta RiderPitchLock,x         ; $DCEE
 Loc_DCF1:
   rts                          ; $DCF1
 RiderLaunchUpdate:
@@ -593,7 +593,7 @@ Loc_DCFE:
 RiderStartJump:
   lda z:RiderSpeedHi,x         ; $DD06
 Loc_DD08:
-  sta $0384,x                  ; $DD08
+  sta RiderJumpArcHi,x         ; $DD08
   jsr RiderJumpSetup           ; $DD0B
   jmp Loc_DD1A                 ; $DD0E
 Loc_DD11:
@@ -607,34 +607,34 @@ Loc_DD1A:
   and #$03                     ; $DD1C
   tay                          ; $DD1E
   lda Data_D868,y              ; $DD1F
-  sta $038C,x                  ; $DD22
+  sta RiderJumpGravity,x       ; $DD22
   lda z:RiderScreenY,x         ; $DD25
   sta z:$01                    ; $DD27
   jsr JumpArcStep              ; $DD29
   sta z:RiderScreenY,x         ; $DD2C
-  lda z:$CC,x                  ; $DD2E
+  lda z:RiderPendingOp,x       ; $DD2E
   bne Loc_DD37                 ; $DD30
   lda #$01                     ; $DD32
-  sta $0364,x                  ; $DD34
+  sta RiderLandingArmed,x      ; $DD34
 Loc_DD37:
   rts                          ; $DD37
 RiderJumpSetup:
   lda #$02                     ; $DD38
   sta z:RiderAirborne,x        ; $DD3A
   lda #$0F                     ; $DD3C
-  sta $0380,x                  ; $DD3E
+  sta RiderJumpArcLo,x         ; $DD3E
   lda z:RiderSpeedLo,x         ; $DD41
   clc                          ; $DD43
   adc #$AF                     ; $DD44
-  sta $0378,x                  ; $DD46
+  sta RiderJumpSpeedLo,x       ; $DD46
   lda z:RiderSpeedHi,x         ; $DD49
   adc #$00                     ; $DD4B
-  sta $037C,x                  ; $DD4D
-  lda $0388,x                  ; $DD50
+  sta RiderJumpSpeedHi,x       ; $DD4D
+  lda RiderJumpMode,x          ; $DD50
   cmp #$02                     ; $DD53
   bne Loc_DD5D                 ; $DD55
-  lsr $037C,x                  ; $DD57
-  ror $0378,x                  ; $DD5A
+  lsr RiderJumpSpeedHi,x       ; $DD57
+  ror RiderJumpSpeedLo,x       ; $DD5A
 Loc_DD5D:
   txa                          ; $DD5D
   bne Loc_DD6E                 ; $DD5E
@@ -651,24 +651,24 @@ Loc_DD6C:
 Loc_DD6E:
   rts                          ; $DD6E
 JumpArcStep:
-  lda $0380,x                  ; $DD6F
-  adc $038C,x                  ; $DD72
-  sta $0380,x                  ; $DD75
-  lda $0384,x                  ; $DD78
+  lda RiderJumpArcLo,x         ; $DD6F
+  adc RiderJumpGravity,x       ; $DD72
+  sta RiderJumpArcLo,x         ; $DD75
+  lda RiderJumpArcHi,x         ; $DD78
   adc #$00                     ; $DD7B
-  sta $0384,x                  ; $DD7D
+  sta RiderJumpArcHi,x         ; $DD7D
   lda z:$01                    ; $DD80
-  sbc $037C,x                  ; $DD82
+  sbc RiderJumpSpeedHi,x       ; $DD82
   sta z:$01                    ; $DD85
   lda z:$01                    ; $DD87
-  adc $0384,x                  ; $DD89
+  adc RiderJumpArcHi,x         ; $DD89
 Loc_DD8C:
   rts                          ; $DD8C
 OverheatUpdate:
-  lda z:$3C                    ; $DD8D
-  ora $03E0                    ; $DD8F
+  lda z:OverheatTimer          ; $DD8D
+  ora RiderOverheated          ; $DD8F
   beq Loc_DD8C                 ; $DD92
-  lda z:$3C                    ; $DD94
+  lda z:OverheatTimer          ; $DD94
   cmp #$08                     ; $DD96
   beq Loc_DDBF                 ; $DD98
   bcc Loc_DDCE                 ; $DD9A
@@ -676,7 +676,7 @@ OverheatUpdate:
   ora z:RiderCrash             ; $DD9E
   ora z:RiderState             ; $DDA0
   bne Loc_DDBC                 ; $DDA2
-  lda z:$58                    ; $DDA4
+  lda z:RiderScriptId          ; $DDA4
   beq Loc_DDAE                 ; $DDA6
   lda #$C0                     ; $DDA8
   sta z:RiderSpeedLo           ; $DDAA
@@ -694,11 +694,11 @@ Loc_DDBC:
   jmp Loc_CCDD                 ; $DDBC
 Loc_DDBF:
   lda #$00                     ; $DDBF
-  sta $03E0                    ; $DDC1
+  sta RiderOverheated          ; $DDC1
   lda #$05                     ; $DDC4
-  sta $03B6                    ; $DDC6
+  sta TempGauge                ; $DDC6
   sta z:RiderState             ; $DDC9
-  sta $0374                    ; $DDCB
+  sta RiderPitchLock           ; $DDCB
 Loc_DDCE:
   jmp Loc_CD13                 ; $DDCE
 RiderCrashUpdate:
@@ -709,7 +709,7 @@ Loc_DDD3:
   ldy #$04                     ; $DDD7
   txa                          ; $DDD9
   bne Loc_DDEE                 ; $DDDA
-  sta $03A9                    ; $DDDC
+  sta EngineRunning            ; $DDDC
   sta z:EngineSoundRequest     ; $DDDF
   lda z:FrameMod4              ; $DDE1
   bne Loc_DDE9                 ; $DDE3
@@ -721,14 +721,14 @@ Loc_DDE9:
   tay                          ; $DDED
 Loc_DDEE:
   tya                          ; $DDEE
-  sta $03E4,x                  ; $DDEF
+  sta RiderCrashFacing,x       ; $DDEF
   lda z:FrameMod4              ; $DDF2
   lsr a                        ; $DDF4
   bcs Loc_DE2D                 ; $DDF5
   lda z:RiderSpeedHi,x         ; $DDF7
   bne Loc_DE24                 ; $DDF9
   lda z:RiderAirborne,x        ; $DDFB
-  ora z:$58,x                  ; $DDFD
+  ora z:RiderScriptId,x        ; $DDFD
   bne Loc_DE20                 ; $DDFF
   sta z:RiderSpeedLo,x         ; $DE01
   sta z:RiderMoveX,x           ; $DE03
@@ -738,10 +738,10 @@ Loc_DDEE:
   lda z:RiderXLo,x             ; $DE0B
   clc                          ; $DE0D
   adc #$08                     ; $DE0E
-  sta $0390,x                  ; $DE10
+  sta RiderShadowX,x           ; $DE10
   jsr ComputeRiderShadowY      ; $DE13
   lda #$02                     ; $DE16
-  sta $0398,x                  ; $DE18
+  sta RiderShadowFrame,x       ; $DE18
   lsr a                        ; $DE1B
   sta z:RiderState,x           ; $DE1C
   bne Loc_DE2D                 ; $DE1E
@@ -759,14 +759,14 @@ Loc_DE2D:
   bpl Loc_DDD3                 ; $DE2E
   rts                          ; $DE30
 UpdateExhaustSprites:
-  lda z:$24                    ; $DE31
+  lda z:StartLightTimer        ; $DE31
   cmp #$01                     ; $DE33
   beq Loc_DEA6                 ; $DE35
   ldy z:RaceStarted            ; $DE37
   bne Loc_DEA5                 ; $DE39
   cmp #$60                     ; $DE3B
   bcs Loc_DE4E                 ; $DE3D
-  lda $03A9                    ; $DE3F
+  lda EngineRunning            ; $DE3F
   beq Loc_DE4E                 ; $DE42
   lda z:RiderInput             ; $DE44
   and #$C0                     ; $DE46
@@ -775,7 +775,7 @@ UpdateExhaustSprites:
   sta z:SfxPulse2Request       ; $DE4C
 Loc_DE4E:
   ldy #$F0                     ; $DE4E
-  lda z:$24                    ; $DE50
+  lda z:StartLightTimer        ; $DE50
   cmp #$10                     ; $DE52
   bcs Loc_DE5E                 ; $DE54
   ldy #$F2                     ; $DE56
@@ -820,10 +820,10 @@ Loc_DE9A:
   dey                          ; $DE9A
   bpl Loc_DE6F                 ; $DE9B
 Loc_DE9D:
-  lda z:$34                    ; $DE9D
+  lda z:MenuHintTimer          ; $DE9D
   beq Loc_DEA5                 ; $DE9F
   lda #$88                     ; $DEA1
-  sta z:$24                    ; $DEA3
+  sta z:StartLightTimer        ; $DEA3
 Loc_DEA5:
   rts                          ; $DEA5
 Loc_DEA6:
@@ -835,7 +835,7 @@ Loc_DEA6:
   sta $03B4                    ; $DEB0
   bcc Loc_DEA5                 ; $DEB3
   lda #$02                     ; $DEB5
-  sta z:$24                    ; $DEB7
+  sta z:StartLightTimer        ; $DEB7
   bne Loc_DE4E                 ; $DEB9
 CheckTrackEdge:
   ldx #$03                     ; $DEBB
@@ -849,7 +849,7 @@ Loc_DEBD:
   cmp #$40                     ; $DEC8
   bcc Loc_DED9                 ; $DECA
 Loc_DECC:
-  lda $03A9,x                  ; $DECC
+  lda EngineRunning,x          ; $DECC
   beq Loc_DEDE                 ; $DECF
   lda #$40                     ; $DED1
   sta z:SfxPulse1Request       ; $DED3
@@ -858,14 +858,14 @@ Loc_DECC:
 Loc_DED9:
   lda #$01                     ; $DED9
 Loc_DEDB:
-  sta $03A9,x                  ; $DEDB
+  sta EngineRunning,x          ; $DEDB
 Loc_DEDE:
   dex                          ; $DEDE
   bne Loc_DEBD                 ; $DEDF
   rts                          ; $DEE1
 UpdateEngineSound:
   ldx #$00                     ; $DEE2
-  lda $03A9                    ; $DEE4
+  lda EngineRunning            ; $DEE4
   beq Loc_DF2D                 ; $DEE7
   lda z:FrameMod4              ; $DEE9
   lsr a                        ; $DEEB
@@ -1035,7 +1035,7 @@ Loc_DFE0:
   cmp a:RiderLane,y            ; $DFF4
   bne Loc_E01D                 ; $DFF7
   lda z:RiderCrash,x           ; $DFF9
-  ora $03E0,x                  ; $DFFB
+  ora RiderOverheated,x        ; $DFFB
   bne Loc_DFDD                 ; $DFFE
   lda a:RiderCrash,y           ; $E000
   bne Loc_E07E                 ; $E003
@@ -1165,48 +1165,48 @@ BikeVsObstacleCheck:
   sty $039B                    ; $E0E2
 Loc_E0E5:
   rts                          ; $E0E5
-  lda z:$3A                    ; $E0E6
+  lda z:FinishGateTimer        ; $E0E6
   ora z:RaceEndState           ; $E0E8
-  ora z:$24                    ; $E0EA
+  ora z:StartLightTimer        ; $E0EA
   bne Loc_E09E                 ; $E0EC
-  lda $03A0                    ; $E0EE
+  lda ObstacleActive           ; $E0EE
   bne Loc_E10A                 ; $E0F1
-  lda z:$2E                    ; $E0F3
+  lda z:ObstacleCooldown       ; $E0F3
   bne Loc_E09E                 ; $E0F5
   lda z:RandomState            ; $E0F7
   and #$03                     ; $E0F9
   tax                          ; $E0FB
   lda Data_D8F3,x              ; $E0FC
-  sta $03A1                    ; $E0FF
+  sta ObstacleTile             ; $E0FF
   lda #$F8                     ; $E102
-  sta $03B9                    ; $E104
-  sta $03A0                    ; $E107
+  sta ObstacleX                ; $E104
+  sta ObstacleActive           ; $E107
 Loc_E10A:
   lda #$50                     ; $E10A
   sta z:$01                    ; $E10C
-  lda $03B9                    ; $E10E
+  lda ObstacleX                ; $E10E
   sec                          ; $E111
   sbc z:RiderMoveX             ; $E112
-  sta $03B9                    ; $E114
+  sta ObstacleX                ; $E114
   lda z:RiderMoveX             ; $E117
   beq Loc_E124                 ; $E119
   lda z:FrameCounter           ; $E11B
   and #$0F                     ; $E11D
   bne Loc_E124                 ; $E11F
-  dec $03B9                    ; $E121
+  dec ObstacleX                ; $E121
 Loc_E124:
-  lda $03B9                    ; $E124
+  lda ObstacleX                ; $E124
   sta z:$00                    ; $E127
   cmp #$FC                     ; $E129
   bcc Loc_E139                 ; $E12B
   lda z:RandomState            ; $E12D
   and #$A0                     ; $E12F
-  sta z:$2E                    ; $E131
+  sta z:ObstacleCooldown       ; $E131
   lda #$00                     ; $E133
-  sta $03A0                    ; $E135
+  sta ObstacleActive           ; $E135
   rts                          ; $E138
 Loc_E139:
-  lda $03A1                    ; $E139
+  lda ObstacleTile             ; $E139
   sta z:$02                    ; $E13C
   lda #$22                     ; $E13E
   sta z:$03                    ; $E140
@@ -1215,16 +1215,16 @@ Loc_E139:
   lda #$20                     ; $E146
   sta z:$0B                    ; $E148
   jsr DrawMetasprite           ; $E14A
-  lda $03B9                    ; $E14D
+  lda ObstacleX                ; $E14D
   cmp #$60                     ; $E150
   bcs Loc_E17E                 ; $E152
-  ldx $03A1                    ; $E154
+  ldx ObstacleTile             ; $E154
   inx                          ; $E157
   inx                          ; $E158
   inx                          ; $E159
   stx z:$00                    ; $E15A
   jsr Sub_E16C                 ; $E15C
-  ldx $03A1                    ; $E15F
+  ldx ObstacleTile             ; $E15F
   inx                          ; $E162
   stx z:$00                    ; $E163
   lda z:$04                    ; $E165
