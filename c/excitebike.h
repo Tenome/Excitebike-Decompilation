@@ -17,6 +17,13 @@ extern void (*g_hal_write)(uint16_t addr, uint8_t val);   /* host hooks for the 
 extern uint8_t (*g_hal_read)(uint16_t addr);
 extern void (*g_hal_event)(int event, int arg);
 enum { HAL_EV_DELAY = 1 };                    /* the code busy-waits for `arg` CPU cycles */
+typedef struct {
+    uint8_t jump_power;          /* speed bonus added when a jump starts (original $AF) */
+    uint8_t crash_pitch;         /* pitch value at which a rider crashes (original $0D) */
+    uint8_t overheat;            /* 1 = the engine overheats at a full temperature gauge (original) */
+    uint16_t max_speed_pct;      /* player top speed in percent of the original (100) */
+} Rules;
+extern Rules g_rules;
 extern int g_pal;                             /* set to 1 for the European (PAL) ROM */
 extern const uint8_t *g_prg;                  /* 16 KB PRG-ROM, CPU $C000-$FFFF (supplied by the host from the user's ROM) */
 #define ROMB(addr) (g_prg[(addr) & 0x3FFF])

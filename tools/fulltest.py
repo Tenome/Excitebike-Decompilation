@@ -7,6 +7,7 @@ import argparse, ctypes, os, random, subprocess, sys
 ap = argparse.ArgumentParser()
 ap.add_argument('--version', default='us'); ap.add_argument('--frames', type=int, default=600); ap.add_argument('--seed', type=int, default=1)
 ap.add_argument('--policy', default='random', choices=['random', 'drive'], help='drive: hold the throttle while racing so the race can finish')
+ap.add_argument('--press', default='', help='scripted buttons "frame=hex,frame=hex,..." (overrides the random policy until the script ends)')
 ap.add_argument('--clang'); ap.add_argument('--idle', type=int, default=40, help='random-number updates between frames (the idle loop)')
 a = ap.parse_args()
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, '..'))
@@ -51,7 +52,11 @@ lib.ResetInit()
 if not compare('after reset'): sys.exit(1)
 buttons = 0; hold = 0; visited = set()
 pool = [0x00, 0x00, 0x01, 0x01, 0x03, 0x08, 0x08, 0x10, 0x20, 0x40, 0x80, 0x05, 0x02]
+script = sorted((int(x.split('=')[0]), int(x.split('=')[1], 0)) for x in a.press.split(',') if x)
 for frame in range(a.frames):
+    if script and frame >= script[0][0]:                   # scripted input takes over from its first entry on
+        while script and frame >= script[0][0]: buttons = script.pop(0)[1]
+        hold = 10**9 if script else rnd.randint(1, 25)       # after the last entry the random policy resumes
     if hold == 0:
         buttons = rnd.choice(pool); hold = rnd.randint(1, 25)
         if a.policy == 'drive' and cpu.ram[0x41] in (2, 5, 10):

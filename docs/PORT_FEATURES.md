@@ -1,7 +1,8 @@
 # Native port: options, mutators and mod support (design)
 
-Status: design only. Nothing here is implemented yet. The point of writing it now is to decide what the C lift has to
-expose, so the routines lifted today do not have to be redone later.
+Status: the native runtime (`port/`) plays the game; the `Rules` mutators below exist for four values (jump power, crash pitch,
+overheating, top speed; `port/excitebike.cfg.example`), replays and quick saves work. Widescreen, more riders, interpolation, custom
+tracks/graphics/music are still design.
 
 ## Architecture the options depend on
 

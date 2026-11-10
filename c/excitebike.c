@@ -2,6 +2,8 @@
 
 uint8_t g_ram[0x800];
 const uint8_t *g_prg;
+/* Game rules the port can change (mutators); the defaults are the original game's values, so the lifted code stays identical to it. */
+Rules g_rules = { 0xAF, 0x0D, 1, 100 };
 int g_pal;                                    /* 1 = PAL (Europe) release: a few routines differ from the NTSC one */
 
 /* Hardware registers ($2000-$7FFF): writes are logged in order, reads come from g_io_reads. The tests compare the log with the
@@ -352,7 +354,7 @@ void RiderPitchAdjust(Regs r) {               /* $DCC7: step pitch one notch tow
 static uint8_t jump_setup(uint8_t x) {         /* $DD38 body; returns carry as the 6502 leaves it */
     uint8_t c = 0;
     RAM(0xB0 + x) = 2; RAM(0x0380 + x) = 0x0F;
-    RAM(0x0378 + x) = adc8(RAM(0x90 + x), 0xAF, &c);
+    RAM(0x0378 + x) = adc8(RAM(0x90 + x), g_rules.jump_power, &c);
     RAM(0x037C + x) = adc8(RAM(0x94 + x), 0, &c);
     uint8_t v = RAM(0x0388 + x);
     c = v >= 2;
@@ -396,6 +398,11 @@ void RiderLaunchUpdate(Regs r) {              /* $DCF2 */
 void ClearOam(void) { for (int i = 0; i < 256; i++) RAM(0x0200 + i) = 0xF8; }   /* $D255 */
 
 /* ---- batch 3: speed model and AI lane changes ---- */
+static void max_speed(uint8_t y, uint8_t *hi, uint8_t *lo) {   /* top speed for acceleration class Y (rider 0), scaled by the rule */
+    unsigned s = (unsigned)ROMB(0xC0D1 + y) << 8 | ROMB(0xC0CE + y);
+    if (g_rules.max_speed_pct != 100) s = s * g_rules.max_speed_pct / 100;
+    *hi = (uint8_t)(s >> 8); *lo = (uint8_t)s;
+}
 Regs RiderTerrainSpeedBias(Regs r) {          /* $CDEE: bump state ($036C) from terrain; returns the 6502 Z flag in .c (1 = on the ramp-free path) */
     uint8_t x = r.x, y;
     if (RAM(0xC0 + x) != 0xE4) {
@@ -419,10 +426,11 @@ void RiderAccelerate(Regs r) {                /* $CE29: Y = acceleration class; 
     RAM(0x90 + x) = adc8(ROMB(0xC0BC + y), RAM(0x90 + x), &c);
     if (c) RAM(0x94 + x)++;
     if (x != 0) return;
-    uint8_t hi = RAM(0x94), t = ROMB(0xC0D1 + y);
-    if (hi == t) { if (RAM(0x90) < ROMB(0xC0CE + y)) return; }
+    uint8_t hi = RAM(0x94), t, tl;
+    max_speed(y, &t, &tl);
+    if (hi == t) { if (RAM(0x90) < tl) return; }
     else if (hi < t) return;
-    RAM(0x90) = ROMB(0xC0CE + y); RAM(0x94) = t;
+    RAM(0x90) = tl; RAM(0x94) = t;
 }
 
 void RiderDecelerateBy(Regs r) {              /* $CE5C */
@@ -459,7 +467,7 @@ void RiderPitchWobble(Regs r) {               /* $CE83: bit 0 of $00 chooses the
     if (RAM(0xB0 + x) != 0) return;
     RAM(0xAC + x) = p + 1;
     RAM(0x26 + x) = 0x0D;
-    if ((uint8_t)(p + 1) >= 0x0D) { RAM(0x98 + x) = 1; RAM(0x26 + x) = 2; }
+    if ((uint8_t)(p + 1) >= g_rules.crash_pitch) { RAM(0x98 + x) = 1; RAM(0x26 + x) = 2; }
 }
 
 Regs AiLaneBlocked(Regs r) {                  /* $CF96: C=1 when another rider is in lane $02 within the X window */
@@ -652,10 +660,11 @@ void RiderControlStep(Regs r) {               /* $CD59: one rider's throttle, br
     y = RAM(0x00);
     if (x != 0) goto accel;
 cmp_speed: {                                    /* $CD9A */
-    uint8_t hi = RAM(0x94 + x), t = ROMB(0xC0D1 + y);
+    uint8_t hi = RAM(0x94 + x), t, t2;
+    max_speed(y, &t, &t2);
     if (hi < t) goto accel;
     if (hi != t) goto brake;
-    uint8_t lo = RAM(0x90 + x), t2 = ROMB(0xC0CE + y);
+    uint8_t lo = RAM(0x90 + x);
     if (lo == t2) goto after;
     if (lo >= t2) goto brake;
 }
@@ -1241,7 +1250,10 @@ void UpdateTempGauge(void) {                  /* $E359: turbo temperature: updat
     }
     {
         uint8_t x = 0, h = RAM(0x03B6);
-        if (h >= 0x20) { RAM(0x3C) = h; RAM(0x03E0) = h; }
+        if (h >= 0x20) {
+            if (g_rules.overheat) { RAM(0x3C) = h; RAM(0x03E0) = h; }
+            else { RAM(0x03B6) = h = 0x1F; }                      /* rule: the engine never overheats */
+        }
         if (h >= 0x1A) { y--; if (y == 0) x = 0xB0; }
         RAM(0xFC) = x | RAM(0xFC);
     }

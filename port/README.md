@@ -12,6 +12,9 @@ Keys: arrows, Z = A (accelerate), X = B (turbo), Enter = Start, Shift/Backspace 
 Replays: `--record file` writes the controller state of every frame, `--play file` plays it back; the game is deterministic, so a replay ends with the same RAM checksum every time (printed at exit).
 `--wav out.wav` writes the sound of the run; `--unlimited-sprites` lifts the eight-sprites-per-line limit.
 
+Rules (mutators): `--rule name=value` or an `excitebike.cfg` next to the executable (see `excitebike.cfg.example`) change how the game plays without changing the ROM:
+`jump_power`, `crash_pitch`, `overheat`, `max_speed` (percent). The defaults are the original game's values, and with the defaults the C game is frame-identical to the ROM (`tools/fulltest.py`).
+
 `--press "frame=buttons,..."` sets the controller from that frame on (bit 0 A, 1 B, 2 Select, 3 Start, 4 Up, 5 Down, 6 Left, 7 Right).
 The ROM supplies tables, graphics and sound data at run time; nothing from it is in this repository.
 

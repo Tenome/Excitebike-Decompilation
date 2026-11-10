@@ -58,7 +58,30 @@ static uint8_t read_pad(const uint8_t *keys) {            /* bit 0 = A (first bi
     return b;
 }
 
+/* Rules (mutators): "name=value" from the command line (--rule) or from excitebike.cfg (one per line, # comments). Defaults are the original game. */
+static int set_rule(const char *kv) {
+    char name[64]; int v;
+    if (sscanf(kv, "%63[^=]=%i", name, &v) != 2) return 0;
+    if (!strcmp(name, "jump_power")) g_rules.jump_power = (uint8_t)v;                 /* 175 = original; higher = longer jumps */
+    else if (!strcmp(name, "crash_pitch")) g_rules.crash_pitch = (uint8_t)v;          /* 13 = original; higher = more forgiving wheelies */
+    else if (!strcmp(name, "overheat")) g_rules.overheat = v != 0;                    /* 0 = the engine never overheats */
+    else if (!strcmp(name, "max_speed")) g_rules.max_speed_pct = (uint16_t)v;         /* percent of the original top speed */
+    else return 0;
+    return 1;
+}
+static void load_config(const char *path) {
+    FILE *f = fopen(path, "r"); char line[256];
+    if (!f) return;
+    while (fgets(line, sizeof line, f)) {
+        char *p = line; while (*p == ' ' || *p == '\t') p++;
+        if (*p == '#' || *p == '\n' || *p == 0) continue;
+        if (!set_rule(p)) fprintf(stderr, "excitebike.cfg: unknown or malformed rule: %s", line);
+    }
+    fclose(f);
+}
+
 int main(int argc, char **argv) {
+    load_config("excitebike.cfg");
     const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL, *record = NULL, *play = NULL;
     FILE *rec_f = NULL, *play_f = NULL;
     int dump_oam = 0;
@@ -72,6 +95,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--wav") && i + 1 < argc) wav = argv[++i];
         else if (!strcmp(argv[i], "--record") && i + 1 < argc) record = argv[++i];
         else if (!strcmp(argv[i], "--play") && i + 1 < argc) play = argv[++i];
+        else if (!strcmp(argv[i], "--rule") && i + 1 < argc) { if (!set_rule(argv[++i])) { fprintf(stderr, "unknown rule %s\n", argv[i]); return 1; } }
         else if (!strcmp(argv[i], "--dump-oam")) dump_oam = 1;
         else if (!strcmp(argv[i], "--unlimited-sprites")) g_ppu.unlimited_sprites = 1;
         else rom_path = argv[i];
