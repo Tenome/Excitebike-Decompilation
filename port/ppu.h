@@ -9,9 +9,13 @@
 #define PPU_MAXW 512           /* widest picture the port can produce */
 #define PPU_H 240
 
+typedef struct {                   /* which game object each OAM slot belongs to (riders 0-3, their shadows 4-7; 255 = unknown) and where the object was drawn from */
+    uint8_t owner[64]; int16_t ax[8], ay[8]; uint8_t seen[8];
+} SprTags;
+
 typedef struct {                   /* everything that decides how one picture looks, kept per frame for interpolation */
     uint16_t v[240]; uint8_t x[240], ctrl[240], mask[240];     /* scroll registers each scanline was drawn with */
-    uint8_t oam[256];
+    uint8_t oam[256]; SprTags tags;
     int extra_n; struct { int x; uint8_t y, tile, attr; } extra[64];
     int hud_start, wide, valid;
 } FrameDesc;
@@ -42,6 +46,7 @@ typedef struct {
     uint32_t *target;              /* where draw_line writes (NULL = work) */
     int unlimited_sprites;         /* 1 = lift the 8 sprites per scanline limit */
     const uint8_t *cpu_ram;        /* for $4014 sprite DMA */
+    SprTags tag_next, tag_dma;     /* object tags of the OAM being built this NMI / of the OAM that was last DMA'd (the host fills tag_next from the game's draw events) */
 } Ppu;
 
 void ppu_init(Ppu *p, const uint8_t *chr, int vertical_mirroring, int pal_region, const uint8_t *cpu_ram);

@@ -1161,6 +1161,10 @@ Regs RiderSpriteFrame(Regs r) {               /* $E1F9: returns the animation fr
     r.a = RiderPitch(x); return r;
 }
 
+static int g_no_sprite_event;                  /* set while the host draws riders into a scratch copy of RAM */
+static void sprite_event(int owner, int start_off, int end_off, int ox, int oy) {
+    if (g_hal_event && !g_no_sprite_event && end_off > start_off) g_hal_event(HAL_EV_SPRITES, (int)((unsigned)owner << 29 | (unsigned)(start_off >> 2) << 23 | (unsigned)(end_off >> 2) << 16 | (unsigned)(ox & 255) << 8 | (unsigned)(oy & 255)));
+}
 void DrawRider(Regs r) {                      /* $E1A3 */
     uint8_t x = r.x;
     RAM(0x00) = RiderXLo(x); RAM(0x01) = RiderScreenY(x);
@@ -1170,7 +1174,9 @@ void DrawRider(Regs r) {                      /* $E1A3 */
         RAM(0x039F) = RAM(0x04);
         RAM(0x04) += 0x0C; RAM(0x01) += 8; RAM(0x03) = 0x23;
     }
+    int so = RAM(0x04), ox = RAM(0x00), oy = RAM(0x01);
     DrawMetasprite((Regs){ ROMB(0xD8A9 + y), x, y, 0 });
+    sprite_event(x & 3, so, so + RAM(0x08) * 4, ox, oy);
     uint8_t a = RAM(0x0E);
     if (a == 0) return;
     if (!(a & 1)) {
@@ -1196,7 +1202,9 @@ void DrawRiderShadow(Regs r) {                /* $E26A */
     uint8_t y = RiderShadowFrame(x);
     RAM(0x02) = ROMB(0xD90B + y);
     a = y ? (y ^ 3) : 0;
+    int so = RAM(0x04), ox = RAM(0x00), oy = RAM(0x01);
     DrawMetasprite((Regs){ a, x, y, 0 });
+    sprite_event(4 + (x & 3), so, so + RAM(0x08) * 4, ox, oy);
 }
 
 void DrawRiders(void) {                       /* $E17F: back to front by Y */
@@ -2943,7 +2951,7 @@ void StateRaceFrame(void) {                   /* $C99A: one frame of racing, in 
  * copy of RAM, collects the sprites, and restores RAM, so the game state is untouched. x is the screen position (256 + the rider's X low byte). */
 int WideRiderSprites(WideSprite *out, int max, int width) {
     static uint8_t keep[0x800];
-    int n = 0;
+    int n = 0; g_no_sprite_event = 1;
     for (int xx = 0; xx < 4; xx++) {
         if (RiderActive(xx) == 0 || RiderXHi(xx) != 2 || RiderXLo(xx) + 24 >= width - 256) continue;
         memcpy(keep, g_ram, sizeof keep);
@@ -2958,6 +2966,7 @@ int WideRiderSprites(WideSprite *out, int max, int width) {
         }
         memcpy(g_ram, keep, sizeof keep);
     }
+    g_no_sprite_event = 0;
     return n;
 }
 

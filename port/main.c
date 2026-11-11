@@ -29,7 +29,14 @@ static uint8_t hal_read(uint16_t a) {
     return 0;
 }
 static void audio_apu_w(uint16_t a, uint8_t v) { apu_write(&g_apu, a, v); }
-static void hal_event(int ev, int arg) { if (ev == HAL_EV_DELAY) ppu_advance(&g_ppu, arg); }
+static void hal_event(int ev, int arg) {
+    if (ev == HAL_EV_DELAY) ppu_advance(&g_ppu, arg);
+    else if (ev == HAL_EV_SPRITES) {                       /* tag the OAM slots a rider or shadow was drawn into (see SprTags) */
+        unsigned u = (unsigned)arg; int own = (int)(u >> 29), s = (int)((u >> 23) & 63), e = (int)((u >> 16) & 127);
+        for (int i = s; i < e && i < 64; i++) g_ppu.tag_next.owner[i] = (uint8_t)own;
+        g_ppu.tag_next.ax[own] = (int16_t)((u >> 8) & 255); g_ppu.tag_next.ay[own] = (int16_t)(u & 255); g_ppu.tag_next.seen[own] = 1;
+    }
+}
 
 typedef struct { char magic[8]; uint8_t ram[0x800]; Ppu ppu; Apu apu; uint8_t latch[2], bits[2]; int pal; } SaveState;
 static void state_save(const char *path) {
@@ -446,7 +453,7 @@ int main(int argc, char **argv) {
         }
     }
     if (dump_ppu) { FILE *pf = fopen(dump_ppu, "wb"); if (pf) { fwrite(g_ppu.vram, 1, 2048, pf); fwrite(g_ppu.pal, 1, 32, pf); fclose(pf); } }
-    if (dump_oam) for (int i = 0; i < 64; i++) { const uint8_t *o = &g_ppu.oam[i * 4]; if (o[0] < 0xEF) printf("sprite %2d: y=%3d tile=%02X attr=%02X x=%3d\n", i, o[0], o[1], o[2], o[3]); }
+    if (dump_oam) for (int i = 0; i < 64; i++) { const uint8_t *o = &g_ppu.oam[i * 4]; if (o[0] < 0xEF) printf("sprite %2d: y=%3d tile=%02X attr=%02X x=%3d owner=%d\n", i, o[0], o[1], o[2], o[3], g_ppu.done.tags.owner[i]); }
     for (const char *q = peek; q && *q;) { unsigned a; int used = 0; if (sscanf(q, "%x%n", &a, &used) < 1) break; printf("ram[%03X] = %02X\n", a, g_ram[a & 0x7FF]); q += used; if (*q == ',') q++; }
     if (rec_f) fclose(rec_f);
     if (play_f) fclose(play_f);

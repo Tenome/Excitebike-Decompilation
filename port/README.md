@@ -92,3 +92,8 @@ into a host buffer as it fills up, the race streams the whole track, and SAVE wr
 Piece numbers 36-47 are free in the game's piece table. The track editor's **Custom pieces** panel designs them (a strip of tile columns, 12 tall; copy an existing piece and change it); they are stored in level packs (`"pieces"`) and
 the port streams them like the game's own pieces. A piece's behaviour comes from the tiles it uses (the game reads ramps and surfaces from the tile numbers), so new shapes built from existing tiles play correctly;
 new looks come from the tile editor (a pack can carry tiles too).
+
+## Interpolation by object
+
+For frame rates above 60 the port interpolates between game frames. The game reports each rider and shadow it draws (`HAL_EV_SPRITES`), so the in-between pictures move a rider by how far the game moved its origin, whatever OAM slot
+or animation frame it uses in each frame (riders swap slots as they pass each other). Everything else still moves by OAM slot. `tests/test_interp.py` checks it.

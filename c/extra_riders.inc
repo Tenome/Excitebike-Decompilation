@@ -143,7 +143,7 @@ void ExtraRidersFrame(void) {                           /* call once after each 
 
 int ExtraRiderSprites(WideSprite *out, int max, int width) {   /* sprites of the extra riders on screen (x may exceed 255) */
     static uint8_t keep[0x800];
-    int n = 0;
+    int n = 0; g_no_sprite_event = 1;
     for (int k = 0; k < g_extra_count && k < EXTRA_MAX; k++) {
         ExtraRider *e = &g_extra[k];
         if (!e->active) continue;
@@ -166,5 +166,6 @@ int ExtraRiderSprites(WideSprite *out, int max, int width) {   /* sprites of the
         memcpy(g_ram, keep, sizeof keep);
         slot3_restore(&real);
     }
+    g_no_sprite_event = 0;
     return n;
 }

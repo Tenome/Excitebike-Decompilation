@@ -23,7 +23,8 @@ int PieceCustomSet(int id, const uint8_t *cols, int len); void PieceCustomClear(
 int TrackExtSet(int slot, const uint8_t *stream, int len); void TrackExtClear(int slot);
 enum { SND_MUSIC = 0, SND_NOISE = 1, SND_PULSE2 = 2, SND_PULSE1 = 3, SND_ENGINE = 4 };
 extern int (*g_hal_sound)(int chan, int value);   /* a sound request is about to run; return nonzero to replace it (audio mods) */
-enum { HAL_EV_DELAY = 1 };                    /* the code busy-waits for `arg` CPU cycles */
+enum { HAL_EV_DELAY = 1,                      /* the code busy-waits for `arg` CPU cycles */
+       HAL_EV_SPRITES = 2 };                  /* a rider (owner 0-3) or its shadow (owner 4-7) was drawn into OAM: arg = owner<<29 | first slot<<23 | end slot<<16 | origin x<<8 | origin y (state-driven sprite interpolation) */
 typedef struct {
     uint8_t jump_power;          /* speed bonus added when a jump starts (original $AF) */
     uint8_t crash_pitch;         /* pitch value at which a rider crashes (original $0D) */

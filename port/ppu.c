@@ -18,6 +18,7 @@ void ppu_init(Ppu *p, const uint8_t *chr, int vertical_mirroring, int pal_region
     p->chr = chr; p->vertical_mirroring = vertical_mirroring; p->pal_region = pal_region; p->cpu_ram = cpu_ram;
     for (int i = 0; i < 64; i++) p->rgb[i] = NES_RGB[i];
     p->line = 0; p->col = 0; p->unlimited_sprites = 0; p->width = PPU_W;
+    memset(p->tag_next.owner, 255, 64); memset(p->tag_dma.owner, 255, 64); memset(p->build.tags.owner, 255, 64); memset(p->done.tags.owner, 255, 64);
 }
 
 static uint8_t *nt_byte(Ppu *p, uint16_t addr) {            /* addr in $2000-$2FFF */
@@ -53,6 +54,7 @@ void ppu_write(Ppu *p, uint16_t reg, uint8_t v) {
         break; }
     case 0x4014:
         for (int i = 0; i < 256; i++) p->oam[(uint8_t)(p->oam_addr + i)] = p->cpu_ram[((v & 7) << 8) | i];
+        p->tag_dma = p->tag_next; memset(&p->tag_next, 0, sizeof p->tag_next); memset(p->tag_next.owner, 255, 64);        /* the tags of what was built last frame belong to this DMA */
         break;
     default: break;
     }
@@ -163,7 +165,7 @@ static void enter_line(Ppu *p, int L) {                       /* the PPU starts 
         if (L == 0 && rendering_on(p)) p->v = (uint16_t)((p->v & ~0x041F) | (p->t & 0x041F));
         p->build.v[L] = p->v; p->build.x[L] = p->x; p->build.ctrl[L] = p->ctrl; p->build.mask[L] = p->mask;
         if (L == 0) {
-            memcpy(p->build.oam, p->oam, 256);
+            memcpy(p->build.oam, p->oam, 256); p->build.tags = p->tag_dma;
             p->build.extra_n = p->extra_n; memcpy(p->build.extra, p->extra, sizeof p->extra);
             p->build.wide = p->width > PPU_W && p->wide_active;
         }
@@ -228,6 +230,15 @@ void ppu_render_interp(Ppu *p, const FrameDesc *a, const FrameDesc *b, double t,
     memcpy(p->oam, b->oam, 256);
     for (int i = 0; i < 64; i++) {
         uint8_t *ob = &p->oam[i * 4]; const uint8_t *oa = &a->oam[i * 4];
+        int own = b->tags.owner[i];
+        if (own < 8 && ob[0] < 0xEF && a->tags.seen[own] && b->tags.seen[own]) {          /* a rider or shadow: move it by how far the game drew its origin, whatever OAM slot it landed in and whatever animation frame it shows */
+            int dx = (int)b->tags.ax[own] - a->tags.ax[own], dy = (int)b->tags.ay[own] - a->tags.ay[own];
+            if (dx >= -64 && dx <= 64 && dy >= -64 && dy <= 64) {
+                int ny = ob[0] - (int)((1.0 - t) * dy + ((1.0 - t) * dy < 0 ? -0.5 : 0.5)), nx = ob[3] - (int)((1.0 - t) * dx + ((1.0 - t) * dx < 0 ? -0.5 : 0.5));
+                if (ny >= 0 && ny < 0xEF && nx >= 0 && nx < 256) { ob[0] = (uint8_t)ny; ob[3] = (uint8_t)nx; }
+            }
+            continue;
+        }
         if (ob[0] >= 0xEF || oa[0] >= 0xEF || ob[1] != oa[1] || ob[2] != oa[2]) continue;
         int dy = (int)ob[0] - oa[0], dx = (int)ob[3] - oa[3];
         if (dy > 64 || dy < -64 || dx > 64 || dx < -64) continue;
