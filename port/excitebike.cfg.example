@@ -1,0 +1,14 @@
+# Copy to excitebike.cfg next to the executable. One rule per line; the values shown are the original game's.
+# Rules change how the game plays; replays and quick saves are only comparable with the same rules.
+
+jump_power=175      # speed bonus added when a jump starts (higher = longer, flatter jumps)
+crash_pitch=13      # pitch at which a rider crashes (higher = more forgiving wheelies)
+overheat=1          # 0 = the engine never overheats
+max_speed=100       # player top speed in percent of the original (50-150 is playable)
+
+# Written by the in-game menu as well:
+riders=0            # extra CPU riders (0-4)
+extra_collisions=1  # 0 = extra riders pass through everyone
+width=256           # picture width while racing, 256-512 (416 = 16:9)
+fps=60              # output frame rate: 60, 120, 180 or 240 (interpolated)
+long_designs=0      # 1 = the in-game design editor can record tracks longer than the original 236 bytes (saved as extended .ebd files)

@@ -1,0 +1,31 @@
+# Excitebike native port: example options file (design draft, not read by anything yet)
+
+[video]
+scale = "integer"          # integer | fit | stretch
+aspect = "widescreen"      # original (4:3) | widescreen | custom
+widescreen_extra_tiles = 16  # extra track columns shown on each side
+framerate = 144            # render rate; logic stays at 60 Hz with interpolation
+filter = "none"            # none | crt | smooth
+fullscreen = false
+
+[audio]
+music = "original"         # original | mods
+volume = 0.8
+
+[game]
+cpu_riders = 3             # original is 3; the port supports more
+cpu_skill = "normal"       # easy | normal | hard | custom
+rubber_banding = true
+collisions = true
+
+[mutators]
+top_speed_scale = 1.0
+acceleration_scale = 1.0
+turbo_heat_scale = 1.0     # 0 = never overheat
+gravity_scale = 1.0
+crash_pitch_limit = 13     # original value
+mirror_track = false
+random_track_each_race = false
+
+[mods]
+enabled = []               # names of folders under mods/, later entries win

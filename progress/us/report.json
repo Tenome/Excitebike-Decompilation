@@ -1,0 +1,2334 @@
+{
+ "measures": {
+  "fuzzy_match_percent": 100.0,
+  "total_code": "11349",
+  "matched_code": "11349",
+  "matched_code_percent": 100.0,
+  "total_data": "13227",
+  "matched_data": "13227",
+  "matched_data_percent": 100.0,
+  "total_functions": 215,
+  "matched_functions": 215,
+  "matched_functions_percent": 100.0,
+  "complete_code": "11349",
+  "complete_code_percent": 100.0,
+  "complete_data": "13227",
+  "complete_data_percent": 100.0,
+  "total_units": 17,
+  "complete_units": 17
+ },
+ "units": [
+  {
+   "name": "main/tables",
+   "measures": {
+    "fuzzy_match_percent": 0.0,
+    "total_code": "0",
+    "matched_code": "0",
+    "matched_code_percent": 0.0,
+    "total_data": "388",
+    "matched_data": "388",
+    "matched_data_percent": 100.0,
+    "total_functions": 0,
+    "matched_functions": 0,
+    "matched_functions_percent": 0.0,
+    "complete_code": "0",
+    "complete_code_percent": 0.0,
+    "complete_data": "388",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".data",
+     "size": "388",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/tables.asm"
+   }
+  },
+  {
+   "name": "main/boot",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "450",
+    "matched_code": "450",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 9,
+    "matched_functions": 9,
+    "matched_functions_percent": 100.0,
+    "complete_code": "450",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "450",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "Reset",
+     "size": "121",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "404"
+     }
+    },
+    {
+     "name": "InitBackupRam",
+     "size": "44",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "525"
+     }
+    },
+    {
+     "name": "Sub_C229",
+     "size": "86",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "569"
+     }
+    },
+    {
+     "name": "FlushPpuUpdate",
+     "size": "42",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "655"
+     }
+    },
+    {
+     "name": "GameStateDispatch",
+     "size": "111",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "697"
+     }
+    },
+    {
+     "name": "InitScreenState",
+     "size": "23",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "808"
+     }
+    },
+    {
+     "name": "DisableNmi",
+     "size": "4",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "831"
+     }
+    },
+    {
+     "name": "SetPpuCtrl",
+     "size": "6",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "835"
+     }
+    },
+    {
+     "name": "WaitVblankEndEnableNmi",
+     "size": "13",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "841"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/boot.asm"
+   }
+  },
+  {
+   "name": "main/game_states",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "731",
+    "matched_code": "731",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 12,
+    "matched_functions": 12,
+    "matched_functions_percent": 100.0,
+    "complete_code": "731",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "731",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "StateTitleMenu",
+     "size": "79",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "854"
+     }
+    },
+    {
+     "name": "StateMenuChoice5",
+     "size": "26",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "933"
+     }
+    },
+    {
+     "name": "Sub_C3AF",
+     "size": "2",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "959"
+     }
+    },
+    {
+     "name": "Sub_C3B1",
+     "size": "12",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "961"
+     }
+    },
+    {
+     "name": "StateMenuChoice6",
+     "size": "76",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "973"
+     }
+    },
+    {
+     "name": "SetMenuCursorSprite",
+     "size": "19",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1049"
+     }
+    },
+    {
+     "name": "StateDesignSaveCheck",
+     "size": "33",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1068"
+     }
+    },
+    {
+     "name": "StateDesignEnd",
+     "size": "40",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1101"
+     }
+    },
+    {
+     "name": "StateRaceEndWait",
+     "size": "189",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1141"
+     }
+    },
+    {
+     "name": "LoadBestTime",
+     "size": "24",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1330"
+     }
+    },
+    {
+     "name": "LoadSavedTime",
+     "size": "4",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1354"
+     }
+    },
+    {
+     "name": "LoadSavedTimeForIndex",
+     "size": "227",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1358"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/game_states.asm"
+   }
+  },
+  {
+   "name": "main/tape",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "445",
+    "matched_code": "445",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 15,
+    "matched_functions": 15,
+    "matched_functions_percent": 100.0,
+    "complete_code": "445",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "445",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "CopyTrackDesignToBackup",
+     "size": "12",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1585"
+     }
+    },
+    {
+     "name": "TapeStrobe",
+     "size": "12",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1597"
+     }
+    },
+    {
+     "name": "TapeWaitEdges",
+     "size": "21",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1609"
+     }
+    },
+    {
+     "name": "TapeWriteZeroPulse",
+     "size": "5",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1630"
+     }
+    },
+    {
+     "name": "TapeWritePulse",
+     "size": "27",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1635"
+     }
+    },
+    {
+     "name": "TapeWriteByte",
+     "size": "28",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1662"
+     }
+    },
+    {
+     "name": "TapeCountBit",
+     "size": "7",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1690"
+     }
+    },
+    {
+     "name": "TapeReadHalfBit",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1697"
+     }
+    },
+    {
+     "name": "TapeReadByte",
+     "size": "35",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1717"
+     }
+    },
+    {
+     "name": "TapeSaveDesigns",
+     "size": "9",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1752"
+     }
+    },
+    {
+     "name": "TapeWriteBlock",
+     "size": "69",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1761"
+     }
+    },
+    {
+     "name": "TapeSelectBlockA",
+     "size": "16",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1830"
+     }
+    },
+    {
+     "name": "TapeSelectBlockB",
+     "size": "19",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1846"
+     }
+    },
+    {
+     "name": "TapeLoadDesigns",
+     "size": "89",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1865"
+     }
+    },
+    {
+     "name": "TapeReadBlock",
+     "size": "76",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "1954"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/tape.asm"
+   }
+  },
+  {
+   "name": "main/race_setup",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "808",
+    "matched_code": "808",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 11,
+    "matched_functions": 11,
+    "matched_functions_percent": 100.0,
+    "complete_code": "808",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "808",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "MenuHandleInput",
+     "size": "334",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2030"
+     }
+    },
+    {
+     "name": "WriteTimeTextSaved",
+     "size": "9",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2364"
+     }
+    },
+    {
+     "name": "WriteTimeDigitsToBuffer",
+     "size": "22",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2373"
+     }
+    },
+    {
+     "name": "WriteTimeTextHeader",
+     "size": "38",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2395"
+     }
+    },
+    {
+     "name": "AdvanceBufferPos",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2433"
+     }
+    },
+    {
+     "name": "StateDesignFrame",
+     "size": "30",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2444"
+     }
+    },
+    {
+     "name": "StateRaceFrame",
+     "size": "110",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2474"
+     }
+    },
+    {
+     "name": "RacePreUpdate",
+     "size": "19",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2584"
+     }
+    },
+    {
+     "name": "SaveInputToRider0",
+     "size": "29",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2603"
+     }
+    },
+    {
+     "name": "HandlePause",
+     "size": "99",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2632"
+     }
+    },
+    {
+     "name": "RaceEndSequence",
+     "size": "107",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2731"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/race_setup.asm"
+   }
+  },
+  {
+   "name": "main/results",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "537",
+    "matched_code": "537",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 9,
+    "matched_functions": 9,
+    "matched_functions_percent": 100.0,
+    "complete_code": "537",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "537",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "TimeTableIndexForSelection",
+     "size": "13",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2838"
+     }
+    },
+    {
+     "name": "TimeTableIndexForTrack",
+     "size": "25",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2851"
+     }
+    },
+    {
+     "name": "StateSubStepDispatch",
+     "size": "15",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2876"
+     }
+    },
+    {
+     "name": "ResultsStepInit",
+     "size": "60",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2891"
+     }
+    },
+    {
+     "name": "ResultsStepDrawText",
+     "size": "45",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2951"
+     }
+    },
+    {
+     "name": "ResultsStepWait",
+     "size": "113",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "2996"
+     }
+    },
+    {
+     "name": "ResultsDrawRank",
+     "size": "86",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3109"
+     }
+    },
+    {
+     "name": "ResultsStepFinish",
+     "size": "95",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3195"
+     }
+    },
+    {
+     "name": "ResultsDrawLine",
+     "size": "85",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3290"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/results.asm"
+   }
+  },
+  {
+   "name": "main/rider_ai",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "908",
+    "matched_code": "908",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 19,
+    "matched_functions": 19,
+    "matched_functions_percent": 100.0,
+    "complete_code": "908",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "908",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "UpdateRiderControls",
+     "size": "58",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3375"
+     }
+    },
+    {
+     "name": "RiderControlStep",
+     "size": "149",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3433"
+     }
+    },
+    {
+     "name": "RiderTerrainSpeedBias",
+     "size": "59",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3582"
+     }
+    },
+    {
+     "name": "RiderAccelerate",
+     "size": "47",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3641"
+     }
+    },
+    {
+     "name": "RiderDecelerate",
+     "size": "4",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3688"
+     }
+    },
+    {
+     "name": "RiderDecelerateBy",
+     "size": "116",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3692"
+     }
+    },
+    {
+     "name": "UpdateAiRiders",
+     "size": "60",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3808"
+     }
+    },
+    {
+     "name": "AiConsiderLaneChange",
+     "size": "59",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3868"
+     }
+    },
+    {
+     "name": "AiLaneChangeUp",
+     "size": "35",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3927"
+     }
+    },
+    {
+     "name": "AiLaneChangeDown",
+     "size": "30",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3962"
+     }
+    },
+    {
+     "name": "Sub_CF88",
+     "size": "3",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3992"
+     }
+    },
+    {
+     "name": "Sub_CF8B",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "3995"
+     }
+    },
+    {
+     "name": "AiLaneBlocked",
+     "size": "53",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4006"
+     }
+    },
+    {
+     "name": "AiMatchTargetSpeed",
+     "size": "16",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4059"
+     }
+    },
+    {
+     "name": "Sub_CFDB",
+     "size": "8",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4075"
+     }
+    },
+    {
+     "name": "Sub_CFE3",
+     "size": "7",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4083"
+     }
+    },
+    {
+     "name": "AiSetPitchInput",
+     "size": "22",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4090"
+     }
+    },
+    {
+     "name": "AiJumpCheck",
+     "size": "24",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4112"
+     }
+    },
+    {
+     "name": "AiScanObstacles",
+     "size": "147",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4136"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/rider_ai.asm"
+   }
+  },
+  {
+   "name": "main/video_support",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "811",
+    "matched_code": "811",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 20,
+    "matched_functions": 20,
+    "matched_functions_percent": 100.0,
+    "complete_code": "811",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "811",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "ComputeRiderLanes",
+     "size": "27",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4283"
+     }
+    },
+    {
+     "name": "FetchTrackWindow",
+     "size": "46",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4310"
+     }
+    },
+    {
+     "name": "CopyTimeDigitsToHud",
+     "size": "43",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4356"
+     }
+    },
+    {
+     "name": "InitHudBuffer",
+     "size": "32",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4399"
+     }
+    },
+    {
+     "name": "ClearRiderSprites",
+     "size": "15",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4431"
+     }
+    },
+    {
+     "name": "SplitScreenScrollHandler",
+     "size": "77",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4446"
+     }
+    },
+    {
+     "name": "WaitSprite0ThenResetScroll",
+     "size": "14",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4523"
+     }
+    },
+    {
+     "name": "ResetPpuScroll",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4537"
+     }
+    },
+    {
+     "name": "ApplySplitScroll",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4547"
+     }
+    },
+    {
+     "name": "DrawMetasprite",
+     "size": "116",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4567"
+     }
+    },
+    {
+     "name": "ClearNametables",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4683"
+     }
+    },
+    {
+     "name": "DisableRendering",
+     "size": "6",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4703"
+     }
+    },
+    {
+     "name": "ClearOam",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4709"
+     }
+    },
+    {
+     "name": "ClearNametable",
+     "size": "159",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4720"
+     }
+    },
+    {
+     "name": "PpuBufferAdvance",
+     "size": "17",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4879"
+     }
+    },
+    {
+     "name": "TickTimers",
+     "size": "22",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4896"
+     }
+    },
+    {
+     "name": "UpdateRandom",
+     "size": "33",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4918"
+     }
+    },
+    {
+     "name": "ReadJoypads",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4951"
+     }
+    },
+    {
+     "name": "ReadJoypadPort",
+     "size": "102",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "4971"
+     }
+    },
+    {
+     "name": "RunPpuWriteList",
+     "size": "21",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "5073"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/video_support.asm"
+   }
+  },
+  {
+   "name": "main/video_data",
+   "measures": {
+    "fuzzy_match_percent": 0.0,
+    "total_code": "0",
+    "matched_code": "0",
+    "matched_code_percent": 0.0,
+    "total_data": "1346",
+    "matched_data": "1346",
+    "matched_data_percent": 100.0,
+    "total_functions": 0,
+    "matched_functions": 0,
+    "matched_functions_percent": 0.0,
+    "complete_code": "0",
+    "complete_code_percent": 0.0,
+    "complete_data": "1346",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".data",
+     "size": "1346",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/video_data.asm"
+   }
+  },
+  {
+   "name": "main/riders",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "2151",
+    "matched_code": "2151",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 43,
+    "matched_functions": 43,
+    "matched_functions_percent": 100.0,
+    "complete_code": "2151",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "2151",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "UpdateRiderStates",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6440"
+     }
+    },
+    {
+     "name": "RiderState0Racing",
+     "size": "1",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6451"
+     }
+    },
+    {
+     "name": "RiderStateDispatch",
+     "size": "15",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6452"
+     }
+    },
+    {
+     "name": "RiderState1Gate",
+     "size": "32",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6467"
+     }
+    },
+    {
+     "name": "RiderState2MoveToLane",
+     "size": "48",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6499"
+     }
+    },
+    {
+     "name": "RiderState3Wait",
+     "size": "80",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6547"
+     }
+    },
+    {
+     "name": "RiderState4Release",
+     "size": "35",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6627"
+     }
+    },
+    {
+     "name": "RiderState5Finish",
+     "size": "31",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6662"
+     }
+    },
+    {
+     "name": "ComputeRiderShadowY",
+     "size": "17",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6693"
+     }
+    },
+    {
+     "name": "MoveRiders",
+     "size": "50",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6710"
+     }
+    },
+    {
+     "name": "AccumulateRiderMove",
+     "size": "18",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6760"
+     }
+    },
+    {
+     "name": "ScrollWorld",
+     "size": "16",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6778"
+     }
+    },
+    {
+     "name": "ShiftRidersByScroll",
+     "size": "37",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6794"
+     }
+    },
+    {
+     "name": "SpawnCpuRiders",
+     "size": "68",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6831"
+     }
+    },
+    {
+     "name": "SpawnRider",
+     "size": "109",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "6899"
+     }
+    },
+    {
+     "name": "SetRiderTargetSpeed",
+     "size": "69",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7008"
+     }
+    },
+    {
+     "name": "ClearRider",
+     "size": "47",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7077"
+     }
+    },
+    {
+     "name": "HandleLostRider",
+     "size": "58",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7124"
+     }
+    },
+    {
+     "name": "ScrollSplitLayer",
+     "size": "28",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7182"
+     }
+    },
+    {
+     "name": "RiderLandingCheck",
+     "size": "125",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7210"
+     }
+    },
+    {
+     "name": "RiderBaseY",
+     "size": "3",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7335"
+     }
+    },
+    {
+     "name": "RiderBaseYFrom",
+     "size": "6",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7338"
+     }
+    },
+    {
+     "name": "SetRiderTargetPitch",
+     "size": "62",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7344"
+     }
+    },
+    {
+     "name": "RiderPitchTimer",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7406"
+     }
+    },
+    {
+     "name": "RiderLaunchUpdate",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7426"
+     }
+    },
+    {
+     "name": "RiderStartJump",
+     "size": "50",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7446"
+     }
+    },
+    {
+     "name": "RiderJumpSetup",
+     "size": "55",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7496"
+     }
+    },
+    {
+     "name": "JumpArcStep",
+     "size": "30",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7551"
+     }
+    },
+    {
+     "name": "OverheatUpdate",
+     "size": "68",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7581"
+     }
+    },
+    {
+     "name": "RiderCrashUpdate",
+     "size": "96",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7649"
+     }
+    },
+    {
+     "name": "UpdateExhaustSprites",
+     "size": "138",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7745"
+     }
+    },
+    {
+     "name": "CheckTrackEdge",
+     "size": "39",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7883"
+     }
+    },
+    {
+     "name": "UpdateEngineSound",
+     "size": "78",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "7922"
+     }
+    },
+    {
+     "name": "UpdateRaceClock",
+     "size": "79",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8000"
+     }
+    },
+    {
+     "name": "SplitDigits3",
+     "size": "35",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8079"
+     }
+    },
+    {
+     "name": "DivMod10",
+     "size": "2",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8114"
+     }
+    },
+    {
+     "name": "DivModByX",
+     "size": "14",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8116"
+     }
+    },
+    {
+     "name": "RiderLaneFromY",
+     "size": "35",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8130"
+     }
+    },
+    {
+     "name": "RiderCollisions",
+     "size": "188",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8165"
+     }
+    },
+    {
+     "name": "AddCollisionHeight",
+     "size": "7",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8353"
+     }
+    },
+    {
+     "name": "AddCollisionWidth",
+     "size": "7",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8360"
+     }
+    },
+    {
+     "name": "BikeVsObstacleCheck",
+     "size": "205",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8367"
+     }
+    },
+    {
+     "name": "Sub_E16C",
+     "size": "19",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8572"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/riders.asm"
+   }
+  },
+  {
+   "name": "main/rider_draw",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "841",
+    "matched_code": "841",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 10,
+    "matched_functions": 10,
+    "matched_functions_percent": 100.0,
+    "complete_code": "841",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "841",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "DrawRiders",
+     "size": "36",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8591"
+     }
+    },
+    {
+     "name": "DrawRider",
+     "size": "86",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8627"
+     }
+    },
+    {
+     "name": "RiderSpriteFrame",
+     "size": "113",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8713"
+     }
+    },
+    {
+     "name": "DrawRiderShadow",
+     "size": "140",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8826"
+     }
+    },
+    {
+     "name": "DrawSkidSmoke",
+     "size": "99",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "8966"
+     }
+    },
+    {
+     "name": "UpdateTempGauge",
+     "size": "155",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9065"
+     }
+    },
+    {
+     "name": "SortRidersByY",
+     "size": "98",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9220"
+     }
+    },
+    {
+     "name": "ErasePassedRiderSprites",
+     "size": "69",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9318"
+     }
+    },
+    {
+     "name": "EraseRiderSpriteRange",
+     "size": "18",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9387"
+     }
+    },
+    {
+     "name": "ClearSpriteBlock",
+     "size": "27",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9405"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/rider_draw.asm"
+   }
+  },
+  {
+   "name": "main/rider_overlap",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "117",
+    "matched_code": "117",
+    "matched_code_percent": 100.0,
+    "total_data": "462",
+    "matched_data": "462",
+    "matched_data_percent": 100.0,
+    "total_functions": 2,
+    "matched_functions": 2,
+    "matched_functions_percent": 100.0,
+    "complete_code": "117",
+    "complete_code_percent": 100.0,
+    "complete_data": "462",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "117",
+     "fuzzy_match_percent": 100.0
+    },
+    {
+     "name": ".data",
+     "size": "462",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "DetectRiderOverlap",
+     "size": "100",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9432"
+     }
+    },
+    {
+     "name": "RiderYOverlapTest",
+     "size": "17",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "9532"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/rider_overlap.asm"
+   }
+  },
+  {
+   "name": "main/track_scripts",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "954",
+    "matched_code": "954",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 32,
+    "matched_functions": 32,
+    "matched_functions_percent": 100.0,
+    "complete_code": "954",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "954",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "AdvanceTrackPositions",
+     "size": "40",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10011"
+     }
+    },
+    {
+     "name": "RunTrackScripts",
+     "size": "8",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10051"
+     }
+    },
+    {
+     "name": "RunTrackScriptRider",
+     "size": "89",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10059"
+     }
+    },
+    {
+     "name": "TrackScriptOpcode",
+     "size": "104",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10148"
+     }
+    },
+    {
+     "name": "TrackPieceAtRiderLane",
+     "size": "3",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10252"
+     }
+    },
+    {
+     "name": "TrackPieceAtRow",
+     "size": "4",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10255"
+     }
+    },
+    {
+     "name": "TrackPieceAt",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10259"
+     }
+    },
+    {
+     "name": "SetTrackRowPointer",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10269"
+     }
+    },
+    {
+     "name": "Sub_E818",
+     "size": "30",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10280"
+     }
+    },
+    {
+     "name": "UpdateRiderGroundDistance",
+     "size": "15",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10310"
+     }
+    },
+    {
+     "name": "Sub_E845",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10325"
+     }
+    },
+    {
+     "name": "Sub_E84F",
+     "size": "5",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10335"
+     }
+    },
+    {
+     "name": "Sub_E854",
+     "size": "9",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10340"
+     }
+    },
+    {
+     "name": "Sub_E85D",
+     "size": "13",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10349"
+     }
+    },
+    {
+     "name": "Sub_E86A",
+     "size": "5",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10362"
+     }
+    },
+    {
+     "name": "Sub_E86F",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10367"
+     }
+    },
+    {
+     "name": "Sub_E879",
+     "size": "26",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10377"
+     }
+    },
+    {
+     "name": "TrackScriptSetHeight",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10403"
+     }
+    },
+    {
+     "name": "Sub_E89D",
+     "size": "34",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10413"
+     }
+    },
+    {
+     "name": "Sub_E8BF",
+     "size": "7",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10447"
+     }
+    },
+    {
+     "name": "Sub_E8C6",
+     "size": "29",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10454"
+     }
+    },
+    {
+     "name": "Sub_E8E3",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10483"
+     }
+    },
+    {
+     "name": "Sub_E8EE",
+     "size": "12",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10494"
+     }
+    },
+    {
+     "name": "Sub_E8FA",
+     "size": "5",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10506"
+     }
+    },
+    {
+     "name": "Sub_E8FF",
+     "size": "40",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10511"
+     }
+    },
+    {
+     "name": "RunPendingTrackScripts",
+     "size": "13",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10551"
+     }
+    },
+    {
+     "name": "Sub_E934",
+     "size": "34",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10564"
+     }
+    },
+    {
+     "name": "Sub_E956",
+     "size": "13",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10598"
+     }
+    },
+    {
+     "name": "Sub_E963",
+     "size": "9",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10611"
+     }
+    },
+    {
+     "name": "UpdateRiderY",
+     "size": "216",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10620"
+     }
+    },
+    {
+     "name": "DrawJumpShadows",
+     "size": "75",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10836"
+     }
+    },
+    {
+     "name": "TrackScriptFinishLine",
+     "size": "54",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10911"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/track_scripts.asm"
+   }
+  },
+  {
+   "name": "main/design_mode",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "629",
+    "matched_code": "629",
+    "matched_code_percent": 100.0,
+    "total_data": "1989",
+    "matched_data": "1989",
+    "matched_data_percent": 100.0,
+    "total_functions": 10,
+    "matched_functions": 10,
+    "matched_functions_percent": 100.0,
+    "complete_code": "629",
+    "complete_code_percent": 100.0,
+    "complete_data": "1989",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "629",
+     "fuzzy_match_percent": 100.0
+    },
+    {
+     "name": ".data",
+     "size": "1989",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "DrawFinishGate",
+     "size": "82",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "10965"
+     }
+    },
+    {
+     "name": "DesignModeUpdate",
+     "size": "270",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11047"
+     }
+    },
+    {
+     "name": "DrawDesignCursorSprite",
+     "size": "22",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11317"
+     }
+    },
+    {
+     "name": "CopyBackupToDesign",
+     "size": "34",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11339"
+     }
+    },
+    {
+     "name": "DesignBlinkCursor",
+     "size": "24",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11373"
+     }
+    },
+    {
+     "name": "DesignLoadPiece",
+     "size": "36",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11397"
+     }
+    },
+    {
+     "name": "DesignScrollStep",
+     "size": "38",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11433"
+     }
+    },
+    {
+     "name": "IncMod64",
+     "size": "10",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11471"
+     }
+    },
+    {
+     "name": "DesignCheckSlotFree",
+     "size": "27",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11481"
+     }
+    },
+    {
+     "name": "InitHudSprite",
+     "size": "86",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "11508"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/design_mode.asm"
+   }
+  },
+  {
+   "name": "main/track_render",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "837",
+    "matched_code": "837",
+    "matched_code_percent": 100.0,
+    "total_data": "0",
+    "matched_data": "0",
+    "matched_data_percent": 0.0,
+    "total_functions": 11,
+    "matched_functions": 11,
+    "matched_functions_percent": 100.0,
+    "complete_code": "837",
+    "complete_code_percent": 100.0,
+    "complete_data": "0",
+    "complete_data_percent": 0.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "837",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "TrackRenderUpdate",
+     "size": "335",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "13583"
+     }
+    },
+    {
+     "name": "Sub_F64E",
+     "size": "40",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "13918"
+     }
+    },
+    {
+     "name": "Sub_F676",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "13958"
+     }
+    },
+    {
+     "name": "Sub_F681",
+     "size": "12",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "13969"
+     }
+    },
+    {
+     "name": "Sub_F68D",
+     "size": "110",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "13981"
+     }
+    },
+    {
+     "name": "DrawTrackColumn",
+     "size": "90",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14091"
+     }
+    },
+    {
+     "name": "Sub_F755",
+     "size": "204",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14181"
+     }
+    },
+    {
+     "name": "Sub_F821",
+     "size": "5",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14385"
+     }
+    },
+    {
+     "name": "Sub_F826",
+     "size": "8",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14390"
+     }
+    },
+    {
+     "name": "Sub_F82E",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14398"
+     }
+    },
+    {
+     "name": "Sub_F839",
+     "size": "11",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14409"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/track_render.asm"
+   }
+  },
+  {
+   "name": "main/sound",
+   "measures": {
+    "fuzzy_match_percent": 100.0,
+    "total_code": "1130",
+    "matched_code": "1130",
+    "matched_code_percent": 100.0,
+    "total_data": "850",
+    "matched_data": "850",
+    "matched_data_percent": 100.0,
+    "total_functions": 12,
+    "matched_functions": 12,
+    "matched_functions_percent": 100.0,
+    "complete_code": "1130",
+    "complete_code_percent": 100.0,
+    "complete_data": "850",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".text",
+     "size": "1130",
+     "fuzzy_match_percent": 100.0
+    },
+    {
+     "name": ".data",
+     "size": "850",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [
+    {
+     "name": "SoundUpdate",
+     "size": "39",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14420"
+     }
+    },
+    {
+     "name": "SetPulse1Regs",
+     "size": "6",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14459"
+     }
+    },
+    {
+     "name": "PlayPulseNote",
+     "size": "20",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14465"
+     }
+    },
+    {
+     "name": "Sub_F885",
+     "size": "4",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14485"
+     }
+    },
+    {
+     "name": "Sub_F889",
+     "size": "75",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14489"
+     }
+    },
+    {
+     "name": "SoundPulse1Sfx",
+     "size": "209",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14564"
+     }
+    },
+    {
+     "name": "Loc_FA4F",
+     "size": "37",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14943"
+     }
+    },
+    {
+     "name": "SoundPulse2TriangleSfx",
+     "size": "259",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "14980"
+     }
+    },
+    {
+     "name": "Loc_FBFF",
+     "size": "62",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "15375"
+     }
+    },
+    {
+     "name": "SoundNoiseSfx",
+     "size": "76",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "15437"
+     }
+    },
+    {
+     "name": "SoundMusic",
+     "size": "326",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "15517"
+     }
+    },
+    {
+     "name": "Sub_FF53",
+     "size": "17",
+     "fuzzy_match_percent": 100.0,
+     "metadata": {
+      "virtual_address": "16227"
+     }
+    }
+   ],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/sound.asm"
+   }
+  },
+  {
+   "name": "main/chr",
+   "measures": {
+    "fuzzy_match_percent": 0.0,
+    "total_code": "0",
+    "matched_code": "0",
+    "matched_code_percent": 0.0,
+    "total_data": "8192",
+    "matched_data": "8192",
+    "matched_data_percent": 100.0,
+    "total_functions": 0,
+    "matched_functions": 0,
+    "matched_functions_percent": 0.0,
+    "complete_code": "0",
+    "complete_code_percent": 0.0,
+    "complete_data": "8192",
+    "complete_data_percent": 100.0,
+    "total_units": 1,
+    "complete_units": 1
+   },
+   "sections": [
+    {
+     "name": ".data",
+     "size": "8192",
+     "fuzzy_match_percent": 100.0
+    }
+   ],
+   "functions": [],
+   "metadata": {
+    "complete": true,
+    "source_path": "src/us/excitebike.asm"
+   }
+  }
+ ],
+ "version": 2,
+ "categories": []
+}

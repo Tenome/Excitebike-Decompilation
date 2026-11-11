@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excitebike Track Editor</title>
+<style>
+:root { --bg:#f4f2ee; --panel:#fff; --ink:#1d1d1f; --mut:#6b6b70; --line:#d8d5cf; --acc:#c2410c; --acc2:#0f766e; --sel:#fde68a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#1b1b1d; --panel:#26262a; --ink:#ececec; --mut:#9a9aa2; --line:#3a3a40; --acc:#fb923c; --acc2:#2dd4bf; --sel:#5b4a10; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.4 system-ui, sans-serif; }
+header { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:2; }
+header h1 { font-size:16px; margin:0 12px 0 0; }
+button, select, input { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:4px 10px; }
+button { cursor:pointer; } button:hover { border-color:var(--acc); } button:disabled { opacity:.4; cursor:default; }
+button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+input[type=number] { width:64px; }
+main { padding:12px 16px; display:grid; gap:12px; }
+section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+h2 { font-size:13px; margin:0 0 8px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+#strip { overflow-x:auto; border:1px solid var(--line); border-radius:6px; background:#000; }
+#strip canvas { display:block; image-rendering:pixelated; cursor:pointer; }
+#pal { display:flex; flex-wrap:wrap; gap:6px; }
+.pp { border:1px solid var(--line); border-radius:6px; padding:3px; cursor:pointer; background:var(--bg); text-align:center; font-size:11px; color:var(--mut); }
+.pp:hover { border-color:var(--acc); }
+.pp canvas { display:block; image-rendering:pixelated; margin:0 auto 2px; }
+table { border-collapse:collapse; width:100%; }
+th, td { text-align:left; padding:3px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
+tr.sel td { background:var(--sel); }
+tr { cursor:pointer; }
+.meter { height:8px; background:var(--line); border-radius:4px; overflow:hidden; min-width:160px; }
+.meter div { height:100%; background:var(--acc2); }
+.meter.warn div { background:var(--acc); }
+.row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.note { color:var(--mut); font-size:12px; }
+#msg { color:var(--acc); font-weight:600; }
+#tokscroll { max-height:340px; overflow:auto; }
+h3 { font-size:13px; margin:14px 0 6px; }
+.cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px; }
+.card { border:1px solid var(--line); border-radius:8px; padding:8px; background:var(--bg); display:flex; flex-direction:column; gap:4px; }
+.card canvas { width:100%; height:64px; image-rendering:pixelated; background:#000; border-radius:4px; }
+.card b { font-size:14px; } .card .by { color:var(--mut); font-size:12px; } .card p { margin:0; font-size:12px; max-height:52px; overflow:hidden; }
+.card .tags span { display:inline-block; font-size:11px; border:1px solid var(--line); border-radius:10px; padding:0 6px; margin-right:3px; color:var(--mut); }
+.card .acts { display:flex; gap:6px; flex-wrap:wrap; margin-top:auto; } .card .acts button { padding:2px 8px; font-size:12px; }
+textarea { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:4px 8px; width:100%; min-height:56px; }
+input.wide { width:min(420px, 100%); } .empty { color:var(--mut); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Excitebike Track Editor</h1>
+  <button id="open">Open .ebd</button><input id="file" type="file" accept=".ebd" hidden>
+  <button id="save" class="primary">Save .ebd</button>
+  <select id="tpl"><option value="">New from…</option><option value="b0">Built-in track 1</option><option value="b1">Built-in track 2</option><option value="b2">Built-in track 3</option><option value="b3">Built-in track 4</option><option value="b4">Built-in track 5</option><option value="flat">Flat track</option></select>
+  <button id="undo">Undo</button><button id="redo">Redo</button><button id="play" title="needs the editors started with tools/editor/serve.py">Play in port</button>
+  <label>Laps <input id="laps" type="number" min="1" max="9" value="1"></label>
+  <span class="meter" id="meter"><div></div></span><span id="size" class="note"></span>
+  <span id="msg"></span>
+</header>
+<main>
+  <section><h2>Track</h2><div id="strip"><canvas id="cv"></canvas></div>
+    <div class="note">Click the track to select a piece; drag a piece onto another position (or drag rows in the list below) to move it. Each piece below is one token of the game's track script; “run” tokens repeat a piece N times.</div></section>
+  <section><h2>Add</h2>
+    <div class="row"><label>Run length <input id="runlen" type="number" min="1" max="127" value="8"></label>
+    <label>Single piece # <input id="pnum" type="number" min="0" max="63" value="7"></label><button id="addp">Add piece</button>
+    <label><input type="checkbox" id="bonly"> Selection B only</label></div>
+    <div id="pal" style="margin-top:8px"></div></section>
+  <section><h2>Pieces in order</h2><div id="tokscroll"><table id="toks"><thead><tr><th>#</th><th>Kind</th><th>Piece</th><th>Count</th><th>B only</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="row" style="margin-top:8px"><button id="up">Move up</button><button id="down">Move down</button><button id="dup">Duplicate</button><button id="del">Delete</button></div></section>
+  <section id="designer"><h2>Custom pieces</h2>
+    <div class="row"><label>Slot <select id="cp_slot"></select></label><label>Copy from piece <input id="cp_from" type="number" min="0" max="35" value="7" style="width:60px"></label><button id="cp_copy">Copy</button>
+      <button id="cp_addcol">Add column</button><button id="cp_dupcol">Duplicate column</button><button id="cp_delcol">Delete column</button><button id="cp_clear">Clear piece</button><button id="cp_use">Add to track</button>
+      <label><input type="checkbox" id="cp_erase"> erase (transparent)</label><span id="cp_info" class="note"></span></div>
+    <div class="row" style="align-items:flex-start"><div id="cp_gridwrap" style="overflow:auto; max-width:100%; border:1px solid var(--line); border-radius:6px"><canvas id="cp_grid"></canvas></div>
+      <div><div class="note">Tile (click to pick)</div><canvas id="cp_tiles" width="256" height="256" style="cursor:pointer; border:1px solid var(--line); image-rendering:pixelated"></canvas></div></div>
+    <div class="note">A custom piece is a strip of tile columns, 12 tiles tall (the bottom rows are the track surface). Its behaviour comes from the tiles it uses, as for the game's own pieces: ramps, flat dirt, hay and so on, so copy a piece and change it.
+      Custom pieces are numbers 36-47; they travel inside level packs and play in the port.</div></section>
+  <section id="packs"><h2>Level packs</h2>
+    <div class="row"><label>Title <input id="pk_title" type="text" maxlength="60" style="width:200px"></label><label>Author <input id="pk_author" type="text" maxlength="40" style="width:150px"></label>
+      <label>Tags <input id="pk_tags" type="text" placeholder="jumps, hard" style="width:170px"></label></div>
+    <textarea id="pk_desc" maxlength="600" placeholder="Describe the level (up to 600 characters)"></textarea>
+    <div class="row"><button id="pk_dl">Download pack</button><button id="pk_lib">Add to my library</button><button id="pk_submit" class="primary">Submit to community…</button><button id="pk_imp">Import pack(s)…</button><input id="pk_file" type="file" accept=".json,.ebd" multiple hidden>
+      <span id="pk_msg" class="note"></span></div>
+    <div class="row" id="pk_extras"><label><input type="checkbox" id="x_tiles"> include my tile changes <span id="x_tiles_n" class="note"></span></label>
+      <label><input type="checkbox" id="x_pal"> include my colour changes <span id="x_pal_n" class="note"></span></label>
+      <label><input type="checkbox" id="x_song"> include my song <span id="x_song_n" class="note"></span></label>
+      <span class="note">(from the tile and music editors in this browser; only the differences from the game are stored)</span></div>
+    <div class="note">Packs contain only the track script and your text (no game graphics); previews are drawn here from your own ROM data. Sharing a level means licensing it (CC0 by default).</div>
+    <h3>My library</h3><div id="lib" class="cards"></div>
+    <h3>Community levels</h3>
+    <div class="row"><label>Repository <input id="repo" type="text" placeholder="owner/name" style="width:200px"></label><label>Index URL <input id="idxurl" class="wide" type="text" placeholder="https://raw.githubusercontent.com/owner/name/main/levels/index.json"></label>
+      <button id="idxload">Load</button><input id="q" type="text" placeholder="search" style="width:140px"></div>
+    <div id="net" class="cards"><span class="empty">Set the repository (or an index URL) and press Load.</span></div>
+  </section>
+  <section><h2>Playing your track</h2>
+    <div class="note">Save the file as <b>designs.ebd</b> next to the game, start <code>excitebike</code>, choose DESIGN, then LOAD, and run the track. Tracks over 255 bytes are saved in the extended format
+    (the port plays them with no length limit; the original game's 236-byte limit does not apply). The port can also reload the file while it runs (F6).</div></section>
+</main>
+<script src="data.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const D = window.EB_DATA;
+if (!D) { document.querySelector('main').innerHTML = '<section><b>data.js is missing.</b> Run <code>python tools/ebdesign.py editor-data</code> (it reads your own ROM) and reload.</section>'; throw new Error('no data'); }
+const NES = [[84,84,84],[0,30,116],[8,16,144],[48,0,136],[68,0,100],[92,0,48],[84,4,0],[60,24,0],[32,42,0],[8,58,0],[0,64,0],[0,60,0],[0,50,60],[0,0,0],[0,0,0],[0,0,0],[152,150,152],[8,76,196],[48,50,236],[92,30,228],[136,20,176],[160,20,100],[152,34,32],[120,60,0],[84,90,0],[40,114,0],[8,124,0],[0,118,40],[0,102,120],[0,0,0],[0,0,0],[0,0,0],[236,238,236],[76,154,236],[120,124,236],[176,98,236],[228,84,236],[236,88,180],[236,106,100],[212,136,32],[160,170,0],[116,196,0],[76,208,32],[56,204,108],[56,180,204],[60,60,60],[0,0,0],[0,0,0],[236,238,236],[168,204,236],[188,188,236],[212,178,236],[236,174,236],[236,174,212],[236,180,176],[228,196,144],[204,210,120],[180,222,120],[168,226,144],[152,226,180],[160,214,228],[160,162,160],[0,0,0],[0,0,0]];
+const CHR = Uint8Array.from(atob(D.chr), c => c.charCodeAt(0));
+const BASE = 0x1000, ROWS = 12, TS = 16, S = TS / 8;
+const tileCache = new Map();
+function tileCanvas(t) {                                   // one 8x8 tile in its track palette, drawn at TS x TS
+  if (tileCache.has(t)) return tileCache.get(t);
+  const pi = D.tilepal[String(t)] | 0, c = document.createElement('canvas'); c.width = c.height = 8;
+  const x = c.getContext('2d'), im = x.createImageData(8, 8);
+  for (let r = 0; r < 8; r++) { const lo = CHR[BASE + t * 16 + r], hi = CHR[BASE + t * 16 + 8 + r];
+    for (let k = 0; k < 8; k++) { const v = ((lo >> (7 - k)) & 1) | (((hi >> (7 - k)) & 1) << 1);
+      const col = NES[D.pal[v ? pi * 4 + v : 0] & 63], o = (r * 8 + k) * 4; im.data.set([col[0], col[1], col[2], v ? 255 : 0], o); } }
+  x.putImageData(im, 0, 0); tileCache.set(t, c); return c;
+}
+const bg = NES[D.pal[0] & 63], bgCss = `rgb(${bg[0]},${bg[1]},${bg[2]})`;
+function drawColumns(ctx, cols, x0, y0, tsz) {
+  cols.forEach((col, i) => { const [st, tiles] = col;
+    tiles.forEach((t, k) => { if (t !== 252) ctx.drawImage(tileCanvas(t), x0 + i * tsz, y0 + (st + k - 3) * tsz, tsz, tsz); }); });
+}
+// ---- model ----
+let laps = 1, toks = [], sel = 0, zp = new Uint8Array(64), undoS = [], redoS = [];
+const piecesOf = t => t.t === 'run' ? (D.pieces[D.runs[t.k]] || []) : (t.p < D.pieces.length ? D.pieces[t.p] : []);
+function parse(bytes) {
+  const out = []; let i = 1;
+  while (i < bytes.length) { const b = bytes[i++];
+    if (b === 0) break;
+    if (b === 9) { out.push({ t: 'piece', p: 9, b: false }); break; }
+    if (b & 0x40) { out.push({ t: 'run', k: b & 15, n: bytes[i++] & 0x7F }); } else out.push({ t: 'piece', p: b & 0x3F, b: !!(b & 0x80) }); }
+  return { laps: bytes[0] || 1, toks: out };
+}
+function serialize() {
+  const o = [laps];
+  for (const t of toks) { if (t.t === 'run') o.push(0x40 | t.k, t.n); else o.push(t.p | (t.b ? 0x80 : 0)); }
+  if (!toks.length || toks[toks.length - 1].p !== 9) o.push(9);
+  o.push(0); return Uint8Array.from(o);
+}
+function runIndexForPiece(p) { const k = D.runs.indexOf(p); return k; }
+// ---- UI ----
+const cv = $('cv'), ctx = cv.getContext('2d');
+function render() {
+  const cols = []; const starts = [];
+  toks.forEach(t => { starts.push(cols.length); const pc = piecesOf(t); if (t.t === 'run') for (let i = 0; i < t.n; i++) cols.push(...pc); else cols.push(...pc); });
+  starts.push(cols.length);
+  cv.width = Math.max(cols.length * TS, 64); cv.height = ROWS * TS;
+  ctx.imageSmoothingEnabled = false; ctx.fillStyle = bgCss; ctx.fillRect(0, 0, cv.width, cv.height);
+  drawColumns(ctx, cols, 0, 0, TS);
+  if (toks[sel]) { ctx.fillStyle = 'rgba(253,230,138,.28)'; ctx.fillRect(starts[sel] * TS, 0, (starts[sel + 1] - starts[sel]) * TS, cv.height); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.strokeRect(starts[sel] * TS + 1, 1, (starts[sel + 1] - starts[sel]) * TS - 2, cv.height - 2); }
+  cv._starts = starts;
+  const tb = $('toks').tBodies[0]; tb.innerHTML = '';
+  toks.forEach((t, i) => { const tr = document.createElement('tr'); if (i === sel) tr.className = 'sel';
+    const piece = t.t === 'run' ? `${D.runs[t.k]} <span class="note">${pieceName(D.runs[t.k])}</span>` : `${t.p} <span class="note">${pieceName(t.p)}</span>`;
+    tr.innerHTML = `<td>${i + 1}</td><td>${t.t}</td><td>${piece}</td><td>${t.t === 'run' ? `<input type="number" min="1" max="127" value="${t.n}" data-i="${i}" class="cnt">` : ''}</td><td><input type="checkbox" ${t.b ? 'checked' : ''} data-i="${i}" class="bchk" ${t.t === 'run' ? 'disabled' : ''}></td><td></td>`;
+    tr.onclick = e => { if (e.target.tagName !== 'INPUT') { sel = i; render(); } };
+    tr.draggable = true; tr.ondragstart = e => { e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move'; };
+    tr.ondragover = e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+    tr.ondrop = e => { e.preventDefault(); moveTok(+e.dataTransfer.getData('text/plain'), i); };
+    tb.appendChild(tr); });
+  tb.querySelectorAll('.cnt').forEach(el => el.onchange = () => { push(); toks[+el.dataset.i].n = Math.max(1, Math.min(127, +el.value | 0)); render(); });
+  tb.querySelectorAll('.bchk').forEach(el => el.onchange = () => { push(); toks[+el.dataset.i].b = el.checked; render(); });
+  const bytes = serialize().length - 1, lim = 255; $('size').textContent = `${bytes} bytes` + (bytes > 236 ? ' (over the original editor limit of 236)' : '');
+  $('meter').className = 'meter' + (bytes > 236 ? ' warn' : ''); $('meter').firstElementChild.style.width = Math.min(100, bytes / lim * 100) + '%';
+  $('laps').value = laps; $('undo').disabled = !undoS.length; $('redo').disabled = !redoS.length;
+  const fin = toks.length && toks[toks.length - 1].p === 9; $('msg').textContent = fin ? '' : 'No finish line at the end (piece 9): one will be added when saving.';
+}
+function tokAt(e) { const x = Math.floor((e.clientX - cv.getBoundingClientRect().left) / TS), st = cv._starts; for (let i = 0; i < toks.length; i++) if (x >= st[i] && x < st[i + 1]) return i; return -1; }
+function moveTok(from, to) { if (from === to || from < 0 || to < 0 || from >= toks.length || to >= toks.length) return; push(); const [t] = toks.splice(from, 1); toks.splice(to, 0, t); sel = to; render(); }
+let stripDrag = -1;
+cv.onmousedown = e => { stripDrag = tokAt(e); if (stripDrag >= 0) { sel = stripDrag; render(); } };
+window.addEventListener('mouseup', e => { if (stripDrag < 0) return; const from = stripDrag; stripDrag = -1; if (e.target === cv) moveTok(from, tokAt(e)); });
+function snap() { return JSON.stringify({ laps, toks, sel }); }
+function push() { undoS.push(snap()); if (undoS.length > 200) undoS.shift(); redoS = []; }
+function restore(s) { const o = JSON.parse(s); laps = o.laps; toks = o.toks; sel = Math.min(o.sel, Math.max(0, toks.length - 1)); }
+$('undo').onclick = () => { if (undoS.length) { redoS.push(snap()); restore(undoS.pop()); render(); } };
+$('redo').onclick = () => { if (redoS.length) { undoS.push(snap()); restore(redoS.pop()); render(); } };
+function insertTok(t) { push(); let at = toks.length && toks[toks.length - 1].p === 9 && sel >= toks.length - 1 ? toks.length - 1 : Math.min(sel + 1, toks.length); if (!toks.length) at = 0; toks.splice(at, 0, t); sel = at; render(); }
+$('laps').onchange = () => { push(); laps = Math.max(1, Math.min(9, +$('laps').value | 0)); render(); };
+$('addp').onclick = () => insertTok({ t: 'piece', p: Math.max(0, Math.min(63, +$('pnum').value | 0)), b: $('bonly').checked });
+$('del').onclick = () => { if (!toks.length) return; push(); toks.splice(sel, 1); sel = Math.min(sel, toks.length - 1); render(); };
+$('dup').onclick = () => { if (!toks.length) return; push(); toks.splice(sel + 1, 0, JSON.parse(JSON.stringify(toks[sel]))); sel++; render(); };
+$('up').onclick = () => { if (sel > 0) { push(); [toks[sel - 1], toks[sel]] = [toks[sel], toks[sel - 1]]; sel--; render(); } };
+$('down').onclick = () => { if (sel < toks.length - 1) { push(); [toks[sel + 1], toks[sel]] = [toks[sel], toks[sel + 1]]; sel++; render(); } };
+document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'Delete') $('del').click(); else if (e.ctrlKey && e.key === 'z') $('undo').click(); else if (e.ctrlKey && e.key === 'y') $('redo').click();
+  else if (e.key === 'ArrowRight' && sel < toks.length - 1) { sel++; render(); } else if (e.key === 'ArrowLeft' && sel > 0) { sel--; render(); } });
+function pieceName(p) {                                     // described from its tile columns: how wide, how tall above the flat track
+  if (p === 9) return 'finish line'; if (p >= 0x30 && p <= 0x33) return 'marker ' + p.toString(16).toUpperCase();
+  const cols = D.pieces[p] || []; if (!cols.length) return 'piece ' + p;
+  let h = 0; cols.forEach(c => { h = Math.max(h, 15 - c[0]); }); const rise = h - 6;
+  return rise <= 0 ? (cols.length > 1 ? `track, ${cols.length} wide` : 'flat track') : `ramp ${cols.length} wide, ${rise} tall`;
+}
+function buildPalette() {
+  const pal = $('pal'); pal.innerHTML = '';
+  const add = (label, cols, fn) => { const d = document.createElement('div'); d.className = 'pp'; const c = document.createElement('canvas'); const w = Math.max(1, Math.min(cols.length, 8));
+    c.width = w * 8; c.height = ROWS * 8; c.style.width = (w * 8 * 1.5) + 'px'; c.style.height = (ROWS * 8 * 1.5) + 'px'; const x = c.getContext('2d'); x.fillStyle = bgCss; x.fillRect(0, 0, c.width, c.height); drawColumns(x, cols.slice(0, w), 0, 0, 8);
+    d.appendChild(c); d.appendChild(document.createTextNode(label)); d.onclick = fn; pal.appendChild(d); };
+  const seen = new Set();
+  for (let p = 0; p < D.pieces.length; p++) { if (p === 9) continue; if (!D.pieces[p].length) continue;
+    add(`${p}: ${pieceName(p)}`, D.pieces[p], () => insertTok({ t: 'piece', p, b: $('bonly').checked })); }
+  add('finish (9)', D.pieces[9], () => insertTok({ t: 'piece', p: 9, b: false }));
+  for (let k = 0; k < D.runs.length; k++) { const p = D.runs[k]; if (!D.pieces[p] || !D.pieces[p].length || seen.has(k)) continue; if (k > 9 && D.runs[k] === 0) continue;
+    add(`run ${k}: ${pieceName(p)}`, D.pieces[p], () => insertTok({ t: 'run', k, n: Math.max(1, Math.min(127, +$('runlen').value | 0)) })); }
+  [0x30, 0x31, 0x32, 0x33].forEach(p => add('marker 0x' + p.toString(16), [], () => insertTok({ t: 'piece', p, b: false })));
+}
+function setStream(bytes) { const o = parse(bytes); laps = o.laps; toks = o.toks; sel = 0; undoS = []; redoS = []; render(); }
+$('tpl').onchange = () => { const v = $('tpl').value; $('tpl').value = ''; if (!v) return;
+  if (v === 'flat') setStream(Uint8Array.from([1, 0x40, 0x40, 0x40, 0x40, 9, 0])); else setStream(Uint8Array.from(D.builtin[+v[1]])); };
+$('open').onclick = () => $('file').click();
+$('file').onchange = async () => { const f = $('file').files[0]; if (!f) return; const b = new Uint8Array(await f.arrayBuffer()); const m = String.fromCharCode(...b.slice(0, 6));
+  if (m === 'EBDES1' && b.length >= 326) { zp = b.slice(6, 70); setStream(b.slice(70, 326)); }
+  else if (m === 'EBDES2' && b.length >= 8) { const n = b[6] | b[7] << 8; zp = new Uint8Array(64); setStream(b.slice(8, 8 + n)); }
+  else alert('Not an Excitebike design file.'); $('file').value = ''; };
+$('save').onclick = () => {
+  const s = serialize(); let out;
+  if (s.length <= 256) { out = new Uint8Array(6 + 64 + 256); out.set([...'EBDES1'].map(c => c.charCodeAt(0))); out.set(zp, 6); out.set(s, 70); }
+  else { out = new Uint8Array(8 + s.length); out.set([...'EBDES2'].map(c => c.charCodeAt(0))); out[6] = s.length & 255; out[7] = s.length >> 8; out.set(s, 8); }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out])); a.download = 'designs.ebd'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+// ---- custom pieces ----
+const CP_ROWS = 12; let cpSel = 36, cpTile = 59, cpDrawing = false; let cpData = {};          // id -> array of columns, each an array of 12 tile numbers (252 = transparent)
+try { cpData = JSON.parse(localStorage.getItem('eb_pieces') || '{}') || {}; } catch (x) { cpData = {}; }
+function cpSave() { try { localStorage.setItem('eb_pieces', JSON.stringify(cpData)); } catch (x) {} }
+function cpApplyToData() { for (let id = 36; id <= 47; id++) D.pieces[id] = (cpData[id] || []).map(c => [3, c.slice()]); }          // the strip and previews read D.pieces
+function cpBytes(id) { const o = []; (cpData[id] || []).forEach(c => { o.push(3, ...c); }); o.push(0); return Uint8Array.from(o); }
+function cpFromBytes(raw) { const cols = []; let i = 0; while (i < raw.length && raw[i] !== 0) { const st = raw[i++], n = 15 - st; const col = Array(CP_ROWS).fill(252); for (let k = 0; k < n; k++) col[st - 3 + k] = raw[i + k]; i += n; cols.push(col); } return cols; }
+function cpRefresh() { cpApplyToData(); const n = (cpData[cpSel] || []).length; $('cp_info').textContent = n ? `${n} columns` : 'empty'; cpDraw(); cpDrawTiles(); buildPalette(); render(); }
+function cpDraw() {
+  const cols = cpData[cpSel] || [], S = 20, W = Math.max(cols.length, 6) * S, c = $('cp_grid'); c.width = W; c.height = CP_ROWS * S; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.fillStyle = bgCss; x.fillRect(0, 0, W, c.height);
+  cols.forEach((col, i) => col.forEach((t, r) => { if (t !== 252) x.drawImage(tileCanvas(t), i * S, r * S, S, S); }));
+  x.strokeStyle = 'rgba(128,128,128,.35)'; for (let i = 0; i <= Math.max(cols.length, 6); i++) { x.beginPath(); x.moveTo(i * S + .5, 0); x.lineTo(i * S + .5, c.height); x.stroke(); } for (let r = 0; r <= CP_ROWS; r++) { x.beginPath(); x.moveTo(0, r * S + .5); x.lineTo(W, r * S + .5); x.stroke(); }
+}
+function cpDrawTiles() { const c = $('cp_tiles'), x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.fillStyle = bgCss; x.fillRect(0, 0, 256, 256); for (let t = 0; t < 256; t++) x.drawImage(tileCanvas(t), (t % 16) * 16, Math.floor(t / 16) * 16, 16, 16);
+  x.strokeStyle = '#fbbf24'; x.lineWidth = 2; x.strokeRect((cpTile % 16) * 16 + 1, Math.floor(cpTile / 16) * 16 + 1, 14, 14); }
+function cpPaint(e) { const r = $('cp_grid').getBoundingClientRect(), ci = Math.floor((e.clientX - r.left) / 20), ri = Math.floor((e.clientY - r.top) / 20); const cols = cpData[cpSel] || []; if (ci < 0 || ci >= cols.length || ri < 0 || ri >= CP_ROWS) return;
+  const v = $('cp_erase').checked ? 252 : cpTile; if (cols[ci][ri] !== v) { cols[ci][ri] = v; cpSave(); cpDraw(); cpApplyToData(); render(); } }
+$('cp_grid').onmousedown = e => { if (!cpData[cpSel]) return; cpDrawing = true; cpPaint(e); }; $('cp_grid').onmousemove = e => { if (cpDrawing) cpPaint(e); }; window.addEventListener('mouseup', () => { if (cpDrawing) { cpDrawing = false; buildPalette(); } });
+$('cp_tiles').onclick = e => { const r = $('cp_tiles').getBoundingClientRect(); cpTile = Math.floor((e.clientY - r.top) / r.height * 16) * 16 + Math.floor((e.clientX - r.left) / r.width * 16); $('cp_erase').checked = false; cpDrawTiles(); };
+for (let id = 36; id <= 47; id++) { const o = document.createElement('option'); o.value = id; o.textContent = 'piece ' + id; $('cp_slot').appendChild(o); }
+$('cp_slot').onchange = () => { cpSel = +$('cp_slot').value; cpRefresh(); };
+$('cp_copy').onclick = () => { const p = Math.max(0, Math.min(47, +$('cp_from').value | 0)); const src = D.pieces[p] || []; if (!src.length) { $('cp_info').textContent = 'that piece is empty'; return; }
+  cpData[cpSel] = src.slice(0, 60).map(([st, tiles]) => { const col = Array(CP_ROWS).fill(252); tiles.forEach((t, k) => { col[st - 3 + k] = t; }); return col; }); cpSave(); cpRefresh(); };
+$('cp_addcol').onclick = () => { const cols = cpData[cpSel] = cpData[cpSel] || []; if (cols.length >= 30) return; const base = D.pieces[0][0]; const col = Array(CP_ROWS).fill(252); base[1].forEach((t, k) => { col[base[0] - 3 + k] = t; }); cols.push(col); cpSave(); cpRefresh(); };
+$('cp_dupcol').onclick = () => { const cols = cpData[cpSel] || []; if (!cols.length || cols.length >= 30) return; cols.push(cols[cols.length - 1].slice()); cpSave(); cpRefresh(); };
+$('cp_delcol').onclick = () => { const cols = cpData[cpSel] || []; cols.pop(); if (!cols.length) delete cpData[cpSel]; cpSave(); cpRefresh(); };
+$('cp_clear').onclick = () => { delete cpData[cpSel]; cpSave(); cpRefresh(); };
+$('cp_use').onclick = () => { if ((cpData[cpSel] || []).length) insertTok({ t: 'piece', p: cpSel, b: $('bonly').checked }); };
+function cpPackPieces() { const used = new Set(toks.filter(t => t.t === 'piece' && t.p >= 36 && t.p <= 47).map(t => t.p)); return [...used].sort((a, b) => a - b).filter(id => (cpData[id] || []).length).map(id => ({ id, data: b64e(cpBytes(id)) })); }
+function cpLoadFromPack(p) { if (!p.pieces) return; for (let id = 36; id <= 47; id++) delete cpData[id]; p.pieces.forEach(e => { cpData[e.id] = cpFromBytes(b64d(e.data)); }); cpSave(); cpRefresh(); }
+// ---- level packs: export, import, library, community browser ----
+const LIM = { title: 60, author: 40, desc: 600, tag: 24, tags: 8, bytes: 2000 };
+const b64e = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 4096) s += String.fromCharCode(...u8.subarray(i, i + 4096)); return btoa(s); };
+const b64d = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
+const slug = t => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'level';
+function colListOk(b) { try { const raw = b64d(b); let i = 0, cols = 0; while (i < raw.length) { const st = raw[i]; if (st === 0) return i === raw.length - 1 && cols > 0 && raw.length <= 400; if (st < 3 || st > 14) return false; i += 1 + 15 - st; cols++; if (i > raw.length || cols > 120) return false; } return false; } catch (x) { return false; } }
+function extrasProblems(p) {
+  const e = [];
+  if (p.tiles !== undefined && (!Array.isArray(p.tiles) || p.tiles.length > 512 || p.tiles.some(t => !(t && Number.isInteger(t.n) && t.n >= 0 && t.n < 512 && typeof t.d === 'string' && /^[A-Za-z0-9+/]{22}==$/.test(t.d))))) e.push('tiles: up to 512 entries with n (0-511) and d (16 bytes, base64)');
+  if (p.palette !== undefined && (!Array.isArray(p.palette) || p.palette.length > 64 || p.palette.some(c => !(c && Number.isInteger(c.i) && c.i >= 0 && c.i < 64 && /^[0-9a-f]{6}$/.test(c.rgb || ''))))) e.push('palette: up to 64 entries with i and rgb');
+  if (p.pieces !== undefined && (!Array.isArray(p.pieces) || p.pieces.length > 12 || p.pieces.some(c => !(c && Number.isInteger(c.id) && c.id >= 36 && c.id <= 47 && typeof c.data === 'string' && colListOk(c.data))))) e.push('pieces: up to 12 entries with id 36-47 and a valid column list');
+  if (p.song !== undefined && !(p.song && /^[0-9a-f]{2}$/.test(p.song.request || '') && p.song.request !== '00' && typeof p.song.ebm === 'string' && p.song.ebm.startsWith('EBM1') && p.song.ebm.length <= 20000 && !/[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(p.song.ebm))) e.push('song: needs request (2 hex digits) and ebm text starting EBM1');
+  for (const k of Object.keys(p)) if (!['format', 'id', 'title', 'author', 'description', 'tags', 'license', 'created', 'laps', 'track', 'tiles', 'palette', 'song', 'pieces'].includes(k)) e.push('unknown field ' + k);
+  return e;
+}
+function packProblems(p) {                                 // mirrors tools/levelpack.py: what the repository's check will say
+  const e = [], bad = /[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/;
+  if (!p || p.format !== 'ebpack1') return ['format must be ebpack1'];
+  e.push(...extrasProblems(p));
+  for (const [k, mx, req] of [['title', LIM.title, 1], ['author', LIM.author, 1], ['description', LIM.desc, 0]]) { const v = p[k] ?? ''; if (typeof v !== 'string') e.push(k + ' must be text'); else if (req && !v.trim()) e.push(k + ' is required'); else if (v.length > mx) e.push(k + ' is too long'); else if (bad.test(v)) e.push(k + ' contains < > or control characters'); }
+  if (!/^[a-z0-9][a-z0-9-]{1,47}$/.test(p.id || '')) e.push('id must be 2-48 characters of a-z, 0-9, -');
+  if (!['CC0-1.0', 'CC-BY-4.0', 'MIT'].includes(p.license)) e.push('license must be CC0-1.0, CC-BY-4.0 or MIT');
+  if (!Array.isArray(p.tags) || p.tags.length > LIM.tags || p.tags.some(t => typeof t !== 'string' || !/^[a-z0-9 -]{1,24}$/.test(t))) e.push('tags: up to 8 of a-z 0-9 space -');
+  let raw; try { raw = b64d(p.track || ''); } catch (x) { return e.concat('track is not valid base64'); }
+  if (raw.length < 3 || raw.length > LIM.bytes) return e.concat('track must be 3-' + LIM.bytes + ' bytes');
+  if (raw[0] < 1 || raw[0] > 9) e.push('laps must be 1-9'); if (p.laps !== raw[0]) e.push('laps must equal the track\'s first byte');
+  let i = 1, ok = false, fin = false; while (i < raw.length) { const b = raw[i++]; if (b === 0) { ok = true; break; } if (b === 9) { ok = fin = true; break; }
+    if (b & 0x40) { if (i >= raw.length || raw[i] < 1 || raw[i] > 127) { e.push('a run needs a count of 1-127'); break; } i++; } else { const q = b & 0x3F; if (q >= 36 && (q < 0x30 || q > 0x33) && !(q <= 47 && (p.pieces || []).some(c => c.id === q))) { e.push('unknown piece ' + q); break; } } }
+  if (!fin && !e.length) e.push('the track must end with the finish line (piece 9)');
+  return e;
+}
+function currentPack() {
+  const meta = { title: $('pk_title').value.trim(), author: $('pk_author').value.trim(), description: $('pk_desc').value.trim(), tags: $('pk_tags').value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) };
+  const s = serialize();
+  const trimmed = s.slice(0, s.length - 1);                   // drop the trailing 0 pad: the finish line (9) ends the script
+  const pk = { format: 'ebpack1', id: slug(meta.title), ...meta, license: 'CC0-1.0', created: new Date().toISOString().slice(0, 10), laps, track: b64e(trimmed) };
+  const ex = localExtras();
+  const pcs = cpPackPieces(); if (pcs.length) pk.pieces = pcs;
+  if ($('x_tiles').checked && ex.tiles.length) pk.tiles = ex.tiles; if ($('x_pal').checked && ex.palette.length) pk.palette = ex.palette; if ($('x_song').checked && ex.song) pk.song = ex.song;
+  return pk;
+}
+function localExtras() {                                   // what the tile and music editors left in this browser, as differences from the game
+  const out = { tiles: [], palette: [], song: null };
+  try { const m = localStorage.getItem('eb_chr'); if (m) { const u = b64d(m); if (u.length === 8192) { const rom = b64d(D.chr); for (let n = 0; n < 512; n++) { let diff = false; for (let k = 0; k < 16; k++) if (u[n * 16 + k] !== rom[n * 16 + k]) diff = true; if (diff) out.tiles.push({ n, d: b64e(u.subarray(n * 16, n * 16 + 16)) }); } } }
+    const q = localStorage.getItem('eb_master'); if (q) { const u = b64d(q); if (u.length === 192) for (let i = 0; i < 64; i++) if (u[i * 3] !== NES[i][0] || u[i * 3 + 1] !== NES[i][1] || u[i * 3 + 2] !== NES[i][2]) out.palette.push({ i, rgb: [0, 1, 2].map(k => u[i * 3 + k].toString(16).padStart(2, '0')).join('') }); }
+    const sg = localStorage.getItem('eb_song'); if (sg) { const o = JSON.parse(sg); if (o && typeof o.ebm === 'string' && /^[0-9a-f]{2}$/.test(o.request)) { const rs = (D.songs || {})[o.request]; if (rs === undefined || rs.split('\n').slice(2).join('\n') !== o.ebm.split('\n').slice(2).join('\n')) out.song = o; } } } catch (x) {}
+  return out;
+}
+function refreshExtras() { const ex = localExtras(); $('x_tiles_n').textContent = ex.tiles.length ? `(${ex.tiles.length} tiles)` : '(none)'; $('x_pal_n').textContent = ex.palette.length ? `(${ex.palette.length} colours)` : '(none)'; $('x_song_n').textContent = ex.song ? `(request ${ex.song.request})` : '(none)';
+  $('x_tiles').disabled = !ex.tiles.length; $('x_pal').disabled = !ex.palette.length; $('x_song').disabled = !ex.song; }
+const packJson = p => JSON.stringify(p, null, 2) + '\n';
+function say(t, err) { $('pk_msg').textContent = t; $('pk_msg').style.color = err ? 'var(--acc)' : ''; }
+function download(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+function drawPreview(canvas, bytes) {                       // the track strip from the viewer's own ROM data, scaled to the card
+  const o = parse(bytes); const cols = []; o.toks.forEach(t => { const pc = piecesOf(t); if (t.t === 'run') for (let i = 0; i < t.n; i++) cols.push(...pc); else cols.push(...pc); });
+  const off = document.createElement('canvas'); off.width = Math.max(cols.length * 8, 8); off.height = ROWS * 8; const x = off.getContext('2d'); x.fillStyle = bgCss; x.fillRect(0, 0, off.width, off.height); drawColumns(x, cols, 0, 0, 8);
+  canvas.width = 320; canvas.height = 64; const c = canvas.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(off, 0, 0, off.width, off.height, 0, 0, 320, 64);
+}
+function card(p, acts) {
+  const d = document.createElement('div'); d.className = 'card'; const cv2 = document.createElement('canvas'); d.appendChild(cv2);
+  try { drawPreview(cv2, b64d(p.track)); } catch (x) {}
+  const t = document.createElement('b'); t.textContent = p.title; d.appendChild(t);
+  const by = document.createElement('div'); by.className = 'by'; by.textContent = `by ${p.author} · ${p.laps} lap${p.laps > 1 ? 's' : ''} · ${b64d(p.track).length} bytes · ${p.license}`; d.appendChild(by);
+  const de = document.createElement('p'); de.textContent = p.description || ''; d.appendChild(de);
+  const tg = document.createElement('div'); tg.className = 'tags'; (p.tags || []).forEach(x => { const s = document.createElement('span'); s.textContent = x; tg.appendChild(s); }); d.appendChild(tg);
+  if (p.pieces) { const pe = document.createElement('div'); pe.className = 'by'; pe.textContent = 'custom pieces: ' + p.pieces.map(c => c.id).join(', '); d.appendChild(pe); }
+  if (p.tiles || p.palette || p.song) { const ex = document.createElement('div'); ex.className = 'by'; ex.textContent = 'includes: ' + [p.tiles && p.tiles.length + ' tiles', p.palette && p.palette.length + ' colours', p.song && 'song ' + p.song.request].filter(Boolean).join(', '); d.appendChild(ex); acts = acts.concat([['Use its graphics/music', () => { say(applyExtras(p) ? 'Applied: open the tile and music editors to see them.' : 'Could not store them in this browser.', 0); }]]); }
+  const ac = document.createElement('div'); ac.className = 'acts'; acts.forEach(([label, fn]) => { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; ac.appendChild(b); }); d.appendChild(ac); return d;
+}
+function applyExtras(p) {                                  // hand a pack's tiles, colours and song to the other editors (they read them from this browser)
+  try { if (p.tiles && p.tiles.length) { const u = b64d(D.chr); p.tiles.forEach(t => u.set(b64d(t.d), t.n * 16)); localStorage.setItem('eb_chr', b64e(u)); }
+    if (p.palette && p.palette.length) { const u = new Uint8Array(192); NES.forEach((c, i) => u.set(c, i * 3)); p.palette.forEach(c => u.set([0, 1, 2].map(k => parseInt(c.rgb.substr(k * 2, 2), 16)), c.i * 3)); localStorage.setItem('eb_master', b64e(u)); }
+    if (p.song) localStorage.setItem('eb_song', JSON.stringify(p.song)); refreshExtras(); return true; } catch (x) { return false; }
+}
+function openPack(p) { cpLoadFromPack(p); push(); const o = parse(b64d(p.track)); laps = o.laps; toks = o.toks; sel = 0; $('pk_title').value = p.title; $('pk_author').value = p.author; $('pk_desc').value = p.description || ''; $('pk_tags').value = (p.tags || []).join(', '); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+// library (this browser only)
+function libGet() { try { const v = JSON.parse(localStorage.getItem('eb_library') || '[]'); return Array.isArray(v) ? v.filter(p => !packProblems(p).length) : []; } catch (x) { return []; } }
+function libSet(v) { try { localStorage.setItem('eb_library', JSON.stringify(v)); } catch (x) { say('Could not save the library in this browser.', 1); } }
+function libAdd(p) { const l = libGet().filter(x => x.id !== p.id); l.unshift(p); libSet(l); renderLib(); }
+function renderLib() { const l = libGet(), box = $('lib'); box.innerHTML = ''; if (!l.length) { box.innerHTML = '<span class="empty">Nothing here yet: add the current level or import packs.</span>'; return; }
+  l.forEach(p => box.appendChild(card(p, [['Open', () => openPack(p)], ['Download', () => download(p.id + '.ebpack.json', packJson(p))], ['Delete', () => { libSet(libGet().filter(x => x.id !== p.id)); renderLib(); }]]))); }
+$('play').onclick = async () => { const p = currentPack(); p.title = p.title || 'Playtest'; p.author = p.author || 'me'; p.id = p.id.length >= 2 ? p.id : 'playtest';
+  try { const r = await fetch('/api/play', { method: 'POST', headers: { 'X-Eb-Editor': '1' }, body: JSON.stringify(p) }); const j = await r.json(); say(j.message || 'Sent to the port', !j.ok); } catch (x) { say('Play in port needs the editors started with python tools/editor/serve.py (and the port built next to it).', 1); } };
+$('pk_dl').onclick = () => { const p = currentPack(), e = packProblems(p); if (e.length) return say(e.join('; '), 1); download(p.id + '.ebpack.json', packJson(p)); say('Saved ' + p.id + '.ebpack.json'); };
+$('pk_lib').onclick = () => { const p = currentPack(), e = packProblems(p); if (e.length) return say(e.join('; '), 1); libAdd(p); say('Added to your library.'); };
+$('pk_imp').onclick = () => $('pk_file').click();
+$('pk_file').onchange = async () => { let n = 0, errs = [];
+  for (const f of $('pk_file').files) { try { if (f.name.endsWith('.ebd')) { const b = new Uint8Array(await f.arrayBuffer()); if (String.fromCharCode(...b.slice(0, 6)) === 'EBDES1' && b.length >= 326) { zp = b.slice(6, 70); setStream(b.slice(70, 326)); n++; } else errs.push(f.name + ': not a design file'); continue; }
+      const p = JSON.parse(await f.text()), e = packProblems(p); if (e.length) errs.push(f.name + ': ' + e.join('; ')); else { libAdd(p); n++; } } catch (x) { errs.push(f.name + ': not a level pack'); } }
+  say(`${n} imported` + (errs.length ? '. Skipped: ' + errs.join(' | ') : ''), errs.length > 0); $('pk_file').value = ''; };
+// community: a static index.json in the GitHub repository (no server needed)
+let repoName = ''; try { repoName = localStorage.getItem('eb_repo') || ''; } catch (x) {} $('repo').value = repoName;
+const repoOk = r => /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(r);
+function defaultIdx() { const r = $('repo').value.trim(); return repoOk(r) ? `https://raw.githubusercontent.com/${r}/main/levels/index.json` : ''; }
+$('repo').onchange = () => { const r = $('repo').value.trim(); try { localStorage.setItem('eb_repo', r); } catch (x) {} if (!$('idxurl').value || $('idxurl').dataset.auto) { $('idxurl').value = defaultIdx(); $('idxurl').dataset.auto = '1'; } };
+$('idxurl').oninput = () => delete $('idxurl').dataset.auto; $('idxurl').value = defaultIdx(); if ($('idxurl').value) $('idxurl').dataset.auto = '1';
+let netLevels = [];
+function renderNet() { const q = $('q').value.trim().toLowerCase(), box = $('net'); box.innerHTML = '';
+  const l = netLevels.filter(p => !q || [p.title, p.author, p.description, ...(p.tags || [])].join(' ').toLowerCase().includes(q));
+  if (!l.length) { box.innerHTML = '<span class="empty">No levels to show.</span>'; return; }
+  l.forEach(p => box.appendChild(card(p, [['Open', () => openPack(p)], ['Add to library', () => { libAdd(p); say('Added "' + p.title + '" to your library.'); }], ['Download', () => download(p.id + '.ebpack.json', packJson(p))]]))); }
+$('q').oninput = renderNet;
+$('idxload').onclick = async () => { const u = $('idxurl').value.trim(); if (!/^https:\/\//.test(u)) { $('net').innerHTML = '<span class="empty">Enter the repository (owner/name) or an https index URL.</span>'; return; }
+  $('net').innerHTML = '<span class="empty">Loading…</span>';
+  try { const r = await fetch(u, { cache: 'no-cache' }); if (!r.ok) throw new Error('HTTP ' + r.status); const j = await r.json(); if (j.format !== 'ebindex1' || !Array.isArray(j.levels)) throw new Error('not an ebindex1 file');
+    netLevels = j.levels.map(l => ({ format: 'ebpack1', ...l })).filter(p => !packProblems(p).length); renderNet(); if (!netLevels.length) $('net').innerHTML = '<span class="empty">The index has no valid levels yet.</span>'; }
+  catch (x) { $('net').innerHTML = ''; const sp = document.createElement('span'); sp.className = 'empty'; sp.textContent = 'Could not load the index: ' + x.message + '. Levels you receive as files can be imported above.'; $('net').appendChild(sp); } };
+// submit: GitHub's web editor turns "new file" into a fork and pull request; nothing is sent from here
+$('pk_submit').onclick = () => { const p = currentPack(), e = packProblems(p); if (e.length) return say('Fix first: ' + e.join('; '), 1);
+  const r = $('repo').value.trim(); const text = packJson(p), file = p.id + '.ebpack.json';
+  if (!repoOk(r)) { download(file, text); say('Saved ' + file + '. Enter the community repository (owner/name) above to submit it as a pull request.', 1); return; }
+  if (!confirm(`Submit "${p.title}" to github.com/${r}?\n\nGitHub opens in a new tab with the level file filled in. GitHub will offer to fork the repository and open a pull request; nothing is sent until you confirm there. The level is shared under ${p.license}.`)) return;
+  const url = `https://github.com/${r}/new/main?filename=${encodeURIComponent('levels/' + file)}&value=${encodeURIComponent(text)}`;
+  if (url.length <= 7500) window.open(url, '_blank', 'noopener'); else { download(file, text); window.open(`https://github.com/${r}/upload/main/levels`, '_blank', 'noopener'); say('This level is too large for a link: the file was downloaded; drag it onto the page that opened.'); } };
+refreshExtras(); window.addEventListener('focus', refreshExtras); cpApplyToData(); cpRefresh();
+renderLib();
+buildPalette(); setStream(Uint8Array.from(D.builtin[0]));
+</script>
+</body>
+</html>

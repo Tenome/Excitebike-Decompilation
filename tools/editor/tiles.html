@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excitebike Tile Editor</title>
+<style>
+:root { --bg:#f4f2ee; --panel:#fff; --ink:#1d1d1f; --mut:#6b6b70; --line:#d8d5cf; --acc:#c2410c; --acc2:#0f766e; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#1b1b1d; --panel:#26262a; --ink:#ececec; --mut:#9a9aa2; --line:#3a3a40; --acc:#fb923c; --acc2:#2dd4bf; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.4 system-ui, sans-serif; }
+header { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:2; }
+header h1 { font-size:16px; margin:0 12px 0 0; }
+button, select, input { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:4px 10px; }
+button { cursor:pointer; } button:hover { border-color:var(--acc); } button:disabled { opacity:.4; cursor:default; }
+button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+button.on { border-color:var(--acc); box-shadow:inset 0 0 0 1px var(--acc); }
+main { display:flex; flex-wrap:wrap; gap:12px; padding:12px 16px; align-items:flex-start; }
+section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+h2 { font-size:13px; margin:0 0 8px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+canvas { image-rendering:pixelated; display:block; }
+#sheetwrap { max-height:80vh; overflow:auto; border:1px solid var(--line); }
+.row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:6px 0; }
+.sw { width:34px; height:34px; border:2px solid var(--line); border-radius:6px; cursor:pointer; }
+.sw.on { border-color:var(--acc); }
+#master { display:grid; grid-template-columns:repeat(16, 20px); gap:2px; }
+#master div { width:20px; height:20px; cursor:pointer; border:1px solid transparent; }
+#master div.on { border-color:var(--acc); }
+.note { color:var(--mut); font-size:12px; max-width:420px; }
+#info { color:var(--mut); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Excitebike Tile Editor</h1>
+  <button id="open">Open .chr / .bmp / .pal</button><input id="file" type="file" accept=".chr,.bmp,.pal" hidden>
+  <button id="savechr" class="primary">Save .chr</button><button id="savebmp">Save .bmp</button><button id="savepal">Save .pal</button><button id="toport" title="needs the editors started with tools/editor/serve.py">Send to port</button>
+  <button id="undo">Undo</button><button id="redo">Redo</button><button id="reset">Reset to ROM</button>
+  <span id="info"></span>
+</header>
+<main>
+  <section><h2>Tiles (top: pattern table 0, bottom: table 1)</h2><div id="sheetwrap"><canvas id="sheet"></canvas></div>
+    <div class="note">Tile numbers are the ones the game and the track editor use. The game reads background tiles from table 1 and sprites (riders, shadows, banners) from table 0 or 1 depending on the screen.</div></section>
+  <section><h2>Tile <span id="tn"></span></h2>
+    <canvas id="ed" width="320" height="320"></canvas>
+    <div class="row"><button data-c="0" class="col on">0</button><button data-c="1" class="col">1</button><button data-c="2" class="col">2</button><button data-c="3" class="col">3</button>
+      <button id="fill">Fill mode</button></div>
+    <div class="row"><button id="fh">Flip H</button><button id="fv">Flip V</button><button id="rot">Rotate</button><button id="clr">Clear</button>
+      <button id="up">↑</button><button id="dn">↓</button><button id="lf">←</button><button id="rt">→</button></div>
+    <div class="row"><button id="copy">Copy</button><button id="paste">Paste</button><span class="note" id="clip"></span></div>
+    <h2>Preview</h2><canvas id="prev" width="64" height="64" style="width:128px;height:128px"></canvas>
+  </section>
+  <section><h2>Colours</h2>
+    <div class="row" id="sets"></div>
+    <div class="row" id="sw"></div>
+    <div class="note">Pick which of the four swatches a click on the master palette sets. “Game sets” are the palettes the game used on the race screen (background 0-3, sprites 4-7).</div>
+    <h2 style="margin-top:10px">Master palette (64 colours)</h2><div id="master"></div>
+    <div class="row"><label>Selected colour <input type="color" id="mc"></label><button id="mreset">Reset colours</button></div>
+    <div class="note">Edited master colours are saved with “Save .pal” (192 bytes, RGB) and load in the port with <code>--palette</code>. Tiles are saved with .chr or .bmp (<code>--chr</code> / <code>--chr-bmp</code>). In the port, F6 reloads them.</div>
+  </section>
+</main>
+<script src="data.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const D = window.EB_DATA;
+const DEF = [[84,84,84],[0,30,116],[8,16,144],[48,0,136],[68,0,100],[92,0,48],[84,4,0],[60,24,0],[32,42,0],[8,58,0],[0,64,0],[0,60,0],[0,50,60],[0,0,0],[0,0,0],[0,0,0],[152,150,152],[8,76,196],[48,50,236],[92,30,228],[136,20,176],[160,20,100],[152,34,32],[120,60,0],[84,90,0],[40,114,0],[8,124,0],[0,118,40],[0,102,120],[0,0,0],[0,0,0],[0,0,0],[236,238,236],[76,154,236],[120,124,236],[176,98,236],[228,84,236],[236,88,180],[236,106,100],[212,136,32],[160,170,0],[116,196,0],[76,208,32],[56,204,108],[56,180,204],[60,60,60],[0,0,0],[0,0,0],[236,238,236],[168,204,236],[188,188,236],[212,178,236],[236,174,236],[236,174,212],[236,180,176],[228,196,144],[204,210,120],[180,222,120],[168,226,144],[152,226,180],[160,214,228],[160,162,160],[0,0,0],[0,0,0]];
+let master = DEF.map(c => c.slice());
+const ROMCHR = D ? Uint8Array.from(atob(D.chr), c => c.charCodeAt(0)) : new Uint8Array(0x2000);
+let chr = new Uint8Array(ROMCHR); let sel = 0x100 + 59, color = 1, fillMode = false, clip = null, undoS = [], redoS = [], swIdx = 0, swatch = [0x0F, 0x00, 0x10, 0x30];                  /* greys: readable for any tile; the game's own sets are one click away */
+const gameSets = D ? [0,1,2,3,4,5,6,7].map(i => D.pal.slice(i * 4, i * 4 + 4)) : [];
+const px = (t, x, y) => { const b = t * 16 + y; return ((chr[b] >> (7 - x)) & 1) | (((chr[b + 8] >> (7 - x)) & 1) << 1); };
+function setpx(t, x, y, v) { const b = t * 16 + y, m = 0x80 >> x; chr[b] = v & 1 ? chr[b] | m : chr[b] & ~m; chr[b + 8] = v & 2 ? chr[b + 8] | m : chr[b + 8] & ~m; }
+const rgb = i => { const c = master[swatch[i] & 63]; return `rgb(${c[0]},${c[1]},${c[2]})`; };
+function tile(ctx, t, x0, y0, s) { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { const v = px(t, x, y); ctx.fillStyle = rgb(v); ctx.fillRect(x0 + x * s, y0 + y * s, s, s); } }
+const sheet = $('sheet'), sctx = sheet.getContext('2d'); sheet.width = 128 * 3; sheet.height = 256 * 3; sheet.style.width = '384px';
+function drawSheet() {
+  for (let t = 0; t < 512; t++) tile(sctx, t, (t % 16) * 24, Math.floor(t / 16) * 24, 3);
+  sctx.strokeStyle = 'rgba(128,128,128,.25)'; sctx.lineWidth = 1; for (let i = 0; i <= 16; i++) { sctx.beginPath(); sctx.moveTo(i * 24 + .5, 0); sctx.lineTo(i * 24 + .5, 768); sctx.stroke(); }
+  for (let i = 0; i <= 32; i++) { sctx.beginPath(); sctx.moveTo(0, i * 24 + .5); sctx.lineTo(384, i * 24 + .5); sctx.stroke(); }
+  sctx.strokeStyle = '#fbbf24'; sctx.lineWidth = 2; sctx.strokeRect((sel % 16) * 24 + 1, Math.floor(sel / 16) * 24 + 1, 22, 22);
+}
+function drawEd() {
+  const c = $('ed').getContext('2d'); tile(c, sel, 0, 0, 40);
+  c.strokeStyle = 'rgba(128,128,128,.4)'; c.lineWidth = 1; for (let i = 0; i <= 8; i++) { c.beginPath(); c.moveTo(i * 40 + .5, 0); c.lineTo(i * 40 + .5, 320); c.stroke(); c.beginPath(); c.moveTo(0, i * 40 + .5); c.lineTo(320, i * 40 + .5); c.stroke(); }
+  const p = $('prev').getContext('2d'); for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) tile(p, sel, a * 32, b * 32, 4);
+  $('tn').textContent = `#${sel} ($${(sel & 255).toString(16).toUpperCase().padStart(2, '0')}, table ${sel >> 8})`;
+}
+function drawColors() {
+  $('sw').innerHTML = ''; swatch.forEach((n, i) => { const d = document.createElement('div'); d.className = 'sw' + (i === swIdx ? ' on' : ''); d.style.background = rgb(i); d.title = 'colour ' + i; d.onclick = () => { swIdx = i; drawColors(); }; $('sw').appendChild(d); });
+  const m = $('master'); m.innerHTML = ''; master.forEach((c, i) => { const d = document.createElement('div'); d.style.background = `rgb(${c[0]},${c[1]},${c[2]})`; if (i === swatch[swIdx]) d.className = 'on';
+    d.onclick = () => { swatch[swIdx] = i; $('mc').value = hex(master[i]); redrawAll(); }; m.appendChild(d); });
+  $('mc').value = hex(master[swatch[swIdx] & 63]);
+  $('sets').innerHTML = ''; gameSets.forEach((s, i) => { const b = document.createElement('button'); b.textContent = (i < 4 ? 'bg ' : 'spr ') + (i & 3); b.onclick = () => { swatch = s.slice(); redrawAll(); }; $('sets').appendChild(b); });
+}
+const hex = c => '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+$('mc').oninput = () => { const v = $('mc').value; master[swatch[swIdx] & 63] = [1, 3, 5].map(i => parseInt(v.slice(i, i + 2), 16)); redrawAll(); };
+$('mreset').onclick = () => { master = DEF.map(c => c.slice()); redrawAll(); };
+function persist() { try { let a = '', b = ''; for (let i = 0; i < chr.length; i += 2048) a += String.fromCharCode(...chr.subarray(i, i + 2048)); b = String.fromCharCode(...master.flat());
+  localStorage.setItem('eb_chr', btoa(a)); localStorage.setItem('eb_master', btoa(b)); } catch (x) {} }
+function redrawAll() { persist(); drawSheet(); drawEd(); drawColors(); $('undo').disabled = !undoS.length; $('redo').disabled = !redoS.length; $('info').textContent = D ? '' : 'No ROM data (data.js): start from an opened file.'; }
+function push() { undoS.push(chr.slice()); if (undoS.length > 100) undoS.shift(); redoS = []; }
+$('undo').onclick = () => { if (undoS.length) { redoS.push(chr.slice()); chr = undoS.pop(); redrawAll(); } };
+$('redo').onclick = () => { if (redoS.length) { undoS.push(chr.slice()); chr = redoS.pop(); redrawAll(); } };
+$('reset').onclick = () => { push(); chr = new Uint8Array(ROMCHR); redrawAll(); };
+sheet.onclick = e => { const r = sheet.getBoundingClientRect(), s = sheet.width / r.width; sel = Math.floor((e.clientY - r.top) * s / 24) * 16 + Math.floor((e.clientX - r.left) * s / 24); redrawAll(); };
+let drawing = false;
+function paint(e) { const r = $('ed').getBoundingClientRect(), x = Math.floor((e.clientX - r.left) / r.width * 8), y = Math.floor((e.clientY - r.top) / r.height * 8); if (x < 0 || y < 0 || x > 7 || y > 7) return;
+  if (fillMode) { floodFill(x, y, color); return; } if (px(sel, x, y) !== color) { setpx(sel, x, y, color); redrawAll(); } }
+function floodFill(x, y, v) { const old = px(sel, x, y); if (old === v) return; const st = [[x, y]]; while (st.length) { const [a, b] = st.pop(); if (a < 0 || b < 0 || a > 7 || b > 7 || px(sel, a, b) !== old) continue; setpx(sel, a, b, v); st.push([a + 1, b], [a - 1, b], [a, b + 1], [a, b - 1]); } redrawAll(); }
+$('ed').onmousedown = e => { push(); drawing = !fillMode; paint(e); }; $('ed').onmousemove = e => { if (drawing) paint(e); }; window.onmouseup = () => drawing = false;
+document.querySelectorAll('.col').forEach(b => b.onclick = () => { color = +b.dataset.c; document.querySelectorAll('.col').forEach(x => x.classList.toggle('on', x === b)); });
+$('fill').onclick = () => { fillMode = !fillMode; $('fill').classList.toggle('on', fillMode); };
+const grid = () => { const g = []; for (let y = 0; y < 8; y++) { g.push([]); for (let x = 0; x < 8; x++) g[y].push(px(sel, x, y)); } return g; };
+const put = g => { push(); for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) setpx(sel, x, y, g[y][x]); redrawAll(); };
+$('fh').onclick = () => put(grid().map(r => r.reverse())); $('fv').onclick = () => put(grid().reverse());
+$('rot').onclick = () => { const g = grid(); put(g.map((r, y) => r.map((_, x) => g[7 - x][y]))); };
+$('clr').onclick = () => put(grid().map(r => r.map(() => 0)));
+$('up').onclick = () => { const g = grid(); put(g.map((r, y) => g[(y + 1) % 8])); }; $('dn').onclick = () => { const g = grid(); put(g.map((r, y) => g[(y + 7) % 8])); };
+$('lf').onclick = () => put(grid().map(r => r.map((_, x) => r[(x + 1) % 8]))); $('rt').onclick = () => put(grid().map(r => r.map((_, x) => r[(x + 7) % 8])));
+$('copy').onclick = () => { clip = grid(); $('clip').textContent = 'copied tile ' + sel; }; $('paste').onclick = () => { if (clip) put(clip); };
+document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key >= '0' && e.key <= '3') document.querySelector(`.col[data-c="${e.key}"]`).click();
+  else if (e.ctrlKey && e.key === 'z') $('undo').click(); else if (e.ctrlKey && e.key === 'y') $('redo').click();
+  else if (e.key === 'ArrowRight') { sel = (sel + 1) % 512; redrawAll(); } else if (e.key === 'ArrowLeft') { sel = (sel + 511) % 512; redrawAll(); } else if (e.key === 'ArrowDown') { sel = (sel + 16) % 512; redrawAll(); } else if (e.key === 'ArrowUp') { sel = (sel + 496) % 512; redrawAll(); } });
+function save(name, bytes) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes])); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+$('savechr').onclick = () => save('tiles.chr', chr);
+$('savepal').onclick = () => save('colors.pal', Uint8Array.from(master.flat()));
+function toBmp() {                                         // 128x256 8-bit indexed, the layout tools/chrbmp.py and the port use
+  const w = 128, h = 256, rs = w, data = new Uint8Array(rs * h), pal = new Uint8Array(1024);
+  [[0, 0, 0], [0x70, 0x70, 0x70], [0xB0, 0xB0, 0xB0], [255, 255, 255]].forEach((c, i) => pal.set([c[2], c[1], c[0], 0], i * 4));
+  for (let t = 0; t < 512; t++) { const tx = t % 16, ty = Math.floor(t / 16); for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) data[(h - 1 - (ty * 8 + y)) * rs + tx * 8 + x] = px(t, x, y); }
+  const off = 14 + 40 + 1024, out = new Uint8Array(off + data.length), dv = new DataView(out.buffer);
+  out.set([0x42, 0x4D]); dv.setUint32(2, out.length, true); dv.setUint32(10, off, true); dv.setUint32(14, 40, true); dv.setInt32(18, w, true); dv.setInt32(22, h, true); dv.setUint16(26, 1, true); dv.setUint16(28, 8, true); dv.setUint32(34, data.length, true); dv.setUint32(46, 256, true); dv.setUint32(50, 4, true);
+  out.set(pal, 54); out.set(data, off); return out;
+}
+$('savebmp').onclick = () => save('tiles.bmp', toBmp());
+async function put(name, bytes) { const r = await fetch('/api/put?name=' + name, { method: 'POST', headers: { 'X-Eb-Editor': '1' }, body: bytes }); return r.json(); }
+$('toport').onclick = async () => { try { const a = await put('tiles.bmp', toBmp()), b = await put('colors.pal', Uint8Array.from(master.flat())); $('info').textContent = (a.ok && b.ok) ? 'Sent: the port reloads it within a second (start it with serve.py\'s Play button).' : (a.message || b.message); }
+  catch (x) { $('info').textContent = 'Send to port needs the editors started with python tools/editor/serve.py.'; } };
+$('open').onclick = () => $('file').click();
+$('file').onchange = async () => { const f = $('file').files[0]; if (!f) return; const b = new Uint8Array(await f.arrayBuffer()); push();
+  if (b.length === 8192) chr = b;
+  else if (b.length === 192) { master = []; for (let i = 0; i < 64; i++) master.push([b[i * 3], b[i * 3 + 1], b[i * 3 + 2]]); }
+  else if (b[0] === 0x42 && b[1] === 0x4D) { const dv = new DataView(b.buffer), off = dv.getUint32(10, true), w = dv.getInt32(18, true), h = dv.getInt32(22, true);
+    if (dv.getUint16(28, true) !== 8 || w !== 128 || Math.abs(h) !== 256) { alert('Expected a 128x256 8-bit BMP.'); undoS.pop(); return; }
+    const rs = (w + 3) & ~3, n = new Uint8Array(0x2000); const save0 = chr; chr = n;
+    for (let t = 0; t < 512; t++) { const tx = t % 16, ty = Math.floor(t / 16); for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { const row = h > 0 ? 255 - (ty * 8 + y) : ty * 8 + y; setpx(t, x, y, b[off + row * rs + tx * 8 + x] & 3); } } }
+  else { alert('Not a 8 KB .chr, 192-byte .pal or 128x256 .bmp file.'); undoS.pop(); }
+  $('file').value = ''; redrawAll(); };
+try { const m = localStorage.getItem('eb_chr'); if (m && !window.__noload) { const u = Uint8Array.from(atob(m), c => c.charCodeAt(0)); if (u.length === 8192) chr = u; }
+  const q = localStorage.getItem('eb_master'); if (q) { const u = Uint8Array.from(atob(q), c => c.charCodeAt(0)); if (u.length === 192) master = Array.from({ length: 64 }, (_, i) => [u[i * 3], u[i * 3 + 1], u[i * 3 + 2]]); } } catch (x) {}
+redrawAll();
+</script>
+</body>
+</html>
