@@ -30,6 +30,8 @@ python tools/report.py --version us    # verify, then write progress/us/report.j
 ```
 cc65 is found through `--cc65 DIR`, `$CC65_DIR` or `PATH`. Edit `config/<ver>/*.json` (names, RAM names, hints), not the generated `src/`.
 
+See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) for a quick tour (port, editors, mods, level packs).
+
 ## Playing the native build
 
 ```
