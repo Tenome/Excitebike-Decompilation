@@ -82,3 +82,7 @@ Format, rules and the PR check: `levels/README.md`, `tools/levelpack.py`.
 A level pack may also contain tile changes, colour changes and a song (see `tools/levelpack.py`); `--track N=pack.ebpack.json` applies them all, so a pack is a complete one-file mod. `python tools/levelpack.py unpack pack.ebpack.json out.ebd --extras DIR` writes them as separate files.
 
 `--watch` reloads track, tile, palette and audio files when they change; `--autostart` presses Start and A by itself to begin a race on track 1. The editors' **Play in port** buttons use both (`tools/editor/serve.py`).
+
+`--long-designs` (or LONG DESIGNS in the menu, `long_designs=1` in the config) lets the in-game design editor record tracks longer than the original 236 bytes: finished bytes are moved out of the game's 256-byte buffer
+into a host buffer as it fills up, the race streams the whole track, and SAVE writes an extended (`EBDES2`) design that LOAD and the track editor read back. It is off by default so the C game stays equal to the ROM;
+`tests/test_longdesign.py` checks the buffer logic.

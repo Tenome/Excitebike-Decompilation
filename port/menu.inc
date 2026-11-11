@@ -1,27 +1,27 @@
 /* In-game options menu (Tab or F1): the port's settings, drawn with the game's own font (pattern table 1). Included from main.c.
  * Up/Down choose, Left/Right change (applied at once), Enter on SAVE SETTINGS writes excitebike.cfg, Tab or Esc closes. The game is paused while it is open. */
 typedef struct { const char *name; int *val; int lo, hi, step; } MenuItem;
-static int m_riders, m_collide, m_speed, m_jump, m_crash, m_heat, m_width, m_fps, m_unl;
+static int m_long, m_riders, m_collide, m_speed, m_jump, m_crash, m_heat, m_width, m_fps, m_unl;
 static MenuItem g_items[] = {
     { "EXTRA RIDERS", &m_riders, 0, 4, 1 }, { "RIDER CONTACT", &m_collide, 0, 1, 1 }, { "TOP SPEED", &m_speed, 25, 200, 5 },
     { "JUMP POWER", &m_jump, 0, 255, 5 }, { "CRASH PITCH", &m_crash, 1, 15, 1 }, { "OVERHEAT", &m_heat, 0, 1, 1 },
-    { "WIDTH", &m_width, 256, 512, 32 }, { "FRAME RATE", &m_fps, 60, 240, 60 }, { "NO SPRITE LIMIT", &m_unl, 0, 1, 1 }, { "SAVE SETTINGS", NULL, 0, 0, 0 },
+    { "WIDTH", &m_width, 256, 512, 32 }, { "FRAME RATE", &m_fps, 60, 240, 60 }, { "NO SPRITE LIMIT", &m_unl, 0, 1, 1 }, { "LONG DESIGNS", &m_long, 0, 1, 1 }, { "SAVE SETTINGS", NULL, 0, 0, 0 },
 };
 #define NITEMS ((int)(sizeof g_items / sizeof g_items[0]))
 static int menu_open, menu_sel;
 
 static void menu_load(void) {
     m_riders = g_extra_count; m_collide = g_extra_collide; m_speed = g_rules.max_speed_pct; m_jump = g_rules.jump_power; m_crash = g_rules.crash_pitch; m_heat = g_rules.overheat;
-    m_width = width_opt; m_fps = fps_mult * 60; m_unl = g_ppu.unlimited_sprites;
+    m_width = width_opt; m_fps = fps_mult * 60; m_unl = g_ppu.unlimited_sprites; m_long = g_design_long;
 }
 static void menu_apply(void) {
     g_extra_count = m_riders; g_extra_collide = m_collide; g_rules.max_speed_pct = (uint16_t)m_speed; g_rules.jump_power = (uint8_t)m_jump; g_rules.crash_pitch = (uint8_t)m_crash; g_rules.overheat = (uint8_t)m_heat;
-    width_opt = m_width; fps_mult = m_fps / 60; g_ppu.unlimited_sprites = m_unl;
+    width_opt = m_width; fps_mult = m_fps / 60; g_ppu.unlimited_sprites = m_unl; g_design_long = m_long;
 }
 static void menu_save(void) {
     FILE *f = fopen("excitebike.cfg", "w"); if (!f) return;
-    fprintf(f, "# written by the in-game menu (see port/excitebike.cfg.example)\njump_power=%d\ncrash_pitch=%d\noverheat=%d\nmax_speed=%d\nriders=%d\nextra_collisions=%d\nwidth=%d\nfps=%d\n",
-            m_jump, m_crash, m_heat, m_speed, m_riders, m_collide, m_width, m_fps);
+    fprintf(f, "# written by the in-game menu (see port/excitebike.cfg.example)\njump_power=%d\ncrash_pitch=%d\noverheat=%d\nmax_speed=%d\nriders=%d\nextra_collisions=%d\nwidth=%d\nfps=%d\nlong_designs=%d\n",
+            m_jump, m_crash, m_heat, m_speed, m_riders, m_collide, m_width, m_fps, m_long);
     fclose(f);
 }
 static int font_tile(char c) {                              /* the game's text tiles: 0-9 then A-Z in order; -1 = no glyph (spaces) */

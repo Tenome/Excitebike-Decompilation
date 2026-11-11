@@ -11,3 +11,4 @@ riders=0            # extra CPU riders (0-4)
 extra_collisions=1  # 0 = extra riders pass through everyone
 width=256           # picture width while racing, 256-512 (416 = 16:9)
 fps=60              # output frame rate: 60, 120, 180 or 240 (interpolated)
+long_designs=0      # 1 = the in-game design editor can record tracks longer than the original 236 bytes (saved as extended .ebd files)

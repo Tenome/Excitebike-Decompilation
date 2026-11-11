@@ -11,6 +11,7 @@ int TrackExtSet(int slot, const uint8_t *stream, int len) {                     
     memcpy(g_track_ext + base, stream, len); g_track_ext_base[slot] = (uint16_t)base; g_track_ext_len[slot] = (uint16_t)len; return 1;
 }
 void TrackExtClear(int slot) { if (slot >= 0 && slot < 6) g_track_ext_len[slot] = 0; }
+
 const uint8_t *g_prg;
 /* Game rules the port can change (mutators); the defaults are the original game's values, so the lifted code stays identical to it. */
 Rules g_rules = { 0xAF, 0x0D, 1, 100 };
@@ -1955,7 +1956,51 @@ void DesignScrollStep(void) {                 /* $EC99 */
     RAM(0xB2) = IncMod64((Regs){ RAM(0xB2), 0, 0, 0 }).a;
     RAM(0xB3) = IncMod64((Regs){ RAM(0xB3), 0, 0, 0 }).a;
 }
-void CopyBackupToDesign(void) { for (int i = 0; i < 256; i++) TrackDesignWork(i) = TrackDesign(i); }   /* $EC3B */
+/* Long designs (host option): the original design mode stops a track at 236 bytes. With g_design_long the bytes already recorded (they are final once written)
+ * are moved out of the 256-byte design buffer into a host buffer whenever it fills up, so the editor can record a much longer track. The race then streams the
+ * assembled track through the host track window (slot 5). Off by default: the C game stays equal to the ROM. */
+int g_design_long;
+static uint8_t g_design_ext[2000]; static int g_design_ext_n, g_design_ext_complete, g_design_ext_owned;
+static int design_stream_end(const uint8_t *p, int cap) {          /* length of the track script in p[0..cap) including its finish piece (9) or 0; 0 if not terminated */
+    int i = 1; while (i < cap) { uint8_t b = p[i++]; if (b == 0 || b == 9) return i; if (b & 0x40) i++; }
+    return 0;
+}
+void DesignExtReset(void) {
+    g_design_ext_n = 0; g_design_ext_complete = 0;
+    if (g_design_ext_owned) { TrackExtClear(5); g_design_ext_owned = 0; }
+}
+int DesignAssemble(uint8_t *out, int cap) {                         /* the whole designed track (0 = the design is the plain 256-byte one) */
+    if (!g_design_ext_n) return 0;
+    int n = 0;
+    if (g_design_ext_complete) { if (g_design_ext_n > cap) return 0; memcpy(out, g_design_ext, g_design_ext_n); return g_design_ext_n; }
+    if (1 + g_design_ext_n > cap - 260) return 0;
+    out[n++] = TrackDesign(0); memcpy(out + n, g_design_ext, g_design_ext_n); n += g_design_ext_n;
+    uint8_t tail[256]; for (int i = 0; i < 255; i++) tail[i + 1] = TrackDesign(1 + i);   /* tail[0] unused: design_stream_end starts at index 1 */
+    int e = design_stream_end(tail, 256); int len = e ? e - 1 : 255;
+    memcpy(out + n, tail + 1, len); n += len;
+    if (!e || tail[e - 1] == 0) { if (n > 0 && out[n - 1] == 0) n--; out[n++] = 9; out[n++] = 0; }
+    return n;
+}
+void DesignExtImport(const uint8_t *stream, int n) {                 /* a long design loaded from a file: ext holds the whole track, the 256-byte design gets a stub */
+    if (n < 3 || n > (int)sizeof g_design_ext) return;
+    memcpy(g_design_ext, stream, n); g_design_ext_n = n; g_design_ext_complete = 1;
+    TrackDesign(0) = stream[0]; TrackDesign(1) = 0x40; TrackDesign(2) = 4; TrackDesign(3) = 9; TrackDesign(4) = 0;
+    for (int i = 0; i < 256; i++) TrackDesignWork(i) = TrackDesign(i);
+    TrackExtSet(5, g_design_ext, n); g_design_ext_owned = 1;
+}
+void DesignFlush(void) {                                    /* called while recording: move the finished bytes out of the buffer */
+    int n = RAM(0xB7) - 1;
+    if (n <= 0 || g_design_ext_n + n > (int)sizeof g_design_ext - 300) return;
+    for (int i = 0; i < n; i++) g_design_ext[g_design_ext_n + i] = TrackDesign(1 + i);
+    g_design_ext_n += n; g_design_ext_complete = 0; RAM(0xB7) = 1;
+}
+void CopyBackupToDesign(void) {                                         /* $EC3B */
+    for (int i = 0; i < 256; i++) TrackDesignWork(i) = TrackDesign(i);
+    if (g_design_long && g_design_ext_n && !g_design_ext_complete) {            /* the recorded track is longer than the buffer: stream it from the host window */
+        static uint8_t full[2300]; int n = DesignAssemble(full, sizeof full);
+        if (n) { TrackExtSet(5, full, n); g_design_ext_owned = 1; }
+    }
+}
 void DrawDesignCursorSprite(Regs r) {         /* $EC25: A = Y position */
     RAM(0x0230) = r.a; RAM(0x0231) = 0xCA; RAM(0x0232) = 0;
     RAM(0x0233) = ROMB(0xE6F6 + RAM(0xC2));
@@ -2191,6 +2236,7 @@ f7ec:
     RAM(0xC6) = RAM(0xC7);
     if (RAM(0xC7) == 9) { RAM(0xBF) = 2; InputLatch = 2; }
 f7fa:
+    if (g_design_long && RAM(0xB7) >= 0xC0 && RAM(0xC1) == 0) DesignFlush();
     if (RAM(0xB7) >= 0xED && RAM(0xC1) == 0) RAM(0xC1) = 1;
     (void)q;
 }
@@ -2716,6 +2762,7 @@ void DesignShowSlotSprite(void) {             /* $EC47 */
 }
 void SetupDesignMode(void) {                  /* $C5C2: initial editor state: cursor, rider sprite, scroll positions */
     RAM(0xB7) = 1;
+    if (g_design_long) DesignExtReset();
     CopyTrackDesignToBackup();
     RAM(0xBD) = 0; RAM(0xBE) = 0; RiderScriptPos(0) = 0; RiderTrackPiece(0) = 0; InputLatch = 0; RAM(0xC2) = 0;
     TrackDesign(0) = 1;

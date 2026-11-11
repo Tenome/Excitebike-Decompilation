@@ -17,6 +17,8 @@ extern void (*g_hal_write)(uint16_t addr, uint8_t val);   /* host hooks for the 
 extern uint8_t (*g_hal_read)(uint16_t addr);
 extern void (*g_hal_event)(int event, int arg);
 extern uint8_t g_track_ext[0x2000]; extern uint16_t g_track_ext_base[6], g_track_ext_len[6];   /* host tracks (custom or longer than the original design limit) that replace track slot 0-5 */
+extern int g_design_long;                      /* 1 = the design editor may record tracks longer than 236 bytes (host option; 0 keeps the original limit) */
+int DesignAssemble(uint8_t *out, int cap); void DesignExtImport(const uint8_t *stream, int n); void DesignExtReset(void); void DesignFlush(void);
 int TrackExtSet(int slot, const uint8_t *stream, int len); void TrackExtClear(int slot);
 enum { SND_MUSIC = 0, SND_NOISE = 1, SND_PULSE2 = 2, SND_PULSE1 = 3, SND_ENGINE = 4 };
 extern int (*g_hal_sound)(int chan, int value);   /* a sound request is about to run; return nonzero to replace it (audio mods) */

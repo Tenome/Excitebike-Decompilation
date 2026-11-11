@@ -79,11 +79,17 @@ static void tape_service(void) {
     DisableNmi();
     FILE *f = fopen(designs_path, st == 1 ? "wb" : "rb");
     if (f) {
-        if (st == 1) { fwrite("EBDES1", 1, 6, f); fwrite(g_ram + 0x60, 1, 0x40, f); fwrite(g_ram + 0x05E0, 1, 0x100, f); }
+        static uint8_t full[2300];
+        int ln = g_design_long ? DesignAssemble(full, sizeof full) : 0;
+        if (st == 1 && ln > 0) { fwrite("EBDES2", 1, 6, f); fputc(ln & 255, f); fputc(ln >> 8, f); fwrite(full, 1, (size_t)ln, f); }      /* a long design (see --long-designs) */
+        else if (st == 1) { fwrite("EBDES1", 1, 6, f); fwrite(g_ram + 0x60, 1, 0x40, f); fwrite(g_ram + 0x05E0, 1, 0x100, f); }
         else {
             char magic[6]; uint8_t zp[0x40], design[0x100];
-            if (fread(magic, 1, 6, f) == 6 && !memcmp(magic, "EBDES1", 6) && fread(zp, 1, 0x40, f) == 0x40 && fread(design, 1, 0x100, f) == 0x100) {
-                memcpy(g_ram + 0x60, zp, sizeof zp); memcpy(g_ram + 0x05E0, design, sizeof design);
+            if (fread(magic, 1, 6, f) == 6 && !memcmp(magic, "EBDES2", 6)) {
+                int c0 = fgetc(f), c1 = fgetc(f); int n = c0 | c1 << 8; size_t got = n > 0 && n <= (int)sizeof full ? fread(full, 1, (size_t)n, f) : 0;
+                if (g_design_long && (int)got == n && n >= 3) DesignExtImport(full, n); else fprintf(stderr, "%s holds a long design: start with --long-designs (or the LONG DESIGNS menu item)\n", designs_path);
+            } else if (!memcmp(magic, "EBDES1", 6) && fread(zp, 1, 0x40, f) == 0x40 && fread(design, 1, 0x100, f) == 0x100) {
+                memcpy(g_ram + 0x60, zp, sizeof zp); memcpy(g_ram + 0x05E0, design, sizeof design); if (g_design_long) DesignExtReset();
             } else fprintf(stderr, "%s is not a track design file\n", designs_path);
         }
         fclose(f);
@@ -209,6 +215,7 @@ static int set_rule(const char *kv) {
     else if (!strcmp(name, "crash_pitch")) g_rules.crash_pitch = (uint8_t)v;          /* 13 = original; higher = more forgiving wheelies */
     else if (!strcmp(name, "overheat")) g_rules.overheat = v != 0;                    /* 0 = the engine never overheats */
     else if (!strcmp(name, "max_speed")) g_rules.max_speed_pct = (uint16_t)v;         /* percent of the original top speed */
+    else if (!strcmp(name, "long_designs")) g_design_long = v != 0;
     else if (!strcmp(name, "riders")) g_extra_count = v < 0 ? 0 : v > 4 ? 4 : v;        /* extra CPU riders */
     else if (!strcmp(name, "extra_collisions")) g_extra_collide = v != 0;
     else if (!strcmp(name, "width")) width_opt = v;                                     /* picture width while racing, 256-512 */
@@ -267,6 +274,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--palette") && i + 1 < argc) pal_file = argv[++i];
         else if (!strcmp(argv[i], "--peek") && i + 1 < argc) peek = argv[++i];         /* debug: print RAM bytes at exit, e.g. 12,4d,e8 */
         else if (!strcmp(argv[i], "--dump-ppu") && i + 1 < argc) dump_ppu = argv[++i];         /* debug/tools: 2 KB nametables + 32 palette bytes at exit */
+        else if (!strcmp(argv[i], "--long-designs")) g_design_long = 1;                     /* the design editor can record tracks longer than the original 236 bytes */
         else if (!strcmp(argv[i], "--watch")) g_watch = 1;                                  /* reload tracks, tiles, palette and audio when their files change (live editing) */
         else if (!strcmp(argv[i], "--autostart")) g_autostart = 1;                          /* press Start and A by itself to begin a race on track 1 (with --track 1=...) */
         else if (!strcmp(argv[i], "--shot-menu")) shot_menu = 1;                         /* debug: also save the options menu over the last picture */
