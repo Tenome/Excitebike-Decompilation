@@ -28,6 +28,11 @@ def measures(code, data, units=0, complete_units=0):
             'complete_code': str(cc), 'complete_code_percent': round(100.0 * cc / tc, 4) if tc else 0.0,
             'complete_data': str(cd), 'complete_data_percent': round(100.0 * cd / td, 4) if td else 0.0,
             'total_units': units, 'complete_units': complete_units}
+# Code that sits in front of a routine's entry point but is part of the same C function (the original jumps into the middle of the routine from elsewhere);
+# the report credits it to that routine: address -> address of the C routine that implements it (verified by that routine's test).
+INSIDE = {0xFA4F: 0xFA74,      # blip start of SoundPulse2TriangleSfx
+          0xFBFF: 0xFC3D}      # effect bodies of SoundNoiseSfx
+
 def lifted_addresses():
     """addresses ($XXXX in the comment of a function definition) of the routines that exist as C in c/"""
     out = set()
@@ -56,6 +61,7 @@ def main():
         vf = os.path.join(ROOT, 'config', a.version, 'verified.json')
         cverified = set(json.load(open(vf))['verified']) if os.path.exists(vf) else set(); cl = lifted_addresses()
     def cpct(addr):                                       # C lifting: verified 100, lifted 50, not lifted 0
+        addr = INSIDE.get(addr, addr)
         return 100.0 if addr in cverified else (50.0 if addr in cl else 0.0)
     units = []; all_code = []; all_data = []
     mods = g.load_modules() or [(0, 'prg')]

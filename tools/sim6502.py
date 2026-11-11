@@ -9,19 +9,22 @@ class CPU:
         self.prg = prg; self.ram = bytearray(0x800)
         self.a = self.x = self.y = 0; self.sp = 0xFF; self.pc = 0
         self.c = self.z = self.i = self.d = self.v = self.n = 0
-        self.io_writes = []; self.cycles = 0; self.io_reads = {}
+        self.io_writes = []; self.cycles = 0; self.io_reads = {}; self.io_seq = {}; self.io_seq_i = {}; self.clear_on_status = None   # io_seq: address -> list of values returned by successive reads (wraps around)
         self.model = False; self.pad_buttons = [0, 0]; self.pad_shift = [0, 0]; self.status_reads = 0   # optional hardware model (see tools/fulltest.py)
     # -- memory
     def rd(self, a):
         a &= 0xFFFF
         if a < 0x2000: return self.ram[a & 0x7FF]
         if a >= 0x8000: return self.prg[a & 0x3FFF]
+        if a == 0x2002 and self.clear_on_status is not None: self.ram[self.clear_on_status] = 0     # test aid: an NMI would have run between two status polls and cleared the PPU update index
         if self.model:
             if a == 0x2002:
                 c = self.status_reads & 0xFF; self.status_reads += 1
                 return ((c & 1) << 6) | (((c >> 1) & 1) << 7)
             if a in (0x4016, 0x4017):
                 p = a & 1; v = self.pad_shift[p] & 1; self.pad_shift[p] = (self.pad_shift[p] >> 1) | 0x80; return v
+        if a in self.io_seq:
+            i = self.io_seq_i.get(a, 0); self.io_seq_i[a] = i + 1; return self.io_seq[a][i % len(self.io_seq[a])]
         if a in self.io_reads: return self.io_reads[a]
         return 0
     def wr(self, a, v):

@@ -32,9 +32,11 @@ int g_rlo = 0, g_rhi = 3;                /* rider range the per-rider loops cove
 
 /* Hardware registers ($2000-$7FFF): writes are logged in order, reads come from g_io_reads. The tests compare the log with the
  * writes the original code makes; the real port replaces these two functions with the PPU/APU/input layer. */
-IoWrite g_io_log[8192];
+IoWrite g_io_log[131072];
 int g_io_n;
 uint8_t g_io_reads[0x8000];
+int g_clear_on_status;                    /* tests: a read of $2002 clears PpuUpdateIndex ($45), as an NMI between two polls would (the same rule is in tools/sim6502.py) */
+uint8_t g_io_seq[16384]; int g_io_seq_n, g_io_seq_i;     /* tests: successive reads of $4016 return these values (the cassette input), wrapping around */
 int g_io_model;                               /* 1 = simple hardware model for whole-game runs: $2002 toggles its bits, joypads shift out g_pad_buttons */
 uint8_t g_pad_buttons[2], g_pad_shift[2];
 static uint32_t g_ppu_status_reads;
@@ -45,11 +47,13 @@ void (*g_hal_event)(int event, int arg);
 int (*g_hal_sound)(int chan, int value);
 static inline void io_w(uint16_t a, uint8_t v) {
     if (g_hal_write) g_hal_write(a, v);
-    if (g_io_n < 8192) { g_io_log[g_io_n].addr = a; g_io_log[g_io_n].val = v; g_io_n++; }
+    if (g_io_n < 131072) { g_io_log[g_io_n].addr = a; g_io_log[g_io_n].val = v; g_io_n++; }
     if (g_io_model && a == 0x4016 && !(v & 1)) { g_pad_shift[0] = g_pad_buttons[0]; g_pad_shift[1] = g_pad_buttons[1]; }   /* strobe latches the buttons */
 }
 static inline uint8_t io_r(uint16_t a) {
     if (g_hal_read) return g_hal_read(a);
+    if (g_io_seq_n && a == 0x4016) return g_io_seq[g_io_seq_i++ % g_io_seq_n];
+    if (g_clear_on_status && a == 0x2002) g_ram[0x45] = 0;
     if (g_io_model) {
         if (a == 0x2002) { uint8_t c = (uint8_t)g_ppu_status_reads++; return (uint8_t)(((c & 1) << 6) | (((c >> 1) & 1) << 7)); }
         if (a == 0x4016 || a == 0x4017) { int p = a & 1; uint8_t v = g_pad_shift[p] & 1; g_pad_shift[p] = (uint8_t)((g_pad_shift[p] >> 1) | 0x80); return v; }
@@ -3095,3 +3099,18 @@ int MainLoopStep(void) {                      /* $C1D8: one pass of the idle loo
     WaitVblankEndEnableNmi();
     return 1;
 }
+
+/* ---- test wrappers ----
+ * Small helpers that are static in this file are exported here so tools/difftest.py can run each one against the original routine at the same address
+ * (the V_ prefix: the test calls them with the CPU registers in a Regs). They are not used by the game or the port. */
+Regs V_lane_piece_open(Regs r) { r.c = lane_piece_open(r.x, r.y); return r; }                              /* $CF88: C = 0 when the piece at lane row Y is solid */
+void V_obstacle_wheels(void) { obstacle_wheels(); }                                                        /* $E16C */
+Regs V_PpuBufferAdvance(Regs r) { ppu_buffer_advance(&r.x); r.a = r.x; r.c = 0; return r; }                /* $D2FF below the full mark (see the comment above ppu_buffer_advance) */
+void RiderState0Racing(void) { }                                                                           /* $D923: rider state 0 (racing) has no work of its own; the original is a bare RTS */
+Regs V_ts_set_height(Regs r) { r.a = ts_set_height(r.x, r.a); return r; }                                  /* $E893 */
+void V_ts_height_abs(Regs r) { ts_height_abs(r.x, r.a); }                                                  /* $E84F */
+void V_ts_height_rel(Regs r) { ts_height_rel(r.x, r.a); }                                                  /* $E86F */
+void V_ts_op_E8FF(Regs r) { ts_op_E8FF(r.x, r.y); }                                                        /* $E8FF takes the opcode in Y */
+#define TS_WRAP(n) void V_ts_op_##n(Regs r) { ts_op_##n(r.x); }
+TS_WRAP(E818) TS_WRAP(E845) TS_WRAP(E854) TS_WRAP(E85D) TS_WRAP(E86A) TS_WRAP(E879) TS_WRAP(E89D) TS_WRAP(E8BF)
+TS_WRAP(E8C6) TS_WRAP(E8E3) TS_WRAP(E8EE) TS_WRAP(E8FA) TS_WRAP(E934) TS_WRAP(E956) TS_WRAP(E963) TS_WRAP(EA8F)

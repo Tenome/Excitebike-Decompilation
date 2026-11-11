@@ -1,21 +1,21 @@
 {
  "measures": {
-  "fuzzy_match_percent": 95.3873,
+  "fuzzy_match_percent": 100.0,
   "total_code": "11349",
-  "matched_code": "10436",
-  "matched_code_percent": 91.9552,
+  "matched_code": "11349",
+  "matched_code_percent": 100.0,
   "total_data": "0",
   "matched_data": "0",
   "matched_data_percent": 0.0,
   "total_functions": 215,
-  "matched_functions": 177,
-  "matched_functions_percent": 82.3256,
-  "complete_code": "0",
-  "complete_code_percent": 0.0,
+  "matched_functions": 215,
+  "matched_functions_percent": 100.0,
+  "complete_code": "11349",
+  "complete_code_percent": 100.0,
   "complete_data": "0",
   "complete_data_percent": 0.0,
   "total_units": 16,
-  "complete_units": 10
+  "complete_units": 16
  },
  "units": [
   {
@@ -284,28 +284,28 @@
   {
    "name": "main/tape",
    "measures": {
-    "fuzzy_match_percent": 56.0674,
+    "fuzzy_match_percent": 100.0,
     "total_code": "445",
-    "matched_code": "54",
-    "matched_code_percent": 12.1348,
+    "matched_code": "445",
+    "matched_code_percent": 100.0,
     "total_data": "0",
     "matched_data": "0",
     "matched_data_percent": 0.0,
     "total_functions": 15,
-    "matched_functions": 4,
-    "matched_functions_percent": 26.6667,
-    "complete_code": "0",
-    "complete_code_percent": 0.0,
+    "matched_functions": 15,
+    "matched_functions_percent": 100.0,
+    "complete_code": "445",
+    "complete_code_percent": 100.0,
     "complete_data": "0",
     "complete_data_percent": 0.0,
     "total_units": 1,
-    "complete_units": 0
+    "complete_units": 1
    },
    "sections": [
     {
      "name": ".text",
      "size": "445",
-     "fuzzy_match_percent": 56.0674
+     "fuzzy_match_percent": 100.0
     }
    ],
    "functions": [
@@ -320,7 +320,7 @@
     {
      "name": "TapeStrobe",
      "size": "12",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1597"
      }
@@ -328,7 +328,7 @@
     {
      "name": "TapeWaitEdges",
      "size": "21",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1609"
      }
@@ -336,7 +336,7 @@
     {
      "name": "TapeWriteZeroPulse",
      "size": "5",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1630"
      }
@@ -344,7 +344,7 @@
     {
      "name": "TapeWritePulse",
      "size": "27",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1635"
      }
@@ -352,7 +352,7 @@
     {
      "name": "TapeWriteByte",
      "size": "28",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1662"
      }
@@ -368,7 +368,7 @@
     {
      "name": "TapeReadHalfBit",
      "size": "20",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1697"
      }
@@ -376,7 +376,7 @@
     {
      "name": "TapeReadByte",
      "size": "35",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1717"
      }
@@ -384,7 +384,7 @@
     {
      "name": "TapeSaveDesigns",
      "size": "9",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1752"
      }
@@ -392,7 +392,7 @@
     {
      "name": "TapeWriteBlock",
      "size": "69",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1761"
      }
@@ -416,7 +416,7 @@
     {
      "name": "TapeLoadDesigns",
      "size": "89",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1865"
      }
@@ -424,14 +424,14 @@
     {
      "name": "TapeReadBlock",
      "size": "76",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "1954"
      }
     }
    ],
    "metadata": {
-    "complete": false,
+    "complete": true,
     "source_path": "c/excitebike.c"
    }
   },
@@ -666,28 +666,28 @@
   {
    "name": "main/rider_ai",
    "measures": {
-    "fuzzy_match_percent": 99.8348,
+    "fuzzy_match_percent": 100.0,
     "total_code": "908",
-    "matched_code": "905",
-    "matched_code_percent": 99.6696,
+    "matched_code": "908",
+    "matched_code_percent": 100.0,
     "total_data": "0",
     "matched_data": "0",
     "matched_data_percent": 0.0,
     "total_functions": 19,
-    "matched_functions": 18,
-    "matched_functions_percent": 94.7368,
-    "complete_code": "0",
-    "complete_code_percent": 0.0,
+    "matched_functions": 19,
+    "matched_functions_percent": 100.0,
+    "complete_code": "908",
+    "complete_code_percent": 100.0,
     "complete_data": "0",
     "complete_data_percent": 0.0,
     "total_units": 1,
-    "complete_units": 0
+    "complete_units": 1
    },
    "sections": [
     {
      "name": ".text",
      "size": "908",
-     "fuzzy_match_percent": 99.8348
+     "fuzzy_match_percent": 100.0
     }
    ],
    "functions": [
@@ -774,7 +774,7 @@
     {
      "name": "Sub_CF88",
      "size": "3",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "3992"
      }
@@ -845,35 +845,35 @@
     }
    ],
    "metadata": {
-    "complete": false,
+    "complete": true,
     "source_path": "c/excitebike.c"
    }
   },
   {
    "name": "main/video_support",
    "measures": {
-    "fuzzy_match_percent": 97.9038,
+    "fuzzy_match_percent": 100.0,
     "total_code": "811",
-    "matched_code": "794",
-    "matched_code_percent": 97.9038,
+    "matched_code": "811",
+    "matched_code_percent": 100.0,
     "total_data": "0",
     "matched_data": "0",
     "matched_data_percent": 0.0,
     "total_functions": 20,
-    "matched_functions": 19,
-    "matched_functions_percent": 95.0,
-    "complete_code": "0",
-    "complete_code_percent": 0.0,
+    "matched_functions": 20,
+    "matched_functions_percent": 100.0,
+    "complete_code": "811",
+    "complete_code_percent": 100.0,
     "complete_data": "0",
     "complete_data_percent": 0.0,
     "total_units": 1,
-    "complete_units": 0
+    "complete_units": 1
    },
    "sections": [
     {
      "name": ".text",
      "size": "811",
-     "fuzzy_match_percent": 97.9038
+     "fuzzy_match_percent": 100.0
     }
    ],
    "functions": [
@@ -992,7 +992,7 @@
     {
      "name": "PpuBufferAdvance",
      "size": "17",
-     "fuzzy_match_percent": 0.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "4879"
      }
@@ -1039,7 +1039,7 @@
     }
    ],
    "metadata": {
-    "complete": false,
+    "complete": true,
     "source_path": "c/excitebike.c"
    }
   },
@@ -1073,28 +1073,28 @@
   {
    "name": "main/riders",
    "measures": {
-    "fuzzy_match_percent": 99.5119,
+    "fuzzy_match_percent": 100.0,
     "total_code": "2151",
-    "matched_code": "2131",
-    "matched_code_percent": 99.0702,
+    "matched_code": "2151",
+    "matched_code_percent": 100.0,
     "total_data": "0",
     "matched_data": "0",
     "matched_data_percent": 0.0,
     "total_functions": 43,
-    "matched_functions": 41,
-    "matched_functions_percent": 95.3488,
-    "complete_code": "0",
-    "complete_code_percent": 0.0,
+    "matched_functions": 43,
+    "matched_functions_percent": 100.0,
+    "complete_code": "2151",
+    "complete_code_percent": 100.0,
     "complete_data": "0",
     "complete_data_percent": 0.0,
     "total_units": 1,
-    "complete_units": 0
+    "complete_units": 1
    },
    "sections": [
     {
      "name": ".text",
      "size": "2151",
-     "fuzzy_match_percent": 99.5119
+     "fuzzy_match_percent": 100.0
     }
    ],
    "functions": [
@@ -1109,7 +1109,7 @@
     {
      "name": "RiderState0Racing",
      "size": "1",
-     "fuzzy_match_percent": 0.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "6451"
      }
@@ -1437,14 +1437,14 @@
     {
      "name": "Sub_E16C",
      "size": "19",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "8572"
      }
     }
    ],
    "metadata": {
-    "complete": false,
+    "complete": true,
     "source_path": "c/excitebike.c"
    }
   },
@@ -1615,28 +1615,28 @@
   {
    "name": "main/track_scripts",
    "measures": {
-    "fuzzy_match_percent": 80.8176,
+    "fuzzy_match_percent": 100.0,
     "total_code": "954",
-    "matched_code": "588",
-    "matched_code_percent": 61.6352,
+    "matched_code": "954",
+    "matched_code_percent": 100.0,
     "total_data": "0",
     "matched_data": "0",
     "matched_data_percent": 0.0,
     "total_functions": 32,
-    "matched_functions": 12,
-    "matched_functions_percent": 37.5,
-    "complete_code": "0",
-    "complete_code_percent": 0.0,
+    "matched_functions": 32,
+    "matched_functions_percent": 100.0,
+    "complete_code": "954",
+    "complete_code_percent": 100.0,
     "complete_data": "0",
     "complete_data_percent": 0.0,
     "total_units": 1,
-    "complete_units": 0
+    "complete_units": 1
    },
    "sections": [
     {
      "name": ".text",
      "size": "954",
-     "fuzzy_match_percent": 80.8176
+     "fuzzy_match_percent": 100.0
     }
    ],
    "functions": [
@@ -1707,7 +1707,7 @@
     {
      "name": "Sub_E818",
      "size": "30",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10280"
      }
@@ -1723,7 +1723,7 @@
     {
      "name": "Sub_E845",
      "size": "10",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10325"
      }
@@ -1731,7 +1731,7 @@
     {
      "name": "Sub_E84F",
      "size": "5",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10335"
      }
@@ -1739,7 +1739,7 @@
     {
      "name": "Sub_E854",
      "size": "9",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10340"
      }
@@ -1747,7 +1747,7 @@
     {
      "name": "Sub_E85D",
      "size": "13",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10349"
      }
@@ -1755,7 +1755,7 @@
     {
      "name": "Sub_E86A",
      "size": "5",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10362"
      }
@@ -1763,7 +1763,7 @@
     {
      "name": "Sub_E86F",
      "size": "10",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10367"
      }
@@ -1771,7 +1771,7 @@
     {
      "name": "Sub_E879",
      "size": "26",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10377"
      }
@@ -1779,7 +1779,7 @@
     {
      "name": "TrackScriptSetHeight",
      "size": "10",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10403"
      }
@@ -1787,7 +1787,7 @@
     {
      "name": "Sub_E89D",
      "size": "34",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10413"
      }
@@ -1795,7 +1795,7 @@
     {
      "name": "Sub_E8BF",
      "size": "7",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10447"
      }
@@ -1803,7 +1803,7 @@
     {
      "name": "Sub_E8C6",
      "size": "29",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10454"
      }
@@ -1811,7 +1811,7 @@
     {
      "name": "Sub_E8E3",
      "size": "11",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10483"
      }
@@ -1819,7 +1819,7 @@
     {
      "name": "Sub_E8EE",
      "size": "12",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10494"
      }
@@ -1827,7 +1827,7 @@
     {
      "name": "Sub_E8FA",
      "size": "5",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10506"
      }
@@ -1835,7 +1835,7 @@
     {
      "name": "Sub_E8FF",
      "size": "40",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10511"
      }
@@ -1851,7 +1851,7 @@
     {
      "name": "Sub_E934",
      "size": "34",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10564"
      }
@@ -1859,7 +1859,7 @@
     {
      "name": "Sub_E956",
      "size": "13",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10598"
      }
@@ -1867,7 +1867,7 @@
     {
      "name": "Sub_E963",
      "size": "9",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10611"
      }
@@ -1891,14 +1891,14 @@
     {
      "name": "TrackScriptFinishLine",
      "size": "54",
-     "fuzzy_match_percent": 50.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "10911"
      }
     }
    ],
    "metadata": {
-    "complete": false,
+    "complete": true,
     "source_path": "c/excitebike.c"
    }
   },
@@ -2141,28 +2141,28 @@
   {
    "name": "main/sound",
    "measures": {
-    "fuzzy_match_percent": 89.7345,
+    "fuzzy_match_percent": 100.0,
     "total_code": "1130",
-    "matched_code": "1014",
-    "matched_code_percent": 89.7345,
+    "matched_code": "1130",
+    "matched_code_percent": 100.0,
     "total_data": "0",
     "matched_data": "0",
     "matched_data_percent": 0.0,
     "total_functions": 12,
-    "matched_functions": 9,
-    "matched_functions_percent": 75.0,
-    "complete_code": "0",
-    "complete_code_percent": 0.0,
+    "matched_functions": 12,
+    "matched_functions_percent": 100.0,
+    "complete_code": "1130",
+    "complete_code_percent": 100.0,
     "complete_data": "0",
     "complete_data_percent": 0.0,
     "total_units": 1,
-    "complete_units": 0
+    "complete_units": 1
    },
    "sections": [
     {
      "name": ".text",
      "size": "1130",
-     "fuzzy_match_percent": 89.7345
+     "fuzzy_match_percent": 100.0
     }
    ],
    "functions": [
@@ -2217,7 +2217,7 @@
     {
      "name": "Loc_FA4F",
      "size": "37",
-     "fuzzy_match_percent": 0.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "14943"
      }
@@ -2233,7 +2233,7 @@
     {
      "name": "Loc_FBFF",
      "size": "62",
-     "fuzzy_match_percent": 0.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "15375"
      }
@@ -2257,14 +2257,14 @@
     {
      "name": "Sub_FF53",
      "size": "17",
-     "fuzzy_match_percent": 0.0,
+     "fuzzy_match_percent": 100.0,
      "metadata": {
       "virtual_address": "16227"
      }
     }
    ],
    "metadata": {
-    "complete": false,
+    "complete": true,
     "source_path": "c/excitebike.c"
    }
   }

@@ -311,3 +311,6 @@ void V_T_TapeLoadDesigns(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; T_Tap
 Regs W_T_TapeLoadDesigns(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; T_TapeLoadDesigns(); return (Regs){ ra, rx, ry, fc }; }
 void V_T_TapeReadBlock(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; T_TapeReadBlock(); }
 Regs W_T_TapeReadBlock(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; T_TapeReadBlock(); return (Regs){ ra, rx, ry, fc }; }
+
+/* ReadHalfBit's caller branches on Z, so the test wrapper returns that flag in .c */
+Regs Z_T_TapeReadHalfBit(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; T_TapeReadHalfBit(); return (Regs){ ra, rx, ry, fz }; }

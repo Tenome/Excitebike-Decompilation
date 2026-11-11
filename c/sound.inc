@@ -391,3 +391,4 @@ void V_PlayPulse2Note(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; PlayPuls
 void V_PlayTriangleNote(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; PlayTriangleNote(); }
 void V_SoundPulse1Sfx(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundPulse1Sfx(); }
 void V_SoundPulse2TriangleSfx(Regs r) { ra = r.a; rx = r.x; ry = r.y; fc = r.c; SoundPulse2TriangleSfx(); }
+Regs V_music_length(Regs r) { r.a = music_length(r.a); return r; }          /* $FF53 */

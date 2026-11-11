@@ -8,7 +8,7 @@ typedef struct { uint8_t a, x, y, c; } Regs;  /* register (and carry) inputs/out
 
 extern uint8_t g_ram[0x800];                  /* CPU RAM ($0000-$07FF) */
 typedef struct { uint16_t addr; uint8_t val; } IoWrite;
-extern IoWrite g_io_log[8192];                /* hardware-register writes in order (see excitebike.c) */
+extern IoWrite g_io_log[131072];                /* hardware-register writes in order (see excitebike.c) */
 extern int g_io_n;
 extern uint8_t g_io_reads[0x8000];            /* values returned by hardware-register reads */
 extern int g_io_model;                        /* 1 = built-in minimal hardware model (tools/fulltest.py) */

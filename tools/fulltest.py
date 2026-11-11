@@ -23,7 +23,7 @@ lib = ctypes.CDLL(dll)
 class Regs(ctypes.Structure): _fields_ = [('a', ctypes.c_uint8), ('x', ctypes.c_uint8), ('y', ctypes.c_uint8), ('c', ctypes.c_uint8)]
 class IoWrite(ctypes.Structure): _fields_ = [('addr', ctypes.c_uint16), ('val', ctypes.c_uint8)]
 ram_c = (ctypes.c_uint8 * 0x800).in_dll(lib, 'g_ram')
-io_log = (IoWrite * 8192).in_dll(lib, 'g_io_log'); io_n = ctypes.c_int.in_dll(lib, 'g_io_n')
+io_log = (IoWrite * 131072).in_dll(lib, 'g_io_log'); io_n = ctypes.c_int.in_dll(lib, 'g_io_n')
 pad_c = (ctypes.c_uint8 * 2).in_dll(lib, 'g_pad_buttons')
 prg = bytes(ebdis.PRG); prg_buf = ctypes.create_string_buffer(prg, len(prg))
 ctypes.c_void_p.in_dll(lib, 'g_prg').value = ctypes.addressof(prg_buf)
@@ -32,7 +32,7 @@ ctypes.c_int.in_dll(lib, 'g_io_model').value = 1
 
 cpu = sim6502.CPU(prg); cpu.model = True
 rnd = random.Random(a.seed)
-def c_writes(): return [(io_log[k].addr, io_log[k].val) for k in range(min(io_n.value, 8192))]
+def c_writes(): return [(io_log[k].addr, io_log[k].val) for k in range(min(io_n.value, 131072))]
 def compare(tag):
     bad = [k for k in range(0x800) if not 0x100 <= k < 0x200 and cpu.ram[k] != ram_c[k]]
     cw = c_writes(); aw = list(cpu.io_writes)

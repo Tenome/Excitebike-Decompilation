@@ -24,7 +24,7 @@ lib = ctypes.CDLL(dll)
 class Regs(ctypes.Structure): _fields_ = [('a', ctypes.c_uint8), ('x', ctypes.c_uint8), ('y', ctypes.c_uint8), ('c', ctypes.c_uint8)]
 ram_c = (ctypes.c_uint8 * 0x800).in_dll(lib, 'g_ram')
 class IoWrite(ctypes.Structure): _fields_ = [('addr', ctypes.c_uint16), ('val', ctypes.c_uint8)]
-io_log = (IoWrite * 8192).in_dll(lib, 'g_io_log'); io_n = ctypes.c_int.in_dll(lib, 'g_io_n'); io_reads_c = (ctypes.c_uint8 * 0x8000).in_dll(lib, 'g_io_reads')
+io_log = (IoWrite * 131072).in_dll(lib, 'g_io_log'); io_seq_c = (ctypes.c_uint8 * 16384).in_dll(lib, 'g_io_seq'); io_seq_n = ctypes.c_int.in_dll(lib, 'g_io_seq_n'); io_seq_i = ctypes.c_int.in_dll(lib, 'g_io_seq_i'); clear_c = ctypes.c_int.in_dll(lib, 'g_clear_on_status'); io_n = ctypes.c_int.in_dll(lib, 'g_io_n'); io_reads_c = (ctypes.c_uint8 * 0x8000).in_dll(lib, 'g_io_reads')
 prg = bytes(ebdis.PRG); prg_buf = ctypes.create_string_buffer(prg, len(prg))
 ctypes.c_void_p.in_dll(lib, 'g_prg').value = ctypes.addressof(prg_buf)
 ctypes.c_int.in_dll(lib, 'g_pal').value = 1 if a.version == 'eu' else 0
@@ -286,9 +286,60 @@ TESTS = [
     ('V_SetPulse2Pitch', 0xFAF7, True, 'V', lambda r: dict(a=r.randint(0,255), x=r.randint(0,255), y=r.randint(0,255), ram={0xF0+i: r.choice([0, 0, 1, 2, 5, 0x10, 0x20, 0x40, 0x80, 0xFF]) for i in range(16)} | {0x7F0+i: r.choice([0, 0, 1, 3, 0x20, 0x80, 0xFF]) for i in range(16)})),
 ]
 
+# ---- small helpers and track-script handlers, one test each (the V_ wrappers are in c/excitebike.c and c/sound.inc) ----
+def _tsram(r):
+    return ({0xA4+i: r.choice([0, 1, 2, 3, 4]) for i in range(4)} | {0xA0+i: r.choice([0, 1, 2]) for i in range(4)} | {0xB0+i: r.choice([0, 0, 2]) for i in range(4)} | {0x94+i: r.choice([0, 0, 1, 2, 3]) for i in range(4)}
+            | {0xAC+i: r.randint(0, 13) for i in range(4)} | {0xB8+i: r.choice([5, 0x10, 0x30]) for i in range(4)} | {0x98+i: r.choice([0, 0, 1]) for i in range(4)} | {0x5C+i: r.choice([0, 0x40, 0x80, 0xC0]) for i in range(4)}
+            | {0x57: r.choice([0, 1]), 0x3C: r.choice([0, 0, 1]), 0x3E0: r.choice([0, 0, 1]), 0x58: r.choice([0, 0, 3, 5])})
+def _ts(r): return dict(x=r.randint(0, 3), ram=_tsram(r))
+for _name, _addr in (('V_ts_op_E818', 0xE818), ('V_ts_op_E845', 0xE845), ('V_ts_op_E854', 0xE854), ('V_ts_op_E85D', 0xE85D), ('V_ts_op_E86A', 0xE86A), ('V_ts_op_E879', 0xE879), ('V_ts_op_E89D', 0xE89D),
+                     ('V_ts_op_E8BF', 0xE8BF), ('V_ts_op_E8C6', 0xE8C6), ('V_ts_op_E8E3', 0xE8E3), ('V_ts_op_E8EE', 0xE8EE), ('V_ts_op_E8FA', 0xE8FA), ('V_ts_op_E8FF', 0xE8FF), ('V_ts_op_E934', 0xE934),
+                     ('V_ts_op_E956', 0xE956), ('V_ts_op_E963', 0xE963), ('V_ts_op_EA8F', 0xEA8F), ('V_ts_height_abs', 0xE84F), ('V_ts_height_rel', 0xE86F)):
+    TESTS.append((_name, _addr, True, 'V', _ts))
+TESTS.append(('V_ts_set_height', 0xE893, True, 'a', _ts))
+TESTS.append(('V_lane_piece_open', 0xCF88, True, 'c', lambda r: (lambda x: dict(x=x, y=r.randint(0, 5), ram={0x400 + i: r.choice([0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x10]) for i in range(0x180)}))(r.randint(0, 3))))
+TESTS.append(('V_obstacle_wheels', 0xE16C, False, '', lambda r: dict(ram={0x05: 2})))      # the caller leaves $05 = 2 (high byte of the OAM pointer)
+TESTS.append(('V_music_length', 0xFF53, True, 'a', lambda r: dict(a=r.randint(0, 255), ram={0x7F0: r.choice([0, 8, 15, r.randint(0, 255)])})))
+TESTS.append(('V_PpuBufferAdvance', 0xD2FF, True, 'axc', lambda r: dict(x=r.randint(0, 0x3D))))
+TESTS.append(('RiderState0Racing', 0xD923, False, '', lambda r: {}))
+
+# ---- the data-recorder (tape) code: the cassette input is a scripted sequence of $4016 values (bit 1 is the signal) ----
+STEPS = {'V_T_TapeWriteBlock': 8000000, 'V_T_TapeSaveDesigns': 40000000, 'V_T_TapeLoadDesigns': 8000000}          # instruction budgets for the long tape routines
+MAX_RUNS = {'V_T_TapeWriteBlock': 4, 'V_T_TapeSaveDesigns': 3, 'W_T_TapeReadBlock': 40, 'V_T_TapeLoadDesigns': 12}     # the write routines run millions of cycles in the Python simulator
+def _tape_halfbit(s): return [2, 0, s]                      # wait for the signal to rise and fall, then sample it (0 reads as a 1 bit)
+def _tape_byte(b): return [x for k in range(8) for x in _tape_halfbit(0 if (b >> (7 - k)) & 1 else 2)] + [2, 0]
+def _tape_block(data, lead, sync, corrupt=False):           # what TapeWriteBlock puts on the tape, as the reader sees it
+    seq = [x for _ in range(lead) for x in _tape_halfbit(0)] + [x for _ in range(sync) for x in _tape_halfbit(2)] + [2, 0, 2, 0]
+    for b in data: seq += _tape_byte(b)
+    ones = sum(bin(b).count('1') for b in data); ones ^= 1 if corrupt else 0
+    return seq + _tape_byte(ones & 255) + _tape_byte((ones >> 8) & 255)
+def _tape_noise(r, n=64): return [r.choice([0, 2]) for _ in range(n)] + [0, 2, 0, 2]
+def _tape_regs(r): return dict(a=r.randint(0, 255), x=r.randint(0, 255), y=r.randint(0, 255))
+def _block_params(r, nbytes): return {5: r.randint(1, 4), 6: r.randint(1, 4), 0x0D: nbytes, 0x0E: 0x60, 0x0F: 0}
+def _read_block_gen(r):
+    n = r.choice([3, 5, 8]); lead, sync = r.randint(1, 4), r.randint(1, 4); data = [r.randint(0, 255) for _ in range(n)]
+    seq = _tape_block(data, lead, sync, corrupt=r.random() < 0.3)
+    return dict(io_seq=seq, ram={5: lead, 6: sync, 0x0D: n, 0x0E: 0x60, 0x0F: 0})
+def _load_gen(r):
+    sig = list(prg[0x17F:0x17F + 5]); a_data = [r.randint(0, 255) for _ in range(0x40)]; a_data[1:5] = sig[1:5]
+    b_data = [r.randint(0, 255) for _ in range(0x100)]
+    seq = _tape_block(a_data, 0x28, 0x28) + _tape_block(b_data, 0x14, 0x14)
+    return dict(io_seq=seq, clear_idx=True, ram={0x40: 0, 0x41: 0}, io={0x2002: 0})
+TESTS.append(('V_T_TapeStrobe', 0xC62D, True, 'V', lambda r: _tape_regs(r)))
+TESTS.append(('V_T_TapeWaitEdges', 0xC639, True, 'V', lambda r: dict(io_seq=_tape_noise(r), **_tape_regs(r))))
+TESTS.append(('V_T_TapeWriteZeroPulse', 0xC64E, True, 'V', lambda r: _tape_regs(r)))
+TESTS.append(('V_T_TapeWritePulse', 0xC653, True, 'V', lambda r: _tape_regs(r)))
+TESTS.append(('V_T_TapeWriteByte', 0xC66E, True, 'V', lambda r: _tape_regs(r)))
+TESTS.append(('Z_T_TapeReadHalfBit', 0xC691, True, 'az', lambda r: dict(io_seq=_tape_noise(r), **_tape_regs(r))))
+TESTS.append(('W_T_TapeReadByte', 0xC6A5, True, 'a', lambda r: dict(io_seq=_tape_noise(r, 200), **_tape_regs(r))))
+TESTS.append(('W_T_TapeReadBlock', 0xC792, True, 'c', _read_block_gen))
+TESTS.append(('V_T_TapeWriteBlock', 0xC6D1, True, 'V', lambda r: dict(ram=_block_params(r, r.choice([1, 2, 4])), **_tape_regs(r))))
+TESTS.append(('V_T_TapeSaveDesigns', 0xC6C8, True, 'V', lambda r: _tape_regs(r)))
+TESTS.append(('V_T_TapeLoadDesigns', 0xC739, True, 'V', _load_gen))
+
 def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
     rnd = random.Random(seed); fn = getattr(lib, name)
-    returns = takes_regs and 'V' not in cmp_regs
+    returns = takes_regs and 'V' not in cmp_regs; done = 0                       # done = runs where the original completed and could be compared
     fn.restype = Regs if returns else None
     if takes_regs: fn.argtypes = [Regs]
     for i in range(runs):
@@ -297,6 +348,8 @@ def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
         for k, v in regs.pop('ram', {}).items(): ram[k] = v          # generators may bias RAM to reach rare branches
         rti = regs.pop('rti', False)
         stop = regs.pop('stop', None)                                  # run the original up to this address instead of to its RTS (for the reset code)
+        clear_idx = regs.pop('clear_idx', False)
+        seq = regs.pop('io_seq', None)                                 # successive values the cassette input ($4016) returns, same for both sides
         io = regs.pop('io', {})                                      # values the hardware registers return (PPU/APU/joypad), same for both sides
         ram[0x100:0x200] = bytes(0x100)                              # keep the stack page identical for both sides
         ram = bytes(ram)
@@ -304,18 +357,25 @@ def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
         for k in range(0x8000): io_reads_c[k] = 0
         for k, v in io.items(): io_reads_c[k] = v
         io_n.value = 0
+        clear_c.value = 1 if clear_idx else 0; cpu.clear_on_status = 0x45 if clear_idx else None
+        if seq:
+            cpu.io_seq = {0x4016: list(seq)}
+            for k, v in enumerate(seq): io_seq_c[k] = v
+            io_seq_n.value = len(seq); io_seq_i.value = 0
+        else: io_seq_n.value = 0
         try:
-            ra = cpu.call(addr, regs['a'], regs['x'], regs['y'], regs['c'], stop=stop, rti=rti)
+            ra = cpu.call(addr, regs['a'], regs['x'], regs['y'], regs['c'], max_steps=STEPS.get(name, 200000), stop=stop, rti=rti)
         except RuntimeError as e_:                                   # the original ran off into data/RAM: an unreachable state, report it
             print(f'  SKIP {name} run {i}: original code did not complete ({e_}) game(active,state,step)={(ram[0x40], ram[0x41], ram[0x44])} pc={cpu.pc:04X}')
             continue
+        done += 1
         for k in range(0x800): ram_c[k] = ram[k]
         rc = fn(Regs(regs['a'], regs['x'], regs['y'], regs['c'])) if takes_regs else fn()
         rc = (rc.a, rc.x, rc.y, rc.c) if returns else None
         bad = [k for k in range(0x800) if not 0x100 <= k < 0x200 and cpu.ram[k] != ram_c[k]]
         badreg = [r for r, idx in (('a', 0), ('x', 1), ('y', 2), ('c', 3)) if r in cmp_regs and rc is not None and ra[idx] != rc[idx]]
         if 'z' in cmp_regs and rc is not None and cpu.z != rc[3]: badreg.append('z')
-        c_io = [(io_log[k].addr, io_log[k].val) for k in range(min(io_n.value, 8192))]
+        c_io = [(io_log[k].addr, io_log[k].val) for k in range(min(io_n.value, 131072))]
         io_bad = c_io != [(a_, v_) for a_, v_ in cpu.io_writes]
         if io_bad:
             aw = [(a_, v_) for a_, v_ in cpu.io_writes]
@@ -323,16 +383,18 @@ def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
             badreg.append(f'hardware writes differ at #{k_} (asm has {len(aw)}, c has {len(c_io)}): asm={aw[max(0, k_-2):k_+4]} c={c_io[max(0, k_-2):k_+4]}')
         if bad or badreg:
             print(f'  FAIL {name} run {i}: game(active,state,step)={(ram[0x40], ram[0x41], ram[0x44])} src {[hex(ram[(regs["x"]+j)&0xFF]) for j in range(3)]} input {regs}  ram diffs (addr, asm, c) {[(hex(k), cpu.ram[k], ram_c[k]) for k in bad[:6]]}  reg diffs {badreg}  asm={ra} c={rc}')
-            return False
-    return True
+            return False, done
+    return True, done
 
 ok = True; passed = []
 for n, addr, tr, cr, gen in TESTS:
     if a.only and n != a.only: continue
-    r = run(n, addr, tr, cr, gen, a.runs, hash(n) & 0xFFFF)
-    print(f'{"ok  " if r else "FAIL"} {n:24s} ${addr:04X}  ({a.runs} random states)')
-    ok &= r
-    if r: passed.append(addr)
+    runs = min(a.runs, MAX_RUNS.get(n, a.runs))
+    r, done = run(n, addr, tr, cr, gen, runs, hash(n) & 0xFFFF)
+    enough = done >= min(runs, max(10, runs // 20))                                   # a test whose original rarely completes proves little: it is not counted as verified
+    print(f'{"ok  " if r and enough else "FAIL"} {n:24s} ${addr:04X}  ({runs} random states, {done} compared)' + ('' if enough else '  TOO FEW COMPLETED RUNS'))
+    ok &= r and enough
+    if r and enough: passed.append(addr)
 if a.json:
     import json
     json.dump({'runs': a.runs, 'verified': sorted(set(passed))}, open(a.json, 'w'), indent=1)

@@ -24,3 +24,17 @@ git add progress config && git commit -m "Refresh progress reports" && git push 
 ```
 
 Then open the Actions tab: the "Progress report" run publishes the artifacts, and ByteMatch picks them up within a few minutes of a successful run on `master`.
+
+## How a routine earns 100 % in the C report
+
+A routine counts as verified when `tools/difftest.py` runs the original 6502 routine and its C twin on the same random machine states (RAM, registers, the cassette/PPU/APU inputs) and finds the same RAM, the same result registers and the same ordered
+hardware writes. A test counts only if enough runs completed (the original code can run off into data on impossible random states; those runs are skipped and a test with too few compared runs is reported as `TOO FEW COMPLETED RUNS`).
+
+Details worth knowing:
+
+* **Small helpers and the track-script handlers** (`V_ts_op_*`, `V_lane_piece_open`, `V_music_length`, ...) are exported with a `V_` prefix in `c/excitebike.c` and `c/sound.inc` only so the test can reach them.
+* **The data-recorder (tape) code** is tested with a scripted cassette input: the test feeds the same sequence of `$4016` values to both sides (`io_seq` in `tools/sim6502.py` and `g_io_seq` in `c/excitebike.c`), including valid tape blocks with good and bad checksums. `TapeLoadDesigns` also needs the NMI to clear `PpuUpdateIndex`;
+  both sides treat a read of `$2002` as the point where an NMI would have done that (`clear_on_status` / `g_clear_on_status`). The long write routines run only a few random states because the Python simulator needs millions of instructions for each.
+* **`PpuBufferAdvance`** is verified below the buffer-full mark only. At the full mark the original pops two return addresses and returns into garbage; the C code terminates the buffer instead (documented in `c/excitebike.c`). The game never queues that much text.
+* **`RiderState0Racing`** is a bare `rts` in the original; its C twin is an empty function.
+* **Code that sits in front of a routine's entry point** (`Loc_FA4F`, `Loc_FBFF`) belongs to the same C function as the routine after it (`SoundPulse2TriangleSfx`, `SoundNoiseSfx`); `INSIDE` in `tools/report.py` credits it to that routine's test. `$C656` is the shared tail of the two pulse writers and is exercised through them.
