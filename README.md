@@ -15,9 +15,13 @@ This repository contains no game files. You need your own ROMs.
 | Byte identity | `python tools/build.py --version us|eu` prints `MATCH` |
 | Native build | `recomp/build_native.ps1` statically recompiles the classified code to C with [NESRecomp](https://github.com/mstan/nesrecomp); over 120,000 random-input frames the native build matched the interpreter hash for hash with 0 % of ROM cycles interpreted |
 | Lifted to C | all game logic and hardware access (about 220 hand-lifted routines in `c/excitebike.c`, the data-recorder code mechanically via `tools/lift6502.py`; the sound engine is hand-written readable C in `c/sound.inc`), each differential-tested against the original 6502 code (`tools/difftest.py`); the whole C game runs frame-identical to the ROM from reset (`tools/fulltest.py`) |
-| Not done yet | the platform layer (renderer, audio, input) that replaces `io_r()`/`io_w()`, turning the RAM image into named state, and the PC features (see `docs/ROADMAP.md`, `docs/PORT_FEATURES.md`) |
+| Native port | `port/`: SDL2 front end with a scanline picture layer and APU synthesis around the lifted C (no CPU emulation); widescreen, extra CPU riders, higher frame rates, rules, an options menu, mod loading and live reload (`port/README.md`) |
+| Editors and mods | browser editors for tracks, tiles/colours and music (`tools/editor`), level packs and a community level folder (`levels/`), custom track pieces, longer tracks |
+| Not done yet | a game-state renderer that draws from game state instead of PPU writes, a verified Linux build, and turning the RAM image into separate rider structures (see `docs/ROADMAP.md`, `docs/PORT_FEATURES.md`) |
 
-The ByteMatch report counts **byte-exact assembly source**: instructions and `.incbin` data both count as matching, so the numbers start at 100 %. Progress from here is understanding: names, structured data, C.
+Two kinds of ByteMatch report are published (`progress/<ver>/report.json`, `progress/<ver>_c/report.json`). The first counts **byte-exact assembly source**: instructions and `.incbin` data both count as matching, so the numbers start at 100 %.
+The `_c` reports (`tools/report.py --c`) count a routine as matched when its lifted C passes the differential test against the 6502 code on random states (`config/<ver>/verified.json`, written by `python tools/difftest.py --json`); routines that exist as C but are not individually tested count 50 %.
+Progress from here is understanding: names, structured data, C. See [docs/PROGRESS.md](docs/PROGRESS.md) for how the reports reach ByteMatch.
 
 ## Building
 
@@ -26,6 +30,7 @@ The ByteMatch report counts **byte-exact assembly source**: instructions and `.i
 python tools/ebdis.py --version us     # extract assets/us/ from your ROM and (re)generate src/us/
 python tools/build.py --version us     # ca65 + ld65, compares with orig/excitebike_us.nes; prints MATCH
 python tools/report.py --version us    # verify, then write progress/us/report.json
+python tools/report.py --version us --c   # C lifting report: progress/us_c/report.json (needs config/us/verified.json from tools/difftest.py --json)
 # same with --version eu
 ```
 cc65 is found through `--cc65 DIR`, `$CC65_DIR` or `PATH`. Edit `config/<ver>/*.json` (names, RAM names, hints), not the generated `src/`.

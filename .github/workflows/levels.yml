@@ -3,7 +3,7 @@ on:
   pull_request:
     paths: ['levels/**']
   push:
-    branches: [main]
+    branches: [master]
     paths: ['levels/**']
 permissions:
   contents: write

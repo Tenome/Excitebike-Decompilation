@@ -3,7 +3,7 @@
 Random CPU RAM and registers are fed to both; RAM (except the stack page) and the declared result registers must match.
 usage: python tools/difftest.py [--version us|eu] [--runs N] [--clang PATH]"""
 import argparse, ctypes, os, random, subprocess, sys
-ap = argparse.ArgumentParser(); ap.add_argument('--version', default='us'); ap.add_argument('--runs', type=int, default=3000); ap.add_argument('--clang'); ap.add_argument('--only')
+ap = argparse.ArgumentParser(); ap.add_argument('--version', default='us'); ap.add_argument('--runs', type=int, default=3000); ap.add_argument('--clang'); ap.add_argument('--only'); ap.add_argument('--json', help='write the addresses of the routines that passed to this JSON file (config/<ver>/verified.json feeds the C progress report)')
 a = ap.parse_args()
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, '..'))
 sys.argv = [sys.argv[0], '--version', a.version]; sys.path.insert(0, HERE)
@@ -97,7 +97,7 @@ TESTS = [
     ('SetTrackRowPointer',   0xE80D, True,  'a',   lambda r: dict(y=r.randint(0, 5))),
     ('TrackPieceAt',         0xE803, True,  'ay',  lambda r: dict(y=r.randint(0, 5))),
     ('TrackPieceAtRow',      0xE7FF, True,  'ay',  lambda r: dict(x=r.randint(0, 3), y=r.randint(0, 5))),
-    ('TrackPieceAtRiderLane',0xE7FC, True,  'ay',  lambda r: dict(x=r.randint(0, 3))),
+    ('TrackPieceAtRiderLane',0xE7FC, True,  'ay',  lambda r: (lambda x: dict(x=x, ram={0x360 + x: r.randint(0, 5)}))(r.randint(0, 3))),   # lane row 0-5: a larger row reads past the row-pointer table into garbage pointers
     ('RiderYOverlapTest',    0xE52C, True,  'ac',  lambda r: dict(x=r.randint(0, 3), y=r.randint(0, 3))),
     ('ClearRider',           0xDB95, True,  'a',   lambda r: dict(x=r.randint(0, 3))),
     ('AdvanceBufferPos',     0xC971, True,  'axc', lambda r: {}),
@@ -326,10 +326,14 @@ def run(name, addr, takes_regs, cmp_regs, gen, runs, seed):
             return False
     return True
 
-ok = True
+ok = True; passed = []
 for n, addr, tr, cr, gen in TESTS:
     if a.only and n != a.only: continue
     r = run(n, addr, tr, cr, gen, a.runs, hash(n) & 0xFFFF)
     print(f'{"ok  " if r else "FAIL"} {n:24s} ${addr:04X}  ({a.runs} random states)')
     ok &= r
+    if r: passed.append(addr)
+if a.json:
+    import json
+    json.dump({'runs': a.runs, 'verified': sorted(set(passed))}, open(a.json, 'w'), indent=1)
 print('ALL MATCH' if ok else 'MISMATCHES FOUND'); sys.exit(0 if ok else 1)

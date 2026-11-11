@@ -88,7 +88,7 @@ input.wide { width:min(420px, 100%); } .empty { color:var(--mut); font-size:12px
     <div class="note">Packs contain only the track script and your text (no game graphics); previews are drawn here from your own ROM data. Sharing a level means licensing it (CC0 by default).</div>
     <h3>My library</h3><div id="lib" class="cards"></div>
     <h3>Community levels</h3>
-    <div class="row"><label>Repository <input id="repo" type="text" placeholder="owner/name" style="width:200px"></label><label>Index URL <input id="idxurl" class="wide" type="text" placeholder="https://raw.githubusercontent.com/owner/name/main/levels/index.json"></label>
+    <div class="row"><label>Repository <input id="repo" type="text" placeholder="owner/name" style="width:200px"></label><label>Index URL <input id="idxurl" class="wide" type="text" placeholder="https://raw.githubusercontent.com/owner/name/master/levels/index.json"></label>
       <button id="idxload">Load</button><input id="q" type="text" placeholder="search" style="width:140px"></div>
     <div id="net" class="cards"><span class="empty">Set the repository (or an index URL) and press Load.</span></div>
   </section>
@@ -338,9 +338,9 @@ $('pk_file').onchange = async () => { let n = 0, errs = [];
       const p = JSON.parse(await f.text()), e = packProblems(p); if (e.length) errs.push(f.name + ': ' + e.join('; ')); else { libAdd(p); n++; } } catch (x) { errs.push(f.name + ': not a level pack'); } }
   say(`${n} imported` + (errs.length ? '. Skipped: ' + errs.join(' | ') : ''), errs.length > 0); $('pk_file').value = ''; };
 // community: a static index.json in the GitHub repository (no server needed)
-let repoName = ''; try { repoName = localStorage.getItem('eb_repo') || ''; } catch (x) {} $('repo').value = repoName;
+let repoName = 'Tenome/Excitebike-Decompilation'; try { repoName = localStorage.getItem('eb_repo') || repoName; } catch (x) {} $('repo').value = repoName;
 const repoOk = r => /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(r);
-function defaultIdx() { const r = $('repo').value.trim(); return repoOk(r) ? `https://raw.githubusercontent.com/${r}/main/levels/index.json` : ''; }
+function defaultIdx() { const r = $('repo').value.trim(); return repoOk(r) ? `https://raw.githubusercontent.com/${r}/master/levels/index.json` : ''; }
 $('repo').onchange = () => { const r = $('repo').value.trim(); try { localStorage.setItem('eb_repo', r); } catch (x) {} if (!$('idxurl').value || $('idxurl').dataset.auto) { $('idxurl').value = defaultIdx(); $('idxurl').dataset.auto = '1'; } };
 $('idxurl').oninput = () => delete $('idxurl').dataset.auto; $('idxurl').value = defaultIdx(); if ($('idxurl').value) $('idxurl').dataset.auto = '1';
 let netLevels = [];
@@ -359,8 +359,8 @@ $('pk_submit').onclick = () => { const p = currentPack(), e = packProblems(p); i
   const r = $('repo').value.trim(); const text = packJson(p), file = p.id + '.ebpack.json';
   if (!repoOk(r)) { download(file, text); say('Saved ' + file + '. Enter the community repository (owner/name) above to submit it as a pull request.', 1); return; }
   if (!confirm(`Submit "${p.title}" to github.com/${r}?\n\nGitHub opens in a new tab with the level file filled in. GitHub will offer to fork the repository and open a pull request; nothing is sent until you confirm there. The level is shared under ${p.license}.`)) return;
-  const url = `https://github.com/${r}/new/main?filename=${encodeURIComponent('levels/' + file)}&value=${encodeURIComponent(text)}`;
-  if (url.length <= 7500) window.open(url, '_blank', 'noopener'); else { download(file, text); window.open(`https://github.com/${r}/upload/main/levels`, '_blank', 'noopener'); say('This level is too large for a link: the file was downloaded; drag it onto the page that opened.'); } };
+  const url = `https://github.com/${r}/new/master?filename=${encodeURIComponent('levels/' + file)}&value=${encodeURIComponent(text)}`;
+  if (url.length <= 7500) window.open(url, '_blank', 'noopener'); else { download(file, text); window.open(`https://github.com/${r}/upload/master/levels`, '_blank', 'noopener'); say('This level is too large for a link: the file was downloaded; drag it onto the page that opened.'); } };
 refreshExtras(); window.addEventListener('focus', refreshExtras); cpApplyToData(); cpRefresh();
 renderLib();
 buildPalette(); setStream(Uint8Array.from(D.builtin[0]));

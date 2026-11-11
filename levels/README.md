@@ -27,4 +27,4 @@ A level contains only the track script (laps, pieces and runs) and text: no game
 * Do not edit `index.json`; it is rebuilt automatically after a merge.
 * Levels that copy the game's built-in tracks, or that are offensive or misleading, are not accepted.
 
-`levels/index.json` is what the editor's community browser reads (`https://raw.githubusercontent.com/<owner>/<repo>/main/levels/index.json`).
+`levels/index.json` is what the editor's community browser reads (`https://raw.githubusercontent.com/Tenome/Excitebike-Decompilation/master/levels/index.json`; the editor fills this in from the repository name).

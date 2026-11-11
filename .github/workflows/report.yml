@@ -1,9 +1,10 @@
 name: Progress report
 
 # The ROMs cannot be put on GitHub, so the objdiff-format reports are generated locally with
-#   python tools/report.py --version us      (and --version eu)
+#   python tools/report.py --version us      (and --version eu)       assembly: byte-exact source
+#   python tools/report.py --version us --c  (and --version eu --c)   C lifting: verified routines
 # after `python tools/build.py` prints MATCH, and committed. This job publishes them as the artifacts
-# `us_report` and `eu_report` that ByteMatch (https://bytematch.dev/) reads from CI runs on master.
+# `us_report`, `eu_report` (assembly) and `us_c_report`, `eu_c_report` (C lifting) that ByteMatch (https://bytematch.dev/) reads from CI runs on master.
 # The reports contain only routine names, addresses, sizes and match percentages (no game bytes).
 on:
   push:
@@ -15,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        version: [us, eu]
+        version: [us, eu, us_c, eu_c]
     env:
       VERSION: ${{ matrix.version }}
     steps:
