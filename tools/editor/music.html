@@ -30,7 +30,7 @@ canvas { display:block; }
   <h1>Excitebike Music Editor</h1>
   <button id="open">Open .ebm</button><input id="file" type="file" accept=".ebm,.txt" hidden>
   <select id="rom"><option value="">ROM song…</option></select>
-  <button id="save" class="primary">Save .ebm</button>
+  <button id="save" class="primary">Save .ebm</button><button id="toport" title="needs the editors started with tools/editor/serve.py">Send to port</button>
   <label>Request <input id="req" type="text" value="01" title="music request byte in hex: the file is saved as song_XX.ebm"></label>
   <button id="play">▶ Play</button><button id="stop">■ Stop</button>
   <button id="undo">Undo</button><button id="redo">Redo</button>
@@ -167,6 +167,8 @@ $('open').onclick = () => $('file').click();
 $('file').onchange = async () => { const f = $('file').files[0]; if (!f) return; const m = f.name.match(/song_([0-9a-f]{2})\.ebm$/i); if (m) $('req').value = m[1].toLowerCase(); setSong(parseEbm(await f.text())); $('file').value = ''; };
 Object.keys(D.songs || {}).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = 'ROM song ' + k.toUpperCase(); $('rom').appendChild(o); });
 $('rom').onchange = () => { const k = $('rom').value; $('rom').value = ''; if (k) { $('req').value = k; setSong(parseEbm(D.songs[k])); } };
+$('toport').onclick = async () => { const r = ($('req').value || '01').trim().toLowerCase().padStart(2, '0');
+  try { const j = await (await fetch('/api/put?name=song_' + r + '.ebm', { method: 'POST', headers: { 'X-Eb-Editor': '1' }, body: toEbm() })).json(); $('info').textContent = j.ok ? 'Sent: the port reloads it within a second.' : j.message; } catch (x) { $('info').textContent = 'Send to port needs the editors started with python tools/editor/serve.py.'; } };
 $('save').onclick = () => { const r = ($('req').value || '01').trim().toLowerCase().padStart(2, '0'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([toEbm()], { type: 'text/plain' })); a.download = `song_${r}.ebm`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
 if (D.songs && D.songs['01']) setSong(parseEbm(D.songs['01'])); else refresh();
 </script>

@@ -8,6 +8,7 @@ You need your own Excitebike ROM (NTSC "Japan, USA" or PAL "Europe"). It is neve
    * Tracks: build a level, save `designs.ebd` (or a `.ebpack.json` pack), run `excitebike excitebike.nes --track 1=mylevel.ebd`, press F6 after each save.
    * Tiles and colours: save `tiles.bmp` / `colors.pal`, run with `--chr-bmp tiles.bmp --palette colors.pal`.
    * Music: save `song_01.ebm` (01 = the title song) into a folder, run with `--audio-mod thatfolder`. `python tools/ebmusic.py export DIR` gives you the ROM songs to start from.
+   * **Live editing:** with the port built, **Play in port** (track editor) and **Send to port** (tile and music editors) start the port in a race on track 1 and update it while it runs (`--watch`). Files go to `play/`.
 4. **Share a level.** Level packs and the community browser: `levels/README.md`.
 5. **Check your changes.** `python tests/test_tools.py` for the tools; `python tools/difftest.py` and `python tools/fulltest.py` prove the C game still equals the ROM (see `docs/NOTES.md`).
 

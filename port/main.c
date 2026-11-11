@@ -227,6 +227,14 @@ static void load_config(const char *path) {
     fclose(f);
 }
 
+#include <sys/stat.h>
+static int g_watch, g_autostart;                            /* --watch: reload mod files when they change; --autostart: press the menu buttons to start a race on track 1 */
+static long file_stamp(const char *path) { struct stat st; return path && stat(path, &st) == 0 ? (long)st.st_mtime * 7 + (long)st.st_size : 0; }
+static long mods_stamp(void) {
+    long s = audiomod_stamp() + file_stamp(s_chr_bmp) + file_stamp(s_chr_raw) + file_stamp(s_pal_file);
+    for (int k = 0; k < 6; k++) s += file_stamp(g_track_file[k]) * (k + 1);
+    return s;
+}
 #include "menu.inc"
 
 int main(int argc, char **argv) {
@@ -259,6 +267,8 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--palette") && i + 1 < argc) pal_file = argv[++i];
         else if (!strcmp(argv[i], "--peek") && i + 1 < argc) peek = argv[++i];         /* debug: print RAM bytes at exit, e.g. 12,4d,e8 */
         else if (!strcmp(argv[i], "--dump-ppu") && i + 1 < argc) dump_ppu = argv[++i];         /* debug/tools: 2 KB nametables + 32 palette bytes at exit */
+        else if (!strcmp(argv[i], "--watch")) g_watch = 1;                                  /* reload tracks, tiles, palette and audio when their files change (live editing) */
+        else if (!strcmp(argv[i], "--autostart")) g_autostart = 1;                          /* press Start and A by itself to begin a race on track 1 (with --track 1=...) */
         else if (!strcmp(argv[i], "--shot-menu")) shot_menu = 1;                         /* debug: also save the options menu over the last picture */
         else if (!strcmp(argv[i], "--dump-oam")) dump_oam = 1;
         else if (!strcmp(argv[i], "--unlimited-sprites")) g_ppu.unlimited_sprites = 1;
@@ -345,6 +355,8 @@ int main(int argc, char **argv) {
             scripted = (uint8_t)b; pp += used; if (*pp == ',') pp++;
         }
         uint8_t pad = press ? scripted : read_pad(SDL_GetKeyboardState(NULL));
+        if (g_autostart) { if (frame >= 200 && frame < 215) pad |= 0x08; if (frame >= 260 && frame < 275) pad |= 0x01; if (frame >= 340 && frame < 355) pad |= 0x08; }
+        if (g_watch && frame % 30 == 0) { static long last = -1; long now = mods_stamp(); if (last >= 0 && now != last) { if (audio_mod) audiomod_load(audio_mod); load_tracks(); reload_graphics(); fprintf(stderr, "mods changed: reloaded\n"); } last = now; }
         if (play_f) { int c = fgetc(play_f); if (c == EOF) break; pad = (uint8_t)c; }
         if (rec_f) fputc(pad, rec_f);
         g_pad_bits[0] = pad;

@@ -14,3 +14,4 @@ diagnostics/
 __pycache__/
 dist/
 tools/editor/data.js
+play/

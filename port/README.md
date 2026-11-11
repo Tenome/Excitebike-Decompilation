@@ -80,3 +80,5 @@ and **Submit to community…**, which opens GitHub's web editor with the level f
 Format, rules and the PR check: `levels/README.md`, `tools/levelpack.py`.
 
 A level pack may also contain tile changes, colour changes and a song (see `tools/levelpack.py`); `--track N=pack.ebpack.json` applies them all, so a pack is a complete one-file mod. `python tools/levelpack.py unpack pack.ebpack.json out.ebd --extras DIR` writes them as separate files.
+
+`--watch` reloads track, tile, palette and audio files when they change; `--autostart` presses Start and A by itself to begin a race on track 1. The editors' **Play in port** buttons use both (`tools/editor/serve.py`).

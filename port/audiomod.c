@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <sys/stat.h>
+static const char *g_mod_dir;
 #include "audiomod.h"
 #include "../c/excitebike.h"
 
@@ -47,6 +49,7 @@ static int load_wav(const char *path, Clip *out) {         /* converts to 44100 
 }
 
 int audiomod_load(const char *dir) {
+    g_mod_dir = dir;
     int found = 0; char path[512];
     for (int c = 0; c < 4; c++) for (int v = 1; v < 256; v++) {
         snprintf(path, sizeof path, "%s/%s_%02x.wav", dir, CH[c], v);
@@ -94,4 +97,12 @@ void audiomod_mix(int16_t *buf, int n) {
     }
 }
 
+long audiomod_stamp(void) {                                  /* changes when the mod folder's well-known files change (for --watch): the 8 song files, engine.wav and the folder itself */
+    if (!g_mod_dir) return 0;
+    long sum = 0; char path[512]; struct stat st; static const int reqs[] = { 1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80 };
+    for (int i = 0; i < 8; i++) { snprintf(path, sizeof path, "%s/song_%02x.ebm", g_mod_dir, reqs[i]); if (stat(path, &st) == 0) sum += (long)st.st_mtime + (long)st.st_size; }
+    snprintf(path, sizeof path, "%s/engine.wav", g_mod_dir); if (stat(path, &st) == 0) sum += (long)st.st_mtime + (long)st.st_size;
+    if (stat(g_mod_dir, &st) == 0) sum += (long)st.st_mtime;
+    return sum;
+}
 void audiomod_frame(void) { g_engine_on = 0; music_tick(); }

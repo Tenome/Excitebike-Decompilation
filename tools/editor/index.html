@@ -52,14 +52,14 @@ input.wide { width:min(420px, 100%); } .empty { color:var(--mut); font-size:12px
   <button id="open">Open .ebd</button><input id="file" type="file" accept=".ebd" hidden>
   <button id="save" class="primary">Save .ebd</button>
   <select id="tpl"><option value="">New from…</option><option value="b0">Built-in track 1</option><option value="b1">Built-in track 2</option><option value="b2">Built-in track 3</option><option value="b3">Built-in track 4</option><option value="b4">Built-in track 5</option><option value="flat">Flat track</option></select>
-  <button id="undo">Undo</button><button id="redo">Redo</button>
+  <button id="undo">Undo</button><button id="redo">Redo</button><button id="play" title="needs the editors started with tools/editor/serve.py">Play in port</button>
   <label>Laps <input id="laps" type="number" min="1" max="9" value="1"></label>
   <span class="meter" id="meter"><div></div></span><span id="size" class="note"></span>
   <span id="msg"></span>
 </header>
 <main>
   <section><h2>Track</h2><div id="strip"><canvas id="cv"></canvas></div>
-    <div class="note">Click the track to select a piece. Each piece below is one token of the game's track script; “run” tokens repeat a piece N times.</div></section>
+    <div class="note">Click the track to select a piece; drag a piece onto another position (or drag rows in the list below) to move it. Each piece below is one token of the game's track script; “run” tokens repeat a piece N times.</div></section>
   <section><h2>Add</h2>
     <div class="row"><label>Run length <input id="runlen" type="number" min="1" max="127" value="8"></label>
     <label>Single piece # <input id="pnum" type="number" min="0" max="63" value="7"></label><button id="addp">Add piece</button>
@@ -143,9 +143,13 @@ function render() {
   cv._starts = starts;
   const tb = $('toks').tBodies[0]; tb.innerHTML = '';
   toks.forEach((t, i) => { const tr = document.createElement('tr'); if (i === sel) tr.className = 'sel';
-    const piece = t.t === 'run' ? `${D.runs[t.k]} <span class="note">(run kind ${t.k})</span>` : `${t.p}${t.p === 9 ? ' <span class="note">finish line</span>' : t.p >= 48 ? ' <span class="note">marker</span>' : ''}`;
+    const piece = t.t === 'run' ? `${D.runs[t.k]} <span class="note">${pieceName(D.runs[t.k])}</span>` : `${t.p} <span class="note">${pieceName(t.p)}</span>`;
     tr.innerHTML = `<td>${i + 1}</td><td>${t.t}</td><td>${piece}</td><td>${t.t === 'run' ? `<input type="number" min="1" max="127" value="${t.n}" data-i="${i}" class="cnt">` : ''}</td><td><input type="checkbox" ${t.b ? 'checked' : ''} data-i="${i}" class="bchk" ${t.t === 'run' ? 'disabled' : ''}></td><td></td>`;
-    tr.onclick = e => { if (e.target.tagName !== 'INPUT') { sel = i; render(); } }; tb.appendChild(tr); });
+    tr.onclick = e => { if (e.target.tagName !== 'INPUT') { sel = i; render(); } };
+    tr.draggable = true; tr.ondragstart = e => { e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move'; };
+    tr.ondragover = e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+    tr.ondrop = e => { e.preventDefault(); moveTok(+e.dataTransfer.getData('text/plain'), i); };
+    tb.appendChild(tr); });
   tb.querySelectorAll('.cnt').forEach(el => el.onchange = () => { push(); toks[+el.dataset.i].n = Math.max(1, Math.min(127, +el.value | 0)); render(); });
   tb.querySelectorAll('.bchk').forEach(el => el.onchange = () => { push(); toks[+el.dataset.i].b = el.checked; render(); });
   const bytes = serialize().length - 1, lim = 255; $('size').textContent = `${bytes} bytes` + (bytes > 236 ? ' (over the original editor limit of 236)' : '');
@@ -153,7 +157,11 @@ function render() {
   $('laps').value = laps; $('undo').disabled = !undoS.length; $('redo').disabled = !redoS.length;
   const fin = toks.length && toks[toks.length - 1].p === 9; $('msg').textContent = fin ? '' : 'No finish line at the end (piece 9): one will be added when saving.';
 }
-cv.onclick = e => { const x = Math.floor((e.clientX - cv.getBoundingClientRect().left) / TS), st = cv._starts; for (let i = 0; i < toks.length; i++) if (x >= st[i] && x < st[i + 1]) { sel = i; break; } render(); };
+function tokAt(e) { const x = Math.floor((e.clientX - cv.getBoundingClientRect().left) / TS), st = cv._starts; for (let i = 0; i < toks.length; i++) if (x >= st[i] && x < st[i + 1]) return i; return -1; }
+function moveTok(from, to) { if (from === to || from < 0 || to < 0 || from >= toks.length || to >= toks.length) return; push(); const [t] = toks.splice(from, 1); toks.splice(to, 0, t); sel = to; render(); }
+let stripDrag = -1;
+cv.onmousedown = e => { stripDrag = tokAt(e); if (stripDrag >= 0) { sel = stripDrag; render(); } };
+window.addEventListener('mouseup', e => { if (stripDrag < 0) return; const from = stripDrag; stripDrag = -1; if (e.target === cv) moveTok(from, tokAt(e)); });
 function snap() { return JSON.stringify({ laps, toks, sel }); }
 function push() { undoS.push(snap()); if (undoS.length > 200) undoS.shift(); redoS = []; }
 function restore(s) { const o = JSON.parse(s); laps = o.laps; toks = o.toks; sel = Math.min(o.sel, Math.max(0, toks.length - 1)); }
@@ -168,6 +176,12 @@ $('up').onclick = () => { if (sel > 0) { push(); [toks[sel - 1], toks[sel]] = [t
 $('down').onclick = () => { if (sel < toks.length - 1) { push(); [toks[sel + 1], toks[sel]] = [toks[sel], toks[sel + 1]]; sel++; render(); } };
 document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'Delete') $('del').click(); else if (e.ctrlKey && e.key === 'z') $('undo').click(); else if (e.ctrlKey && e.key === 'y') $('redo').click();
   else if (e.key === 'ArrowRight' && sel < toks.length - 1) { sel++; render(); } else if (e.key === 'ArrowLeft' && sel > 0) { sel--; render(); } });
+function pieceName(p) {                                     // described from its tile columns: how wide, how tall above the flat track
+  if (p === 9) return 'finish line'; if (p >= 0x30 && p <= 0x33) return 'marker ' + p.toString(16).toUpperCase();
+  const cols = D.pieces[p] || []; if (!cols.length) return 'piece ' + p;
+  let h = 0; cols.forEach(c => { h = Math.max(h, 15 - c[0]); }); const rise = h - 6;
+  return rise <= 0 ? (cols.length > 1 ? `track, ${cols.length} wide` : 'flat track') : `ramp ${cols.length} wide, ${rise} tall`;
+}
 function buildPalette() {
   const pal = $('pal'); pal.innerHTML = '';
   const add = (label, cols, fn) => { const d = document.createElement('div'); d.className = 'pp'; const c = document.createElement('canvas'); const w = Math.max(1, Math.min(cols.length, 8));
@@ -175,10 +189,10 @@ function buildPalette() {
     d.appendChild(c); d.appendChild(document.createTextNode(label)); d.onclick = fn; pal.appendChild(d); };
   const seen = new Set();
   for (let p = 0; p < D.pieces.length; p++) { if (p === 9) continue; if (!D.pieces[p].length) continue;
-    add('piece ' + p, D.pieces[p], () => insertTok({ t: 'piece', p, b: $('bonly').checked })); }
+    add(`${p}: ${pieceName(p)}`, D.pieces[p], () => insertTok({ t: 'piece', p, b: $('bonly').checked })); }
   add('finish (9)', D.pieces[9], () => insertTok({ t: 'piece', p: 9, b: false }));
   for (let k = 0; k < D.runs.length; k++) { const p = D.runs[k]; if (!D.pieces[p] || !D.pieces[p].length || seen.has(k)) continue; if (k > 9 && D.runs[k] === 0) continue;
-    add(`run ${k} (piece ${p})`, D.pieces[p], () => insertTok({ t: 'run', k, n: Math.max(1, Math.min(127, +$('runlen').value | 0)) })); }
+    add(`run ${k}: ${pieceName(p)}`, D.pieces[p], () => insertTok({ t: 'run', k, n: Math.max(1, Math.min(127, +$('runlen').value | 0)) })); }
   [0x30, 0x31, 0x32, 0x33].forEach(p => add('marker 0x' + p.toString(16), [], () => insertTok({ t: 'piece', p, b: false })));
 }
 function setStream(bytes) { const o = parse(bytes); laps = o.laps; toks = o.toks; sel = 0; undoS = []; redoS = []; render(); }
@@ -272,6 +286,8 @@ function libSet(v) { try { localStorage.setItem('eb_library', JSON.stringify(v))
 function libAdd(p) { const l = libGet().filter(x => x.id !== p.id); l.unshift(p); libSet(l); renderLib(); }
 function renderLib() { const l = libGet(), box = $('lib'); box.innerHTML = ''; if (!l.length) { box.innerHTML = '<span class="empty">Nothing here yet: add the current level or import packs.</span>'; return; }
   l.forEach(p => box.appendChild(card(p, [['Open', () => openPack(p)], ['Download', () => download(p.id + '.ebpack.json', packJson(p))], ['Delete', () => { libSet(libGet().filter(x => x.id !== p.id)); renderLib(); }]]))); }
+$('play').onclick = async () => { const p = currentPack(); p.title = p.title || 'Playtest'; p.author = p.author || 'me'; p.id = p.id.length >= 2 ? p.id : 'playtest';
+  try { const r = await fetch('/api/play', { method: 'POST', headers: { 'X-Eb-Editor': '1' }, body: JSON.stringify(p) }); const j = await r.json(); say(j.message || 'Sent to the port', !j.ok); } catch (x) { say('Play in port needs the editors started with python tools/editor/serve.py (and the port built next to it).', 1); } };
 $('pk_dl').onclick = () => { const p = currentPack(), e = packProblems(p); if (e.length) return say(e.join('; '), 1); download(p.id + '.ebpack.json', packJson(p)); say('Saved ' + p.id + '.ebpack.json'); };
 $('pk_lib').onclick = () => { const p = currentPack(), e = packProblems(p); if (e.length) return say(e.join('; '), 1); libAdd(p); say('Added to your library.'); };
 $('pk_imp').onclick = () => $('pk_file').click();
