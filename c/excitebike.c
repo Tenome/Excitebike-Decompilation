@@ -6,11 +6,23 @@ uint8_t g_track_ext[0x2000]; uint16_t g_track_ext_base[6], g_track_ext_len[6];  
 int TrackExtSet(int slot, const uint8_t *stream, int len) {                      /* slot 0-4 = tracks 1-5, 5 = the designed track; returns 0 if it does not fit */
     if (slot < 0 || slot > 5 || len < 2) return 0;
     int used = 0; for (int i = 0; i < 6; i++) if (i != slot) used += g_track_ext_len[i];
-    if (used + len > 0x2000) return 0;
+    if (used + len > 0x1C00) return 0;
     int base = 0; for (int i = 0; i < 6; i++) { if (i == slot) continue; if (g_track_ext_len[i] && g_track_ext_base[i] + g_track_ext_len[i] > base) base = g_track_ext_base[i] + g_track_ext_len[i]; }
     memcpy(g_track_ext + base, stream, len); g_track_ext_base[slot] = (uint16_t)base; g_track_ext_len[slot] = (uint16_t)len; return 1;
 }
 void TrackExtClear(int slot) { if (slot >= 0 && slot < 6) g_track_ext_len[slot] = 0; }
+
+/* Custom track pieces (host feature): piece numbers 36-47 are free in the game's piece table ($F063/$F087 hold 36 column lists). A host piece is a column list in the
+ * ROM's own format (per column: a start slot S, then 15-S tile numbers; a 0 ends the list), kept in the top 1 KB of the host window. What a piece does in the game comes
+ * from the tiles in it, as for the original pieces. */
+static uint16_t g_piece_ptr[12], g_piece_used;
+int PieceCustomSet(int id, const uint8_t *cols, int len) {
+    if (id < 36 || id > 47 || len < 2 || cols[len - 1] != 0) return 0;
+    int used = g_piece_used; if (g_piece_ptr[id - 36]) used = g_piece_used;                /* a re-set piece takes new space (the pool is cleared by PieceCustomClear) */
+    if (used + len > 0x400) return 0;
+    memcpy(g_track_ext + 0x1C00 + used, cols, len); g_piece_ptr[id - 36] = (uint16_t)(0x6000 + 0x1C00 + used); g_piece_used = (uint16_t)(used + len); return 1;
+}
+void PieceCustomClear(void) { memset(g_piece_ptr, 0, sizeof g_piece_ptr); g_piece_used = 0; }
 
 const uint8_t *g_prg;
 /* Game rules the port can change (mutators); the defaults are the original game's values, so the lifted code stays identical to it. */
@@ -1890,7 +1902,10 @@ done:
 static inline uint8_t rdp(uint8_t lo, uint8_t hi, uint8_t y) { return rd16mem((uint16_t)((lo | hi << 8) + y)); }   /* LDA (zp),Y */
 static inline void wrmem(uint16_t a, uint8_t v) { if (a < 0x2000) g_ram[a & 0x7FF] = v; }
 
-void TrackColumnPointer05(Regs r) { RAM(0x05) = ROMB(0xF063 + r.x); RAM(0x06) = ROMB(0xF087 + r.x); }   /* $F82E */
+void TrackColumnPointer05(Regs r) {                                         /* $F82E */
+    if (r.x >= 36 && r.x < 48 && g_piece_ptr[r.x - 36]) { RAM(0x05) = (uint8_t)g_piece_ptr[r.x - 36]; RAM(0x06) = (uint8_t)(g_piece_ptr[r.x - 36] >> 8); return; }   /* host piece */
+    RAM(0x05) = ROMB(0xF063 + r.x); RAM(0x06) = ROMB(0xF087 + r.x);
+}
 void TrackColumnPointer07(Regs r) { RAM(0x07) = ROMB(0xF4F5 + r.x); RAM(0x08) = ROMB(0xF4FA + r.x); }   /* $F839 */
 Regs DesignEndRecord(Regs r) {                /* $F826: store write index, clear the run counter; Z set on return */
     uint8_t x = r.x + 1;

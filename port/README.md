@@ -86,3 +86,9 @@ A level pack may also contain tile changes, colour changes and a song (see `tool
 `--long-designs` (or LONG DESIGNS in the menu, `long_designs=1` in the config) lets the in-game design editor record tracks longer than the original 236 bytes: finished bytes are moved out of the game's 256-byte buffer
 into a host buffer as it fills up, the race streams the whole track, and SAVE writes an extended (`EBDES2`) design that LOAD and the track editor read back. It is off by default so the C game stays equal to the ROM;
 `tests/test_longdesign.py` checks the buffer logic.
+
+## Custom track pieces
+
+Piece numbers 36-47 are free in the game's piece table. The track editor's **Custom pieces** panel designs them (a strip of tile columns, 12 tall; copy an existing piece and change it); they are stored in level packs (`"pieces"`) and
+the port streams them like the game's own pieces. A piece's behaviour comes from the tiles it uses (the game reads ramps and surfaces from the tile numbers), so new shapes built from existing tiles play correctly;
+new looks come from the tile editor (a pack can carry tiles too).

@@ -7,7 +7,9 @@ previews from the viewer's own ROM. Format ("ebpack1"):
     "license": "CC0-1.0", "created": "2026-11-10", "laps": 2, "track": "<base64 of the track script bytes>",
     "tiles":   [ {"n": 315, "d": "<base64 of the 16 bytes of tile 315>"} ],        optional: only the tiles that differ from the ROM
     "palette": [ {"i": 22, "rgb": "ff8800"} ],                                      optional: master palette colours that differ from the default
-    "song":    {"request": "01", "ebm": "EBM1 ..."} }                               optional: a replacement song (tools/ebmusic.py format)
+    "song":    {"request": "01", "ebm": "EBM1 ..."},                              optional: a replacement song (tools/ebmusic.py format)
+    "pieces":  [ {"id": 36, "data": "<base64 of a column list>"} ] }                  optional: custom track pieces 36-47 (column list = per column: start slot S (3-14),
+                                                                                      then 15-S tile numbers; a 0 ends the list), usable as pieces 36-47 in the track
 The optional parts are changes, never the game's own data: tiles are stored as differences from the ROM, so a pack that changes nothing carries nothing.
 
   python tools/levelpack.py pack  track.ebd out.ebpack.json --title T --author A [--description D] [--tags a,b] [--id slug] [--tiles tiles.chr] [--palette colors.pal] [--song song_01.ebm --request 01]
@@ -50,7 +52,7 @@ def problems(p, filename=None):
     try: raw = base64.b64decode(p.get('track', ''), validate=True)
     except Exception: return out + ['track is not valid base64']
     if not 3 <= len(raw) <= LIMITS['track_bytes']: return out + ['track must be 3-%d bytes' % LIMITS['track_bytes']]
-    laps = raw[0]
+    laps = raw[0]; custom = defined_pieces(p) if isinstance(p.get('pieces'), list) else set()
     if not 1 <= laps <= 9: out.append('laps must be 1-9')
     if p.get('laps') != laps: out.append('"laps" must equal the first byte of the track')
     i = 1; ended = False
@@ -61,7 +63,7 @@ def problems(p, filename=None):
         if b & 0x40:
             if i >= len(raw) or not 1 <= raw[i] <= 127: out.append('a run needs a count of 1-127'); break
             i += 1
-        elif (b & 0x3F) >= 36 and (b & 0x3F) not in (0x30, 0x31, 0x32, 0x33): out.append('unknown piece %d' % (b & 0x3F)); break
+        elif (b & 0x3F) >= 36 and (b & 0x3F) not in (0x30, 0x31, 0x32, 0x33) and (b & 0x3F) not in custom: out.append('unknown piece %d' % (b & 0x3F)); break
     if not ended: out.append('the track must end with the finish line (piece 9)')
     elif raw[i - 1] != 9: out.append('the track must end with the finish line (piece 9)')
     if i < len(raw) and any(raw[i:]) and not out: out.append('extra data after the track end')
@@ -86,11 +88,37 @@ def extras_problems(p):
         if not (isinstance(sg, dict) and isinstance(sg.get('request'), str) and re.match(r'^[0-9a-f]{2}$', sg['request']) and sg['request'] != '00' and isinstance(sg.get('ebm'), str)): out.append('song: needs request (2 hex digits) and ebm (text)')
         elif len(sg['ebm']) > LIMITS['song_chars'] or not sg['ebm'].startswith('EBM1'): out.append('song: ebm must start with EBM1 and be at most %d characters' % LIMITS['song_chars'])
         elif re.search(r'[\x00-\x08\x0b\x0c\x0e-\x1f<>]', sg['ebm']): out.append('song: ebm contains control characters or < >')
+    pc = p.get('pieces')
+    if pc is not None:
+        if not isinstance(pc, list) or len(pc) > 12: out.append('pieces: a list of up to 12 entries')
+        else:
+            seen = set()
+            for e in pc:
+                try:
+                    ok = isinstance(e, dict) and isinstance(e['id'], int) and 36 <= e['id'] <= 47 and e['id'] not in seen; seen.add(e['id'])
+                    raw = base64.b64decode(e['data'], validate=True) if ok else b''
+                    ok = ok and 2 <= len(raw) <= 400 and column_list_ok(raw)
+                except Exception: ok = False
+                if not ok: out.append('pieces: each entry needs a distinct id (36-47) and data (a valid column list of at most 400 bytes)'); break
     for k in p:
         if k not in KEYS: out.append('unknown field ' + k)
     return out
 
-KEYS = ('format', 'id', 'title', 'author', 'description', 'tags', 'license', 'created', 'laps', 'track', 'tiles', 'palette', 'song')
+def column_list_ok(raw):
+    """a column list: per column a start slot 3-14 followed by 15-start tiles, ended by one 0 byte; at least one column"""
+    i = 0; cols = 0
+    while i < len(raw):
+        st = raw[i]
+        if st == 0: return i == len(raw) - 1 and cols > 0
+        if not 3 <= st <= 14: return False
+        i += 1 + (15 - st); cols += 1
+        if i > len(raw) or cols > 120: return False
+    return False
+
+def defined_pieces(p):
+    return {e['id'] for e in p.get('pieces', []) if isinstance(e, dict) and isinstance(e.get('id'), int)}
+
+KEYS = ('format', 'id', 'title', 'author', 'description', 'tags', 'license', 'created', 'laps', 'track', 'tiles', 'palette', 'song', 'pieces')
 
 DEFAULT_PAL = [(84,84,84),(0,30,116),(8,16,144),(48,0,136),(68,0,100),(92,0,48),(84,4,0),(60,24,0),(32,42,0),(8,58,0),(0,64,0),(0,60,0),(0,50,60),(0,0,0),(0,0,0),(0,0,0),(152,150,152),(8,76,196),(48,50,236),(92,30,228),(136,20,176),(160,20,100),(152,34,32),(120,60,0),(84,90,0),(40,114,0),(8,124,0),(0,118,40),(0,102,120),(0,0,0),(0,0,0),(0,0,0),(236,238,236),(76,154,236),(120,124,236),(176,98,236),(228,84,236),(236,88,180),(236,106,100),(212,136,32),(160,170,0),(116,196,0),(76,208,32),(56,204,108),(56,180,204),(60,60,60),(0,0,0),(0,0,0),(236,238,236),(168,204,236),(188,188,236),(212,178,236),(236,174,236),(236,174,212),(236,180,176),(228,196,144),(204,210,120),(180,222,120),(168,226,144),(152,226,180),(160,214,228),(160,162,160),(0,0,0),(0,0,0)]
 
@@ -152,7 +180,7 @@ def main(a):
             e = problems(p, f)
             if isinstance(p, dict) and p.get('id') in seen: e.append('duplicate id')
             if e: bad += 1; print(f, ':', '; '.join(e)); continue
-            seen.add(p['id']); items.append({k: p[k] for k in ('id', 'title', 'author', 'description', 'tags', 'license', 'created', 'laps', 'track', 'tiles', 'palette', 'song') if k in p})
+            seen.add(p['id']); items.append({k: p[k] for k in ('id', 'title', 'author', 'description', 'tags', 'license', 'created', 'laps', 'track', 'tiles', 'palette', 'song', 'pieces') if k in p})
         if a[0] == 'index' and not bad:
             open(os.path.join(a[1], 'index.json'), 'w', encoding='utf-8', newline='\n').write(json.dumps(dict(format='ebindex1', levels=items), separators=(',', ':'), ensure_ascii=False) + '\n'); print('index.json:', len(items), 'levels')
         elif not bad: print(len(files), 'pack(s) valid')

@@ -73,6 +73,26 @@ class PackExtras(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             levelpack.extract_extras(p, d, rom); self.assertEqual(open(os.path.join(d, 'tiles.chr'), 'rb').read()[0], 9); self.assertTrue(os.path.exists(os.path.join(d, 'song_02.ebm')))
 
+class CustomPieces(unittest.TestCase):
+    def pack_with_piece(self, piece_id=36):
+        stream = ebdesign.serialize(1, [('run', 0, 4), ('piece', piece_id, False), ('piece', 9, False)])
+        p = levelpack.make_pack(stream, 'Piece Level', 'me'); col = bytes([3]) + bytes([252] * 8 + [59, 60, 61, 59]); p['pieces'] = [dict(id=36, data=base64.b64encode(col + b'\x00').decode())]; return p
+    def test_valid(self): self.assertEqual(levelpack.problems(self.pack_with_piece()), [])
+    def test_undefined_piece_rejected(self):
+        p = self.pack_with_piece(37); self.assertTrue(any('unknown piece 37' in e for e in levelpack.problems(p)))
+        q = self.pack_with_piece(); del q['pieces']; self.assertTrue(levelpack.problems(q))
+    def test_bad_column_lists(self):
+        for raw in (b'', b'\x00', bytes([2, 1, 2]), bytes([3] + [1] * 12), bytes([3] + [1] * 11 + [0]), bytes([3] + [1] * 12 + [0, 0])):
+            p = self.pack_with_piece(); p['pieces'] = [dict(id=36, data=base64.b64encode(raw).decode())]; self.assertTrue(levelpack.problems(p), raw)
+        p = self.pack_with_piece(); p['pieces'][0]['id'] = 50; self.assertTrue(levelpack.problems(p))
+    @unittest.skipUnless(HAVE_ROM, 'needs the ROM')
+    def test_rom_piece_columns_are_valid_lists(self):
+        prg, _ = ebdesign.load_rom(ROM)
+        for i in range(36):
+            raw = bytearray()
+            for st, tiles in ebdesign.piece_columns(prg, i): raw += bytes([st]) + bytes(tiles)
+            if raw: self.assertTrue(levelpack.column_list_ok(bytes(raw) + b'\x00'), i)
+
 class Music(unittest.TestCase):
     def test_parse_and_write(self):
         text = 'EBM1\nname t\nvoice pulse1 duty 1 decay 5\nn 60 8\nr 4\nn 64 8 gate 4\nvoice tri\nn 48 12\n'

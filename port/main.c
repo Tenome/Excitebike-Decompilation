@@ -157,6 +157,14 @@ static void pack_extras_parse(const char *json) {
         if (pi >= 0 && pi < 64 && hexv(q[0]) >= 0 && hexv(q[5]) >= 0) { for (int c = 0; c < 3; c++) g_pk_rgb[pi][c] = (uint8_t)(hexv(q[c * 2]) << 4 | hexv(q[c * 2 + 1])); g_pk_rgb_set[pi] = 1; }
         const char *close = strchr(q, '}'); if (!close) break; p = close + 1;
     }
+    if ((p = json_array(json, "pieces", &end))) while (p < end) {                    /* custom track pieces: {"id": 36, "data": "<base64 of a column list>"} */
+        const char *i = strstr(p, "\"id\""), *d = strstr(p, "\"data\""); if (!i || !d || i >= end || d >= end) break;
+        int pid = atoi(strchr(i, ':') + 1); const char *q = strchr(d + 6, ':'); q = q ? strchr(q, '"') : NULL; if (!q) break; q++;
+        uint8_t col[512]; size_t m = 0; unsigned acc = 0; int bits = 0;
+        for (; *q && *q != '"'; q++) { int v = b64_value((unsigned char)*q); if (v < 0) continue; acc = acc << 6 | (unsigned)v; bits += 6; if (bits >= 8) { bits -= 8; if (m < sizeof col) col[m++] = (uint8_t)(acc >> bits); acc &= (1u << bits) - 1; } }
+        if (m >= 2) PieceCustomSet(pid, col, (int)m);
+        const char *close = strchr(q, '}'); if (!close) break; p = close + 1;
+    }
     const char *sg = strstr(json, "\"song\"");
     if (sg) {
         const char *rq = strstr(sg, "\"request\""), *eb = strstr(sg, "\"ebm\"");
@@ -200,7 +208,7 @@ static int load_track_file(int slot, const char *path) {
     return TrackExtSet(slot, out, (int)i + 1);
 }
 static void load_tracks(void) {
-    pack_extras_clear();
+    pack_extras_clear(); PieceCustomClear();
     for (int k = 0; k < 6; k++) if (g_track_file[k]) {
         if (load_track_file(k, g_track_file[k])) fprintf(stderr, "track %d: %s\n", k + 1, g_track_file[k]);
         else { fprintf(stderr, "track %d: cannot use %s (need an EBDES1/EBDES2 design file or a .ebpack.json level pack)\n", k + 1, g_track_file[k]); TrackExtClear(k); }

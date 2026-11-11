@@ -67,6 +67,14 @@ input.wide { width:min(420px, 100%); } .empty { color:var(--mut); font-size:12px
     <div id="pal" style="margin-top:8px"></div></section>
   <section><h2>Pieces in order</h2><div id="tokscroll"><table id="toks"><thead><tr><th>#</th><th>Kind</th><th>Piece</th><th>Count</th><th>B only</th><th></th></tr></thead><tbody></tbody></table></div>
     <div class="row" style="margin-top:8px"><button id="up">Move up</button><button id="down">Move down</button><button id="dup">Duplicate</button><button id="del">Delete</button></div></section>
+  <section id="designer"><h2>Custom pieces</h2>
+    <div class="row"><label>Slot <select id="cp_slot"></select></label><label>Copy from piece <input id="cp_from" type="number" min="0" max="35" value="7" style="width:60px"></label><button id="cp_copy">Copy</button>
+      <button id="cp_addcol">Add column</button><button id="cp_dupcol">Duplicate column</button><button id="cp_delcol">Delete column</button><button id="cp_clear">Clear piece</button><button id="cp_use">Add to track</button>
+      <label><input type="checkbox" id="cp_erase"> erase (transparent)</label><span id="cp_info" class="note"></span></div>
+    <div class="row" style="align-items:flex-start"><div id="cp_gridwrap" style="overflow:auto; max-width:100%; border:1px solid var(--line); border-radius:6px"><canvas id="cp_grid"></canvas></div>
+      <div><div class="note">Tile (click to pick)</div><canvas id="cp_tiles" width="256" height="256" style="cursor:pointer; border:1px solid var(--line); image-rendering:pixelated"></canvas></div></div>
+    <div class="note">A custom piece is a strip of tile columns, 12 tiles tall (the bottom rows are the track surface). Its behaviour comes from the tiles it uses, as for the game's own pieces: ramps, flat dirt, hay and so on, so copy a piece and change it.
+      Custom pieces are numbers 36-47; they travel inside level packs and play in the port.</div></section>
   <section id="packs"><h2>Level packs</h2>
     <div class="row"><label>Title <input id="pk_title" type="text" maxlength="60" style="width:200px"></label><label>Author <input id="pk_author" type="text" maxlength="40" style="width:150px"></label>
       <label>Tags <input id="pk_tags" type="text" placeholder="jumps, hard" style="width:170px"></label></div>
@@ -209,17 +217,49 @@ $('save').onclick = () => {
   else { out = new Uint8Array(8 + s.length); out.set([...'EBDES2'].map(c => c.charCodeAt(0))); out[6] = s.length & 255; out[7] = s.length >> 8; out.set(s, 8); }
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out])); a.download = 'designs.ebd'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
+// ---- custom pieces ----
+const CP_ROWS = 12; let cpSel = 36, cpTile = 59, cpDrawing = false; let cpData = {};          // id -> array of columns, each an array of 12 tile numbers (252 = transparent)
+try { cpData = JSON.parse(localStorage.getItem('eb_pieces') || '{}') || {}; } catch (x) { cpData = {}; }
+function cpSave() { try { localStorage.setItem('eb_pieces', JSON.stringify(cpData)); } catch (x) {} }
+function cpApplyToData() { for (let id = 36; id <= 47; id++) D.pieces[id] = (cpData[id] || []).map(c => [3, c.slice()]); }          // the strip and previews read D.pieces
+function cpBytes(id) { const o = []; (cpData[id] || []).forEach(c => { o.push(3, ...c); }); o.push(0); return Uint8Array.from(o); }
+function cpFromBytes(raw) { const cols = []; let i = 0; while (i < raw.length && raw[i] !== 0) { const st = raw[i++], n = 15 - st; const col = Array(CP_ROWS).fill(252); for (let k = 0; k < n; k++) col[st - 3 + k] = raw[i + k]; i += n; cols.push(col); } return cols; }
+function cpRefresh() { cpApplyToData(); const n = (cpData[cpSel] || []).length; $('cp_info').textContent = n ? `${n} columns` : 'empty'; cpDraw(); cpDrawTiles(); buildPalette(); render(); }
+function cpDraw() {
+  const cols = cpData[cpSel] || [], S = 20, W = Math.max(cols.length, 6) * S, c = $('cp_grid'); c.width = W; c.height = CP_ROWS * S; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.fillStyle = bgCss; x.fillRect(0, 0, W, c.height);
+  cols.forEach((col, i) => col.forEach((t, r) => { if (t !== 252) x.drawImage(tileCanvas(t), i * S, r * S, S, S); }));
+  x.strokeStyle = 'rgba(128,128,128,.35)'; for (let i = 0; i <= Math.max(cols.length, 6); i++) { x.beginPath(); x.moveTo(i * S + .5, 0); x.lineTo(i * S + .5, c.height); x.stroke(); } for (let r = 0; r <= CP_ROWS; r++) { x.beginPath(); x.moveTo(0, r * S + .5); x.lineTo(W, r * S + .5); x.stroke(); }
+}
+function cpDrawTiles() { const c = $('cp_tiles'), x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.fillStyle = bgCss; x.fillRect(0, 0, 256, 256); for (let t = 0; t < 256; t++) x.drawImage(tileCanvas(t), (t % 16) * 16, Math.floor(t / 16) * 16, 16, 16);
+  x.strokeStyle = '#fbbf24'; x.lineWidth = 2; x.strokeRect((cpTile % 16) * 16 + 1, Math.floor(cpTile / 16) * 16 + 1, 14, 14); }
+function cpPaint(e) { const r = $('cp_grid').getBoundingClientRect(), ci = Math.floor((e.clientX - r.left) / 20), ri = Math.floor((e.clientY - r.top) / 20); const cols = cpData[cpSel] || []; if (ci < 0 || ci >= cols.length || ri < 0 || ri >= CP_ROWS) return;
+  const v = $('cp_erase').checked ? 252 : cpTile; if (cols[ci][ri] !== v) { cols[ci][ri] = v; cpSave(); cpDraw(); cpApplyToData(); render(); } }
+$('cp_grid').onmousedown = e => { if (!cpData[cpSel]) return; cpDrawing = true; cpPaint(e); }; $('cp_grid').onmousemove = e => { if (cpDrawing) cpPaint(e); }; window.addEventListener('mouseup', () => { if (cpDrawing) { cpDrawing = false; buildPalette(); } });
+$('cp_tiles').onclick = e => { const r = $('cp_tiles').getBoundingClientRect(); cpTile = Math.floor((e.clientY - r.top) / r.height * 16) * 16 + Math.floor((e.clientX - r.left) / r.width * 16); $('cp_erase').checked = false; cpDrawTiles(); };
+for (let id = 36; id <= 47; id++) { const o = document.createElement('option'); o.value = id; o.textContent = 'piece ' + id; $('cp_slot').appendChild(o); }
+$('cp_slot').onchange = () => { cpSel = +$('cp_slot').value; cpRefresh(); };
+$('cp_copy').onclick = () => { const p = Math.max(0, Math.min(47, +$('cp_from').value | 0)); const src = D.pieces[p] || []; if (!src.length) { $('cp_info').textContent = 'that piece is empty'; return; }
+  cpData[cpSel] = src.slice(0, 60).map(([st, tiles]) => { const col = Array(CP_ROWS).fill(252); tiles.forEach((t, k) => { col[st - 3 + k] = t; }); return col; }); cpSave(); cpRefresh(); };
+$('cp_addcol').onclick = () => { const cols = cpData[cpSel] = cpData[cpSel] || []; if (cols.length >= 30) return; const base = D.pieces[0][0]; const col = Array(CP_ROWS).fill(252); base[1].forEach((t, k) => { col[base[0] - 3 + k] = t; }); cols.push(col); cpSave(); cpRefresh(); };
+$('cp_dupcol').onclick = () => { const cols = cpData[cpSel] || []; if (!cols.length || cols.length >= 30) return; cols.push(cols[cols.length - 1].slice()); cpSave(); cpRefresh(); };
+$('cp_delcol').onclick = () => { const cols = cpData[cpSel] || []; cols.pop(); if (!cols.length) delete cpData[cpSel]; cpSave(); cpRefresh(); };
+$('cp_clear').onclick = () => { delete cpData[cpSel]; cpSave(); cpRefresh(); };
+$('cp_use').onclick = () => { if ((cpData[cpSel] || []).length) insertTok({ t: 'piece', p: cpSel, b: $('bonly').checked }); };
+function cpPackPieces() { const used = new Set(toks.filter(t => t.t === 'piece' && t.p >= 36 && t.p <= 47).map(t => t.p)); return [...used].sort((a, b) => a - b).filter(id => (cpData[id] || []).length).map(id => ({ id, data: b64e(cpBytes(id)) })); }
+function cpLoadFromPack(p) { if (!p.pieces) return; for (let id = 36; id <= 47; id++) delete cpData[id]; p.pieces.forEach(e => { cpData[e.id] = cpFromBytes(b64d(e.data)); }); cpSave(); cpRefresh(); }
 // ---- level packs: export, import, library, community browser ----
 const LIM = { title: 60, author: 40, desc: 600, tag: 24, tags: 8, bytes: 2000 };
 const b64e = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 4096) s += String.fromCharCode(...u8.subarray(i, i + 4096)); return btoa(s); };
 const b64d = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
 const slug = t => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'level';
+function colListOk(b) { try { const raw = b64d(b); let i = 0, cols = 0; while (i < raw.length) { const st = raw[i]; if (st === 0) return i === raw.length - 1 && cols > 0 && raw.length <= 400; if (st < 3 || st > 14) return false; i += 1 + 15 - st; cols++; if (i > raw.length || cols > 120) return false; } return false; } catch (x) { return false; } }
 function extrasProblems(p) {
   const e = [];
   if (p.tiles !== undefined && (!Array.isArray(p.tiles) || p.tiles.length > 512 || p.tiles.some(t => !(t && Number.isInteger(t.n) && t.n >= 0 && t.n < 512 && typeof t.d === 'string' && /^[A-Za-z0-9+/]{22}==$/.test(t.d))))) e.push('tiles: up to 512 entries with n (0-511) and d (16 bytes, base64)');
   if (p.palette !== undefined && (!Array.isArray(p.palette) || p.palette.length > 64 || p.palette.some(c => !(c && Number.isInteger(c.i) && c.i >= 0 && c.i < 64 && /^[0-9a-f]{6}$/.test(c.rgb || ''))))) e.push('palette: up to 64 entries with i and rgb');
+  if (p.pieces !== undefined && (!Array.isArray(p.pieces) || p.pieces.length > 12 || p.pieces.some(c => !(c && Number.isInteger(c.id) && c.id >= 36 && c.id <= 47 && typeof c.data === 'string' && colListOk(c.data))))) e.push('pieces: up to 12 entries with id 36-47 and a valid column list');
   if (p.song !== undefined && !(p.song && /^[0-9a-f]{2}$/.test(p.song.request || '') && p.song.request !== '00' && typeof p.song.ebm === 'string' && p.song.ebm.startsWith('EBM1') && p.song.ebm.length <= 20000 && !/[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(p.song.ebm))) e.push('song: needs request (2 hex digits) and ebm text starting EBM1');
-  for (const k of Object.keys(p)) if (!['format', 'id', 'title', 'author', 'description', 'tags', 'license', 'created', 'laps', 'track', 'tiles', 'palette', 'song'].includes(k)) e.push('unknown field ' + k);
+  for (const k of Object.keys(p)) if (!['format', 'id', 'title', 'author', 'description', 'tags', 'license', 'created', 'laps', 'track', 'tiles', 'palette', 'song', 'pieces'].includes(k)) e.push('unknown field ' + k);
   return e;
 }
 function packProblems(p) {                                 // mirrors tools/levelpack.py: what the repository's check will say
@@ -234,7 +274,7 @@ function packProblems(p) {                                 // mirrors tools/leve
   if (raw.length < 3 || raw.length > LIM.bytes) return e.concat('track must be 3-' + LIM.bytes + ' bytes');
   if (raw[0] < 1 || raw[0] > 9) e.push('laps must be 1-9'); if (p.laps !== raw[0]) e.push('laps must equal the track\'s first byte');
   let i = 1, ok = false, fin = false; while (i < raw.length) { const b = raw[i++]; if (b === 0) { ok = true; break; } if (b === 9) { ok = fin = true; break; }
-    if (b & 0x40) { if (i >= raw.length || raw[i] < 1 || raw[i] > 127) { e.push('a run needs a count of 1-127'); break; } i++; } else { const q = b & 0x3F; if (q >= 36 && (q < 0x30 || q > 0x33)) { e.push('unknown piece ' + q); break; } } }
+    if (b & 0x40) { if (i >= raw.length || raw[i] < 1 || raw[i] > 127) { e.push('a run needs a count of 1-127'); break; } i++; } else { const q = b & 0x3F; if (q >= 36 && (q < 0x30 || q > 0x33) && !(q <= 47 && (p.pieces || []).some(c => c.id === q))) { e.push('unknown piece ' + q); break; } } }
   if (!fin && !e.length) e.push('the track must end with the finish line (piece 9)');
   return e;
 }
@@ -244,6 +284,7 @@ function currentPack() {
   const trimmed = s.slice(0, s.length - 1);                   // drop the trailing 0 pad: the finish line (9) ends the script
   const pk = { format: 'ebpack1', id: slug(meta.title), ...meta, license: 'CC0-1.0', created: new Date().toISOString().slice(0, 10), laps, track: b64e(trimmed) };
   const ex = localExtras();
+  const pcs = cpPackPieces(); if (pcs.length) pk.pieces = pcs;
   if ($('x_tiles').checked && ex.tiles.length) pk.tiles = ex.tiles; if ($('x_pal').checked && ex.palette.length) pk.palette = ex.palette; if ($('x_song').checked && ex.song) pk.song = ex.song;
   return pk;
 }
@@ -271,6 +312,7 @@ function card(p, acts) {
   const by = document.createElement('div'); by.className = 'by'; by.textContent = `by ${p.author} · ${p.laps} lap${p.laps > 1 ? 's' : ''} · ${b64d(p.track).length} bytes · ${p.license}`; d.appendChild(by);
   const de = document.createElement('p'); de.textContent = p.description || ''; d.appendChild(de);
   const tg = document.createElement('div'); tg.className = 'tags'; (p.tags || []).forEach(x => { const s = document.createElement('span'); s.textContent = x; tg.appendChild(s); }); d.appendChild(tg);
+  if (p.pieces) { const pe = document.createElement('div'); pe.className = 'by'; pe.textContent = 'custom pieces: ' + p.pieces.map(c => c.id).join(', '); d.appendChild(pe); }
   if (p.tiles || p.palette || p.song) { const ex = document.createElement('div'); ex.className = 'by'; ex.textContent = 'includes: ' + [p.tiles && p.tiles.length + ' tiles', p.palette && p.palette.length + ' colours', p.song && 'song ' + p.song.request].filter(Boolean).join(', '); d.appendChild(ex); acts = acts.concat([['Use its graphics/music', () => { say(applyExtras(p) ? 'Applied: open the tile and music editors to see them.' : 'Could not store them in this browser.', 0); }]]); }
   const ac = document.createElement('div'); ac.className = 'acts'; acts.forEach(([label, fn]) => { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; ac.appendChild(b); }); d.appendChild(ac); return d;
 }
@@ -279,7 +321,7 @@ function applyExtras(p) {                                  // hand a pack's tile
     if (p.palette && p.palette.length) { const u = new Uint8Array(192); NES.forEach((c, i) => u.set(c, i * 3)); p.palette.forEach(c => u.set([0, 1, 2].map(k => parseInt(c.rgb.substr(k * 2, 2), 16)), c.i * 3)); localStorage.setItem('eb_master', b64e(u)); }
     if (p.song) localStorage.setItem('eb_song', JSON.stringify(p.song)); refreshExtras(); return true; } catch (x) { return false; }
 }
-function openPack(p) { push(); const o = parse(b64d(p.track)); laps = o.laps; toks = o.toks; sel = 0; $('pk_title').value = p.title; $('pk_author').value = p.author; $('pk_desc').value = p.description || ''; $('pk_tags').value = (p.tags || []).join(', '); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function openPack(p) { cpLoadFromPack(p); push(); const o = parse(b64d(p.track)); laps = o.laps; toks = o.toks; sel = 0; $('pk_title').value = p.title; $('pk_author').value = p.author; $('pk_desc').value = p.description || ''; $('pk_tags').value = (p.tags || []).join(', '); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 // library (this browser only)
 function libGet() { try { const v = JSON.parse(localStorage.getItem('eb_library') || '[]'); return Array.isArray(v) ? v.filter(p => !packProblems(p).length) : []; } catch (x) { return []; } }
 function libSet(v) { try { localStorage.setItem('eb_library', JSON.stringify(v)); } catch (x) { say('Could not save the library in this browser.', 1); } }
@@ -319,7 +361,7 @@ $('pk_submit').onclick = () => { const p = currentPack(), e = packProblems(p); i
   if (!confirm(`Submit "${p.title}" to github.com/${r}?\n\nGitHub opens in a new tab with the level file filled in. GitHub will offer to fork the repository and open a pull request; nothing is sent until you confirm there. The level is shared under ${p.license}.`)) return;
   const url = `https://github.com/${r}/new/main?filename=${encodeURIComponent('levels/' + file)}&value=${encodeURIComponent(text)}`;
   if (url.length <= 7500) window.open(url, '_blank', 'noopener'); else { download(file, text); window.open(`https://github.com/${r}/upload/main/levels`, '_blank', 'noopener'); say('This level is too large for a link: the file was downloaded; drag it onto the page that opened.'); } };
-refreshExtras(); window.addEventListener('focus', refreshExtras);
+refreshExtras(); window.addEventListener('focus', refreshExtras); cpApplyToData(); cpRefresh();
 renderLib();
 buildPalette(); setStream(Uint8Array.from(D.builtin[0]));
 </script>
