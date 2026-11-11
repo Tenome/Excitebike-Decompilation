@@ -73,6 +73,10 @@ input.wide { width:min(420px, 100%); } .empty { color:var(--mut); font-size:12px
     <textarea id="pk_desc" maxlength="600" placeholder="Describe the level (up to 600 characters)"></textarea>
     <div class="row"><button id="pk_dl">Download pack</button><button id="pk_lib">Add to my library</button><button id="pk_submit" class="primary">Submit to community…</button><button id="pk_imp">Import pack(s)…</button><input id="pk_file" type="file" accept=".json,.ebd" multiple hidden>
       <span id="pk_msg" class="note"></span></div>
+    <div class="row" id="pk_extras"><label><input type="checkbox" id="x_tiles"> include my tile changes <span id="x_tiles_n" class="note"></span></label>
+      <label><input type="checkbox" id="x_pal"> include my colour changes <span id="x_pal_n" class="note"></span></label>
+      <label><input type="checkbox" id="x_song"> include my song <span id="x_song_n" class="note"></span></label>
+      <span class="note">(from the tile and music editors in this browser; only the differences from the game are stored)</span></div>
     <div class="note">Packs contain only the track script and your text (no game graphics); previews are drawn here from your own ROM data. Sharing a level means licensing it (CC0 by default).</div>
     <h3>My library</h3><div id="lib" class="cards"></div>
     <h3>Community levels</h3>
@@ -196,9 +200,18 @@ const LIM = { title: 60, author: 40, desc: 600, tag: 24, tags: 8, bytes: 2000 };
 const b64e = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 4096) s += String.fromCharCode(...u8.subarray(i, i + 4096)); return btoa(s); };
 const b64d = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
 const slug = t => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'level';
+function extrasProblems(p) {
+  const e = [];
+  if (p.tiles !== undefined && (!Array.isArray(p.tiles) || p.tiles.length > 512 || p.tiles.some(t => !(t && Number.isInteger(t.n) && t.n >= 0 && t.n < 512 && typeof t.d === 'string' && /^[A-Za-z0-9+/]{22}==$/.test(t.d))))) e.push('tiles: up to 512 entries with n (0-511) and d (16 bytes, base64)');
+  if (p.palette !== undefined && (!Array.isArray(p.palette) || p.palette.length > 64 || p.palette.some(c => !(c && Number.isInteger(c.i) && c.i >= 0 && c.i < 64 && /^[0-9a-f]{6}$/.test(c.rgb || ''))))) e.push('palette: up to 64 entries with i and rgb');
+  if (p.song !== undefined && !(p.song && /^[0-9a-f]{2}$/.test(p.song.request || '') && p.song.request !== '00' && typeof p.song.ebm === 'string' && p.song.ebm.startsWith('EBM1') && p.song.ebm.length <= 20000 && !/[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(p.song.ebm))) e.push('song: needs request (2 hex digits) and ebm text starting EBM1');
+  for (const k of Object.keys(p)) if (!['format', 'id', 'title', 'author', 'description', 'tags', 'license', 'created', 'laps', 'track', 'tiles', 'palette', 'song'].includes(k)) e.push('unknown field ' + k);
+  return e;
+}
 function packProblems(p) {                                 // mirrors tools/levelpack.py: what the repository's check will say
   const e = [], bad = /[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/;
   if (!p || p.format !== 'ebpack1') return ['format must be ebpack1'];
+  e.push(...extrasProblems(p));
   for (const [k, mx, req] of [['title', LIM.title, 1], ['author', LIM.author, 1], ['description', LIM.desc, 0]]) { const v = p[k] ?? ''; if (typeof v !== 'string') e.push(k + ' must be text'); else if (req && !v.trim()) e.push(k + ' is required'); else if (v.length > mx) e.push(k + ' is too long'); else if (bad.test(v)) e.push(k + ' contains < > or control characters'); }
   if (!/^[a-z0-9][a-z0-9-]{1,47}$/.test(p.id || '')) e.push('id must be 2-48 characters of a-z, 0-9, -');
   if (!['CC0-1.0', 'CC-BY-4.0', 'MIT'].includes(p.license)) e.push('license must be CC0-1.0, CC-BY-4.0 or MIT');
@@ -215,8 +228,20 @@ function currentPack() {
   const meta = { title: $('pk_title').value.trim(), author: $('pk_author').value.trim(), description: $('pk_desc').value.trim(), tags: $('pk_tags').value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) };
   const s = serialize();
   const trimmed = s.slice(0, s.length - 1);                   // drop the trailing 0 pad: the finish line (9) ends the script
-  return { format: 'ebpack1', id: slug(meta.title), ...meta, license: 'CC0-1.0', created: new Date().toISOString().slice(0, 10), laps, track: b64e(trimmed) };
+  const pk = { format: 'ebpack1', id: slug(meta.title), ...meta, license: 'CC0-1.0', created: new Date().toISOString().slice(0, 10), laps, track: b64e(trimmed) };
+  const ex = localExtras();
+  if ($('x_tiles').checked && ex.tiles.length) pk.tiles = ex.tiles; if ($('x_pal').checked && ex.palette.length) pk.palette = ex.palette; if ($('x_song').checked && ex.song) pk.song = ex.song;
+  return pk;
 }
+function localExtras() {                                   // what the tile and music editors left in this browser, as differences from the game
+  const out = { tiles: [], palette: [], song: null };
+  try { const m = localStorage.getItem('eb_chr'); if (m) { const u = b64d(m); if (u.length === 8192) { const rom = b64d(D.chr); for (let n = 0; n < 512; n++) { let diff = false; for (let k = 0; k < 16; k++) if (u[n * 16 + k] !== rom[n * 16 + k]) diff = true; if (diff) out.tiles.push({ n, d: b64e(u.subarray(n * 16, n * 16 + 16)) }); } } }
+    const q = localStorage.getItem('eb_master'); if (q) { const u = b64d(q); if (u.length === 192) for (let i = 0; i < 64; i++) if (u[i * 3] !== NES[i][0] || u[i * 3 + 1] !== NES[i][1] || u[i * 3 + 2] !== NES[i][2]) out.palette.push({ i, rgb: [0, 1, 2].map(k => u[i * 3 + k].toString(16).padStart(2, '0')).join('') }); }
+    const sg = localStorage.getItem('eb_song'); if (sg) { const o = JSON.parse(sg); if (o && typeof o.ebm === 'string' && /^[0-9a-f]{2}$/.test(o.request)) { const rs = (D.songs || {})[o.request]; if (rs === undefined || rs.split('\n').slice(2).join('\n') !== o.ebm.split('\n').slice(2).join('\n')) out.song = o; } } } catch (x) {}
+  return out;
+}
+function refreshExtras() { const ex = localExtras(); $('x_tiles_n').textContent = ex.tiles.length ? `(${ex.tiles.length} tiles)` : '(none)'; $('x_pal_n').textContent = ex.palette.length ? `(${ex.palette.length} colours)` : '(none)'; $('x_song_n').textContent = ex.song ? `(request ${ex.song.request})` : '(none)';
+  $('x_tiles').disabled = !ex.tiles.length; $('x_pal').disabled = !ex.palette.length; $('x_song').disabled = !ex.song; }
 const packJson = p => JSON.stringify(p, null, 2) + '\n';
 function say(t, err) { $('pk_msg').textContent = t; $('pk_msg').style.color = err ? 'var(--acc)' : ''; }
 function download(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
@@ -232,7 +257,13 @@ function card(p, acts) {
   const by = document.createElement('div'); by.className = 'by'; by.textContent = `by ${p.author} · ${p.laps} lap${p.laps > 1 ? 's' : ''} · ${b64d(p.track).length} bytes · ${p.license}`; d.appendChild(by);
   const de = document.createElement('p'); de.textContent = p.description || ''; d.appendChild(de);
   const tg = document.createElement('div'); tg.className = 'tags'; (p.tags || []).forEach(x => { const s = document.createElement('span'); s.textContent = x; tg.appendChild(s); }); d.appendChild(tg);
+  if (p.tiles || p.palette || p.song) { const ex = document.createElement('div'); ex.className = 'by'; ex.textContent = 'includes: ' + [p.tiles && p.tiles.length + ' tiles', p.palette && p.palette.length + ' colours', p.song && 'song ' + p.song.request].filter(Boolean).join(', '); d.appendChild(ex); acts = acts.concat([['Use its graphics/music', () => { say(applyExtras(p) ? 'Applied: open the tile and music editors to see them.' : 'Could not store them in this browser.', 0); }]]); }
   const ac = document.createElement('div'); ac.className = 'acts'; acts.forEach(([label, fn]) => { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; ac.appendChild(b); }); d.appendChild(ac); return d;
+}
+function applyExtras(p) {                                  // hand a pack's tiles, colours and song to the other editors (they read them from this browser)
+  try { if (p.tiles && p.tiles.length) { const u = b64d(D.chr); p.tiles.forEach(t => u.set(b64d(t.d), t.n * 16)); localStorage.setItem('eb_chr', b64e(u)); }
+    if (p.palette && p.palette.length) { const u = new Uint8Array(192); NES.forEach((c, i) => u.set(c, i * 3)); p.palette.forEach(c => u.set([0, 1, 2].map(k => parseInt(c.rgb.substr(k * 2, 2), 16)), c.i * 3)); localStorage.setItem('eb_master', b64e(u)); }
+    if (p.song) localStorage.setItem('eb_song', JSON.stringify(p.song)); refreshExtras(); return true; } catch (x) { return false; }
 }
 function openPack(p) { push(); const o = parse(b64d(p.track)); laps = o.laps; toks = o.toks; sel = 0; $('pk_title').value = p.title; $('pk_author').value = p.author; $('pk_desc').value = p.description || ''; $('pk_tags').value = (p.tags || []).join(', '); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 // library (this browser only)
@@ -272,6 +303,7 @@ $('pk_submit').onclick = () => { const p = currentPack(), e = packProblems(p); i
   if (!confirm(`Submit "${p.title}" to github.com/${r}?\n\nGitHub opens in a new tab with the level file filled in. GitHub will offer to fork the repository and open a pull request; nothing is sent until you confirm there. The level is shared under ${p.license}.`)) return;
   const url = `https://github.com/${r}/new/main?filename=${encodeURIComponent('levels/' + file)}&value=${encodeURIComponent(text)}`;
   if (url.length <= 7500) window.open(url, '_blank', 'noopener'); else { download(file, text); window.open(`https://github.com/${r}/upload/main/levels`, '_blank', 'noopener'); say('This level is too large for a link: the file was downloaded; drag it onto the page that opened.'); } };
+refreshExtras(); window.addEventListener('focus', refreshExtras);
 renderLib();
 buildPalette(); setStream(Uint8Array.from(D.builtin[0]));
 </script>

@@ -56,6 +56,29 @@ class Pack(unittest.TestCase):
         with self.assertRaises(SystemExit) as c: levelpack.main(['validate', os.path.join(ROOT, 'levels')])
         self.assertEqual(c.exception.code, 0)
 
+class PackExtras(unittest.TestCase):
+    def test_extras_valid_and_invalid(self):
+        base = levelpack.make_pack(sample_stream(), 'X Level', 'me'); rom = bytes(8192); new = bytearray(rom); new[16 * 5] = 1
+        pal = bytearray(v for c in levelpack.DEFAULT_PAL for v in c); pal[0:3] = bytes([1, 2, 3])
+        p = levelpack.add_extras(dict(base), bytes(new), rom, bytes(pal), 'EBM1
+voice tri
+n 48 4
+', 1)
+        self.assertEqual(levelpack.problems(p), []); self.assertEqual([t['n'] for t in p['tiles']], [5]); self.assertEqual(p['palette'], [dict(i=0, rgb='010203')])
+        for key, bad in (('tiles', [dict(n=600, d='AAAAAAAAAAAAAAAAAAAAAA==')]), ('palette', [dict(i=1, rgb='GG0000')]), ('song', dict(request='zz', ebm='EBM1')), ('mystery', 1)):
+            q = dict(p); q[key] = bad; self.assertTrue(levelpack.problems(q), key)
+    def test_unchanged_adds_nothing(self):
+        rom = bytes(8192); p = levelpack.add_extras(levelpack.make_pack(sample_stream(), 'Y Level', 'me'), rom, rom, bytes(v for c in levelpack.DEFAULT_PAL for v in c))
+        self.assertNotIn('tiles', p); self.assertNotIn('palette', p)
+    def test_extract(self):
+        rom = bytes(8192); new = bytearray(rom); new[0] = 9
+        p = levelpack.add_extras(levelpack.make_pack(sample_stream(), 'Z Level', 'me'), bytes(new), rom, None, 'EBM1
+voice tri
+n 48 4
+', 2)
+        with tempfile.TemporaryDirectory() as d:
+            levelpack.extract_extras(p, d, rom); self.assertEqual(open(os.path.join(d, 'tiles.chr'), 'rb').read()[0], 9); self.assertTrue(os.path.exists(os.path.join(d, 'song_02.ebm')))
+
 class Music(unittest.TestCase):
     def test_parse_and_write(self):
         text = 'EBM1\nname t\nvoice pulse1 duty 1 decay 5\nn 60 8\nr 4\nn 64 8 gate 4\nvoice tri\nn 48 12\n'

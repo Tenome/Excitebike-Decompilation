@@ -131,6 +131,7 @@ function refresh() {
   $('undo').disabled = !undoS.length; $('redo').disabled = !redoS.length;
   const n = selNote; $('n_midi').value = n ? n.midi : ''; $('n_len').value = n ? n.frames : ''; $('n_gate').value = n ? n.gate : ''; $('n_decay').value = n ? n.decay : ''; $('n_name').textContent = n && cur !== 'noise' ? noteName(n.midi) + `, starts at frame ${n.start} (${(n.start / FPS).toFixed(2)} s)` : '';
   let tot = 0; for (const k of KINDS) for (const m of song.voices[k].notes) tot = Math.max(tot, m.start + m.frames); $('info').textContent = `${(tot / FPS).toFixed(1)} s, ${tot} frames`;
+  try { localStorage.setItem('eb_song', JSON.stringify({ request: ($('req').value || '01').trim().toLowerCase().padStart(2, '0'), ebm: toEbm() })); } catch (x) {}
   draw(); }
 $('duty').onchange = () => { push(); song.voices[cur].duty = +$('duty').value; refresh(); };
 $('decay').onchange = () => { push(); const v = song.voices[cur], d = Math.max(0, Math.min(15, +$('decay').value | 0)); song.voices[cur].notes.forEach(n => { if (n.decay === v.decay) n.decay = d; }); v.decay = d; refresh(); };

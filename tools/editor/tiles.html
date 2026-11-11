@@ -96,7 +96,9 @@ function drawColors() {
 const hex = c => '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
 $('mc').oninput = () => { const v = $('mc').value; master[swatch[swIdx] & 63] = [1, 3, 5].map(i => parseInt(v.slice(i, i + 2), 16)); redrawAll(); };
 $('mreset').onclick = () => { master = DEF.map(c => c.slice()); redrawAll(); };
-function redrawAll() { drawSheet(); drawEd(); drawColors(); $('undo').disabled = !undoS.length; $('redo').disabled = !redoS.length; $('info').textContent = D ? '' : 'No ROM data (data.js): start from an opened file.'; }
+function persist() { try { let a = '', b = ''; for (let i = 0; i < chr.length; i += 2048) a += String.fromCharCode(...chr.subarray(i, i + 2048)); b = String.fromCharCode(...master.flat());
+  localStorage.setItem('eb_chr', btoa(a)); localStorage.setItem('eb_master', btoa(b)); } catch (x) {} }
+function redrawAll() { persist(); drawSheet(); drawEd(); drawColors(); $('undo').disabled = !undoS.length; $('redo').disabled = !redoS.length; $('info').textContent = D ? '' : 'No ROM data (data.js): start from an opened file.'; }
 function push() { undoS.push(chr.slice()); if (undoS.length > 100) undoS.shift(); redoS = []; }
 $('undo').onclick = () => { if (undoS.length) { redoS.push(chr.slice()); chr = undoS.pop(); redrawAll(); } };
 $('redo').onclick = () => { if (redoS.length) { undoS.push(chr.slice()); chr = redoS.pop(); redrawAll(); } };
@@ -142,6 +144,8 @@ $('file').onchange = async () => { const f = $('file').files[0]; if (!f) return;
     for (let t = 0; t < 512; t++) { const tx = t % 16, ty = Math.floor(t / 16); for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { const row = h > 0 ? 255 - (ty * 8 + y) : ty * 8 + y; setpx(t, x, y, b[off + row * rs + tx * 8 + x] & 3); } } }
   else { alert('Not a 8 KB .chr, 192-byte .pal or 128x256 .bmp file.'); undoS.pop(); }
   $('file').value = ''; redrawAll(); };
+try { const m = localStorage.getItem('eb_chr'); if (m && !window.__noload) { const u = Uint8Array.from(atob(m), c => c.charCodeAt(0)); if (u.length === 8192) chr = u; }
+  const q = localStorage.getItem('eb_master'); if (q) { const u = Uint8Array.from(atob(q), c => c.charCodeAt(0)); if (u.length === 192) master = Array.from({ length: 64 }, (_, i) => [u[i * 3], u[i * 3 + 1], u[i * 3 + 2]]); } } catch (x) {}
 redrawAll();
 </script>
 </body>

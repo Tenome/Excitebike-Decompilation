@@ -8,3 +8,4 @@ void audiomod_set_apu_writer(void (*w)(uint16_t, uint8_t));      /* where .ebm s
 int audiomod_request(int chan, int value);                /* hook for g_hal_sound: nonzero when a file replaces the request */
 void audiomod_mix(int16_t *buf, int n);                   /* adds the playing files into 44.1 kHz mono samples */
 void audiomod_frame(void);                              /* call before each game frame: the engine tone plays only while the game requests it */
+int audiomod_install_song(int request, const char *ebm_text);       /* songs from level packs */

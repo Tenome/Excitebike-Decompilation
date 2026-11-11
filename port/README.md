@@ -78,3 +78,5 @@ Start the port with `--track N=file.ebd --chr-bmp tiles.bmp --palette colors.pal
 The track editor can share levels: **Level packs** (title, author, description, tags), download/import `.ebpack.json` files, a local library with previews drawn from your own ROM, a community browser that reads `levels/index.json` from a GitHub repository,
 and **Submit to community…**, which opens GitHub's web editor with the level filled in so it becomes a pull request (nothing is sent without your confirmation on GitHub). The port plays packs directly: `--track 1=level.ebpack.json`.
 Format, rules and the PR check: `levels/README.md`, `tools/levelpack.py`.
+
+A level pack may also contain tile changes, colour changes and a song (see `tools/levelpack.py`); `--track N=pack.ebpack.json` applies them all, so a pack is a complete one-file mod. `python tools/levelpack.py unpack pack.ebpack.json out.ebd --extras DIR` writes them as separate files.

@@ -111,6 +111,7 @@ static int load_chr_bmp(const char *path, uint8_t *chr) {
 static int load_file(const char *path, void *dst, size_t n) { FILE *f = fopen(path, "rb"); if (!f) return 0; size_t r = fread(dst, 1, n, f); fclose(f); return r == n; }
 
 /* Graphics mods are re-read on F6 (together with the track files): edit tiles.bmp / colors.pal in the editors, save, press F6. */
+static uint8_t g_pk_tile[512][16]; static unsigned char g_pk_tile_set[512]; static uint8_t g_pk_rgb[64][3]; static unsigned char g_pk_rgb_set[64];   /* level pack extras, filled by pack_extras_parse */
 static const char *s_chr_bmp, *s_chr_raw, *s_pal_file; static uint8_t *s_chr_data; static uint8_t s_rom_chr[0x2000]; static uint32_t s_rgb_default[64];
 static void reload_graphics(void) {
     memcpy(s_chr_data, s_rom_chr, sizeof s_rom_chr);
@@ -118,12 +119,53 @@ static void reload_graphics(void) {
     if (s_chr_bmp && !load_chr_bmp(s_chr_bmp, s_chr_data)) fprintf(stderr, "cannot use tile BMP %s\n", s_chr_bmp);
     memcpy(g_ppu.rgb, s_rgb_default, sizeof s_rgb_default);
     if (s_pal_file) { uint8_t rgb[192]; if (load_file(s_pal_file, rgb, sizeof rgb)) { for (int i = 0; i < 64; i++) g_ppu.rgb[i] = 0xFF000000u | (uint32_t)rgb[i * 3] << 16 | (uint32_t)rgb[i * 3 + 1] << 8 | rgb[i * 3 + 2]; } else fprintf(stderr, "cannot read 192-byte palette file %s\n", s_pal_file); }
+    for (int t = 0; t < 512; t++) if (g_pk_tile_set[t]) memcpy(s_chr_data + t * 16, g_pk_tile[t], 16);                       /* level pack extras */
+    for (int i = 0; i < 64; i++) if (g_pk_rgb_set[i]) g_ppu.rgb[i] = 0xFF000000u | (uint32_t)g_pk_rgb[i][0] << 16 | (uint32_t)g_pk_rgb[i][1] << 8 | g_pk_rgb[i][2];
 }
 
 /* Custom tracks: `--track N=file.ebd` replaces built-in track N (1-5) or the designed track (6) with a track made by the editor (tools/editor) or by the game's own design mode.
  * Tracks may be longer than the original design limit; F6 reloads the files while the game runs (a track is read when its race starts). */
 static int width_opt = PPU_W, fps_mult = 1;                 /* picture width while racing; output frames per game frame */
 static const char *g_track_file[6];
+static int b64_value(int c);
+/* Level pack extras: tile differences, palette colours and a song that travel inside a .ebpack.json (see tools/levelpack.py); applied by reload_graphics(). */
+static void pack_extras_clear(void) { memset(g_pk_tile_set, 0, sizeof g_pk_tile_set); memset(g_pk_rgb_set, 0, sizeof g_pk_rgb_set); }
+static const char *json_array(const char *json, const char *key, const char **end) {        /* the text inside "key": [ ... ] (no nested arrays in our files) */
+    char pat[32]; snprintf(pat, sizeof pat, "\"%s\"", key); const char *k = strstr(json, pat); if (!k) return NULL;
+    k = strchr(k + strlen(pat), '['); if (!k) return NULL; const char *e = strchr(k, ']'); if (!e) return NULL; *end = e; return k + 1;
+}
+static int hexv(int c) { return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1; }
+static void pack_extras_parse(const char *json) {
+    const char *end, *p;
+    if ((p = json_array(json, "tiles", &end))) while (p < end) {
+        const char *n = strstr(p, "\"n\""), *d = strstr(p, "\"d\""); if (!n || !d || n >= end || d >= end) break;
+        int tn = atoi(strchr(n, ':') + 1); const char *q = strchr(d + 3, '"'); if (!q) break; q++;
+        uint8_t out[24]; size_t m = 0; unsigned acc = 0; int bits = 0;
+        for (; *q && *q != '"'; q++) { int v = b64_value((unsigned char)*q); if (v < 0) continue; acc = acc << 6 | (unsigned)v; bits += 6; if (bits >= 8) { bits -= 8; if (m < sizeof out) out[m++] = (uint8_t)(acc >> bits); acc &= (1u << bits) - 1; } }
+        if (tn >= 0 && tn < 512 && m >= 16) { memcpy(g_pk_tile[tn], out, 16); g_pk_tile_set[tn] = 1; }
+        p = q + 1; const char *close = strchr(p, '}'); if (!close) break; p = close + 1;
+    }
+    if ((p = json_array(json, "palette", &end))) while (p < end) {
+        const char *i = strstr(p, "\"i\""), *r = strstr(p, "\"rgb\""); if (!i || !r || i >= end || r >= end) break;
+        int pi = atoi(strchr(i, ':') + 1); const char *q = strchr(r + 5, '"'); if (!q) break; q++;
+        if (pi >= 0 && pi < 64 && hexv(q[0]) >= 0 && hexv(q[5]) >= 0) { for (int c = 0; c < 3; c++) g_pk_rgb[pi][c] = (uint8_t)(hexv(q[c * 2]) << 4 | hexv(q[c * 2 + 1])); g_pk_rgb_set[pi] = 1; }
+        const char *close = strchr(q, '}'); if (!close) break; p = close + 1;
+    }
+    const char *sg = strstr(json, "\"song\"");
+    if (sg) {
+        const char *rq = strstr(sg, "\"request\""), *eb = strstr(sg, "\"ebm\"");
+        if (rq && eb) {
+            rq = strchr(rq + 9, '"'); eb = strchr(eb + 5, ':'); if (rq && eb) {
+                int req = hexv(rq[1]) << 4 | hexv(rq[2]); eb = strchr(eb, '"');
+                static char ebm[24000]; size_t m = 0;
+                if (eb) for (eb++; *eb && *eb != '"' && m < sizeof ebm - 1; eb++) {
+                    if (*eb == '\\' && eb[1]) { eb++; ebm[m++] = *eb == 'n' ? '\n' : *eb == 't' ? '\t' : *eb == 'r' ? '\r' : *eb; } else ebm[m++] = *eb;
+                }
+                ebm[m] = 0; if (req > 0 && m > 4) audiomod_install_song(req, ebm);
+            }
+        }
+    }
+}
 static int b64_value(int c) { return c >= 'A' && c <= 'Z' ? c - 'A' : c >= 'a' && c <= 'z' ? c - 'a' + 26 : c >= '0' && c <= '9' ? c - '0' + 52 : c == '+' ? 62 : c == '/' ? 63 : -1; }
 static size_t pack_track_bytes(const char *json, uint8_t *out, size_t cap) {       /* the "track" field of a level pack (*.ebpack.json, see tools/levelpack.py) */
     const char *k = strstr(json, "\"track\""); if (!k) return 0;
@@ -133,13 +175,14 @@ static size_t pack_track_bytes(const char *json, uint8_t *out, size_t cap) {    
     return n;
 }
 static int load_track_file(int slot, const char *path) {
-    static uint8_t buf[0x2000 + 400]; size_t n; FILE *f = fopen(path, "rb"); if (!f) return 0;
+    static uint8_t buf[70000]; size_t n; FILE *f = fopen(path, "rb"); if (!f) return 0;
     n = fread(buf, 1, sizeof buf, f); fclose(f);
     const uint8_t *st; size_t avail;
-    static uint8_t packed[0x2000]; static char text[0x2000 + 400];
+    static uint8_t packed[0x2000]; static char text[70000];
     if (n > 0 && buf[0] == '{') {                       /* level pack */
         size_t m = n < sizeof text - 1 ? n : sizeof text - 1; memcpy(text, buf, m); text[m] = 0;
         avail = pack_track_bytes(text, packed, sizeof packed); st = packed; if (avail < 3) return 0;
+        pack_extras_parse(text);
     } else
     if (n >= 326 && !memcmp(buf, "EBDES1", 6)) { st = buf + 70; avail = 256; }
     else if (n >= 8 && !memcmp(buf, "EBDES2", 6)) { st = buf + 8; avail = n - 8; if (avail > (size_t)(buf[6] | buf[7] << 8)) avail = (size_t)(buf[6] | buf[7] << 8); }
@@ -151,6 +194,7 @@ static int load_track_file(int slot, const char *path) {
     return TrackExtSet(slot, out, (int)i + 1);
 }
 static void load_tracks(void) {
+    pack_extras_clear();
     for (int k = 0; k < 6; k++) if (g_track_file[k]) {
         if (load_track_file(k, g_track_file[k])) fprintf(stderr, "track %d: %s\n", k + 1, g_track_file[k]);
         else { fprintf(stderr, "track %d: cannot use %s (need an EBDES1/EBDES2 design file or a .ebpack.json level pack)\n", k + 1, g_track_file[k]); TrackExtClear(k); }
@@ -246,8 +290,8 @@ int main(int argc, char **argv) {
 
     SDL_SetMainReady();
     if (chr_bmp && !load_chr_bmp(chr_bmp, chr_data)) return 1;
-    reload_graphics();
     load_tracks();
+    reload_graphics();
     int headless = shot != NULL && frames_limit >= 0;
     if (SDL_Init(SDL_INIT_VIDEO | (headless ? 0 : SDL_INIT_AUDIO)) != 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }
     SDL_Window *win = SDL_CreateWindow("Excitebike", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_ppu.width * scale, PPU_H * scale, headless ? SDL_WINDOW_HIDDEN : SDL_WINDOW_RESIZABLE);
@@ -284,7 +328,7 @@ int main(int argc, char **argv) {
                 if (wc) { g_ppu.width = width_opt & ~1; SDL_DestroyTexture(tex); tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, g_ppu.width, PPU_H); SDL_RenderSetLogicalSize(ren, g_ppu.width, PPU_H); prev_desc.valid = 0; } }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) { if (menu_open) menu_open = 0; else running = 0; }
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F5) state_save("quicksave.sav");
-            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F6) { load_tracks(); reload_graphics(); if (audio_mod) audiomod_load(audio_mod); fprintf(stderr, "mods reloaded\n"); }
+            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F6) { if (audio_mod) audiomod_load(audio_mod); load_tracks(); reload_graphics(); fprintf(stderr, "mods reloaded\n"); }
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F9) { if (!state_load("quicksave.sav")) fprintf(stderr, "no usable quicksave.sav\n"); }
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F11) SDL_SetWindowFullscreen(win, (SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP) ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
         }

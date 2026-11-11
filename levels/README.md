@@ -20,6 +20,7 @@ A level contains only the track script (laps, pieces and runs) and text: no game
 
 * File name = `<id>.ebpack.json`; id is 2-48 characters of `a-z`, `0-9`, `-`.
 * Title up to 60 characters, author up to 40, description up to 600, up to 8 tags (`a-z`, `0-9`, space, `-`). No `<` or `>`.
+* A level may also carry changed tiles, changed colours and a replacement song (checkboxes under **Level packs**). Only the differences from the game are stored; a pack never contains the game's own graphics or music.
 * The track must be valid, end with the finish line, and be at most 2000 bytes.
 * License is `CC0-1.0`, `CC-BY-4.0` or `MIT`. By submitting you confirm you made the level or have the right to share it.
 * Do not edit `index.json`; it is rebuilt automatically after a merge.

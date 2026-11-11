@@ -8,10 +8,12 @@ static struct { int song; VState st[4]; } g_play = { -1 };
 static void (*g_apu_w)(uint16_t, uint8_t);
 void audiomod_set_apu_writer(void (*w)(uint16_t, uint8_t)) { g_apu_w = w; }
 
-static int song_parse(const char *path, Song *s) {
-    FILE *f = fopen(path, "r"); char line[256]; MVoice *cur = NULL; int cap[4] = { 0, 0, 0, 0 };
-    if (!f) return 0; memset(s, 0, sizeof *s);
-    while (fgets(line, sizeof line, f)) {
+static int song_parse_text(const char *text, Song *s) {
+    char line[256]; MVoice *cur = NULL; int cap[4] = { 0, 0, 0, 0 };
+    memset(s, 0, sizeof *s);
+    while (*text) {
+        size_t ll = strcspn(text, "\n"); if (ll >= sizeof line) ll = sizeof line - 1;
+        memcpy(line, text, ll); line[ll] = 0; text += strcspn(text, "\n"); if (*text == '\n') text++;
         char *h = strchr(line, '#'); if (h) *h = 0;
         char w[16]; int off = 0; if (sscanf(line, "%15s%n", w, &off) < 1) continue;
         if (!strcmp(w, "voice")) {
@@ -30,7 +32,18 @@ static int song_parse(const char *path, Song *s) {
             cur->ev[cur->n++] = e;
         }
     }
-    fclose(f); return s->nv > 0;
+    return s->nv > 0;
+}
+static int song_parse(const char *path, Song *s) {
+    FILE *f = fopen(path, "rb"); if (!f) return 0;
+    static char buf[40000]; size_t n = fread(buf, 1, sizeof buf - 1, f); fclose(f); buf[n] = 0;
+    return song_parse_text(buf, s);
+}
+int audiomod_install_song(int request, const char *text) {          /* a song that came inside a level pack */
+    request &= 255; if (!request) return 0;
+    g_song_ok[request] = song_parse_text(text, &g_song[request]);
+    if (g_song_ok[request]) g_hal_sound = audiomod_request;
+    return g_song_ok[request];
 }
 static double cpu_clock(void) { return g_pal ? 1662607.0 : 1789773.0; }
 static int period_of(int midi, int tri) { double f = 440.0 * pow(2.0, (midi - 69) / 12.0); int p = (int)(cpu_clock() / ((tri ? 32.0 : 16.0) * f) + 0.5) - 1; return p < 8 ? 8 : p > 0x7FF ? 0x7FF : p; }
