@@ -20,22 +20,26 @@ if os.path.exists(rom):
         subprocess.run([EXE, rom, '--frames', '1500', '--press', '200=08,260=01', '--shot', os.path.join(os.path.dirname(PPU), 'serve_tmp.bmp'), '--dump-ppu', PPU], capture_output=True)
     d = os.path.join(HERE, 'data.js')
     open(d, 'w').write('window.EB_DATA = ' + json.dumps(ebdesign.editor_data(PPU if os.path.exists(PPU) else None)) + ';\n'); print('data.js built from', rom)
-else: print('ROM not found (%s): the editors start without the game data' % rom)
+elif os.path.exists(os.path.join(HERE, 'data.js')): print('no ROM file: using the game data file next to the editors (data.js)')
+else: print('ROM not found (%s) and no data.js: the editors start without the game data' % rom)
+
+def data_chr():                                          # no ROM file (private build): the tiles come from the data file made at build time
+    import base64, re
+    return base64.b64decode(json.loads(re.search(r'=\s*(\{.*\})\s*;', open(os.path.join(HERE, 'data.js')).read(), re.S).group(1))['chr'])
 
 proc = None
 def ensure_play_files():
     os.makedirs(AUDIO, exist_ok=True)
     t = os.path.join(PLAY, 'tiles.bmp')
-    if not os.path.exists(t): chrbmp.write_bmp(t, chrbmp.chr_to_pixels(ebdesign.load_rom(rom)[1]))
+    if not os.path.exists(t): chrbmp.write_bmp(t, chrbmp.chr_to_pixels(ebdesign.load_rom(rom)[1] if os.path.exists(rom) else data_chr()))
     c = os.path.join(PLAY, 'colors.pal')
     if not os.path.exists(c): open(c, 'wb').write(bytes(v for col in levelpack.DEFAULT_PAL for v in col))
 def launch():
     global proc
     if not EXE: return False, 'The port is not built yet (looked for %s).' % ', '.join(os.path.relpath(e, ROOT) for e in EXES)
-    if not os.path.exists(rom): return False, 'ROM not found: ' + rom
     if proc is not None and proc.poll() is None: return True, 'Sent. The running port reloads it within a second; start a new race on track 1 to see a changed level.'
     ensure_play_files()
-    proc = subprocess.Popen([EXE, rom, '--track', '1=' + os.path.join(PLAY, 'level.ebpack.json'), '--chr-bmp', os.path.join(PLAY, 'tiles.bmp'), '--palette', os.path.join(PLAY, 'colors.pal'),
+    proc = subprocess.Popen([EXE] + ([rom] if os.path.exists(rom) else []) + ['--track', '1=' + os.path.join(PLAY, 'level.ebpack.json'), '--chr-bmp', os.path.join(PLAY, 'tiles.bmp'), '--palette', os.path.join(PLAY, 'colors.pal'),
                              '--audio-mod', AUDIO, '--watch', '--autostart'], cwd=ROOT)
     return True, 'Port started: it goes straight into a race on track 1.'
 

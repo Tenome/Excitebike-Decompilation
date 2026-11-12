@@ -104,3 +104,9 @@ or animation frame it uses in each frame (riders swap slots as they pass each ot
 opens a window with the game's title menu and races in **widescreen** (416 pixels wide; `--width 256` or `width=256` in `excitebike.cfg` gives the original picture). If no ROM is found it says so in a message box.
 A `mods/audio` folder next to the program is loaded automatically. The Windows build has no console window; build it with `-Wl,/subsystem:windows -Wl,/entry:mainCRTStartup` (MSVC-style linker) or `-mwindows` (MinGW).
 `excitebike-editors.exe` (built from `port/editors.c`, Windows) opens the browser editors by running `tools/editor/serve.py` with Python 3; `python tools/package.py --exe ... --editors-exe ...` puts both programs in `dist/excitebike/`.
+
+## A private build that needs no ROM file
+
+`python tools/build_exe.py --sdl-dir <SDL2 devel folder>` reads your own ROM files (`orig/excitebike_us.nes` and/or `orig/excitebike_eu.nes`) and builds `dist/Excitebike/`: a game program with the ROM data compiled in, the editors launcher, and an editors data file made from the ROM.
+It runs from any folder with no `.nes` beside it; `--region eu` (or `region=eu` in `excitebike.cfg`) selects the PAL version when both ROMs were embedded. The result contains game data: it is for your own use. Never upload or share it
+(`dist/` and `build/` are git-ignored, and the repository and its CI only ever build the version that reads a ROM file).

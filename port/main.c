@@ -223,8 +223,10 @@ static void load_tracks(void) {
 }
 
 /* Rules (mutators): "name=value" from the command line (--rule) or from excitebike.cfg (one per line, # comments). Defaults are the original game. */
+static int g_region_eu;                                       /* embedded builds: 1 = the PAL (Europe) ROM; set by --region eu or region=eu in excitebike.cfg */
 static int set_rule(const char *kv) {
     char name[64]; int v;
+    if (!strncmp(kv, "region=", 7)) { g_region_eu = !strncmp(kv + 7, "eu", 2); return 1; }           /* region=us|eu (embedded builds) */
     if (sscanf(kv, "%63[^=]=%i", name, &v) != 2) return 0;
     if (!strcmp(name, "jump_power")) g_rules.jump_power = (uint8_t)v;                 /* 175 = original; higher = longer jumps */
     else if (!strcmp(name, "crash_pitch")) g_rules.crash_pitch = (uint8_t)v;          /* 13 = original; higher = more forgiving wheelies */
@@ -269,6 +271,27 @@ static long mods_stamp(void) {
 #include <unistd.h>
 #define CHDIR chdir
 #endif
+/* Private builds (tools/build_exe.py, -DEMBED_ROM) carry the ROM data inside the program, taken from the builder's own ROM files, so the program runs without any ROM file.
+ * Such a build must never be shared or uploaded. Without EMBED_ROM the ROM is read from a file as before. */
+#ifdef EMBED_ROM
+extern const unsigned char g_rom_us[]; extern const unsigned int g_rom_us_len;
+extern const unsigned char g_rom_eu[]; extern const unsigned int g_rom_eu_len;
+#endif
+static uint8_t *load_rom_bytes(const char *path, int path_given, long *n_out) {
+#ifdef EMBED_ROM
+    if (!path_given) {
+        const unsigned char *src = g_region_eu ? g_rom_eu : g_rom_us; unsigned len = g_region_eu ? g_rom_eu_len : g_rom_us_len;
+        if (!len) { src = g_region_eu ? g_rom_us : g_rom_eu; len = g_region_eu ? g_rom_us_len : g_rom_eu_len; }          /* only one ROM was embedded */
+        if (len) { uint8_t *b = malloc(len); if (!b) return NULL; memcpy(b, src, len); *n_out = (long)len; return b; }
+    }
+#else
+    (void)path_given;
+#endif
+    FILE *f = fopen(path, "rb"); if (!f) return NULL;
+    fseek(f, 0, SEEK_END); long n = ftell(f); fseek(f, 0, SEEK_SET);
+    uint8_t *rom = malloc((size_t)n); if (!rom || fread(rom, 1, (size_t)n, f) != (size_t)n) { fclose(f); free(rom); return NULL; }
+    fclose(f); *n_out = n; return rom;
+}
 static int has_nes_ext(const char *n) { size_t l = strlen(n); return l > 4 && (n[l - 4] == '.') && (n[l - 3] | 32) == 'n' && (n[l - 2] | 32) == 'e' && (n[l - 1] | 32) == 's'; }
 static int name_has_excitebike(const char *n) { char low[260]; size_t i = 0; for (; n[i] && i < 259; i++) low[i] = (char)(n[i] >= 'A' && n[i] <= 'Z' ? n[i] + 32 : n[i]); low[i] = 0; return strstr(low, "excitebike") != NULL; }
 static int file_exists(const char *p) { FILE *f = fopen(p, "rb"); if (f) { fclose(f); return 1; } return 0; }
@@ -318,6 +341,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--palette") && i + 1 < argc) pal_file = argv[++i];
         else if (!strcmp(argv[i], "--peek") && i + 1 < argc) peek = argv[++i];         /* debug: print RAM bytes at exit, e.g. 12,4d,e8 */
         else if (!strcmp(argv[i], "--dump-ppu") && i + 1 < argc) dump_ppu = argv[++i];         /* debug/tools: 2 KB nametables + 32 palette bytes at exit */
+        else if (!strcmp(argv[i], "--region") && i + 1 < argc) g_region_eu = !strcmp(argv[++i], "eu");               /* embedded builds: which of the two ROMs to run (us = NTSC, eu = PAL) */
         else if (!strcmp(argv[i], "--long-designs")) g_design_long = 1;                     /* the design editor can record tracks longer than the original 236 bytes */
         else if (!strcmp(argv[i], "--watch")) g_watch = 1;                                  /* reload tracks, tiles, palette and audio when their files change (live editing) */
         else if (!strcmp(argv[i], "--autostart")) g_autostart = 1;                          /* press Start and A by itself to begin a race on track 1 (with --track 1=...) */
@@ -326,17 +350,18 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--unlimited-sprites")) g_ppu.unlimited_sprites = 1;
         else { rom_path = argv[i]; rom_given = 1; }
     }
+#ifndef EMBED_ROM
     if (!rom_given && find_rom(found_rom, sizeof found_rom)) rom_path = found_rom;
+#else
+    (void)found_rom;
+#endif
     if (!audio_mod) audio_mod = "mods/audio";      /* a mods/audio folder next to the program is used by default */
-    FILE *f = fopen(rom_path, "rb");
-    if (!f) {
+    long n = 0; uint8_t *rom = load_rom_bytes(rom_path, rom_given, &n);
+    if (!rom) {
         fprintf(stderr, "cannot open ROM %s\n", rom_path);
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Excitebike", "Excitebike ROM not found.\n\nCopy your own Excitebike .nes file into this program's folder and name it excitebike.nes (or start the program with the ROM's path).", NULL);
         return 1;
     }
-    fseek(f, 0, SEEK_END); long n = ftell(f); fseek(f, 0, SEEK_SET);
-    uint8_t *rom = malloc((size_t)n); if (fread(rom, 1, (size_t)n, f) != (size_t)n) { fprintf(stderr, "short read\n"); return 1; }
-    fclose(f);
     if (n < 16 + 0x4000 + 0x2000 || memcmp(rom, "NES\x1a", 4)) { fprintf(stderr, "not an Excitebike iNES ROM\n"); return 1; }
     int unlimited = g_ppu.unlimited_sprites;
     int vertical = rom[6] & 1, pal = (rom[12] & 1) || (rom[9] & 1);
