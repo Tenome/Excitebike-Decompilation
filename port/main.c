@@ -443,6 +443,7 @@ int main(int argc, char **argv) {
         if (play_f) { int c = fgetc(play_f); if (c == EOF) break; pad = (uint8_t)c; }
         if (rec_f) fputc(pad, rec_f);
         g_pad_bits[0] = pad;
+        g_wide_width = g_ppu.width > PPU_W ? g_ppu.width : 256;
         g_ppu.wide_active = g_ram[0x47] != 0;                  /* widen the picture only while racing / editing a track */
         ppu_run_to_vblank(&g_ppu);                             /* the picture for this frame is complete; vblank starts */
         for (int i = 0; i < 150; i++) UpdateRandom();          /* the idle loop between frames */
@@ -452,7 +453,7 @@ int main(int argc, char **argv) {
         g_ppu.extra_n = 0;
         if (g_ram[0x47]) {
             WideSprite ws[64]; int k = 0;
-            if (g_ppu.width > PPU_W) k = WideRiderSprites(ws, 40, g_ppu.width);
+            if (g_ppu.width > PPU_W) { k = WideRiderSprites(ws, 40, g_ppu.width); k += WideObjectSprites(ws + k, 64 - k, g_ppu.width); }
             k += ExtraRiderSprites(ws + k, 64 - k, g_ppu.width);
             for (int i = 0; i < k; i++) { g_ppu.extra[i].x = ws[i].x; g_ppu.extra[i].y = ws[i].y; g_ppu.extra[i].tile = ws[i].tile; g_ppu.extra[i].attr = ws[i].attr; }
             g_ppu.extra_n = k;
@@ -513,6 +514,7 @@ int main(int argc, char **argv) {
         }
     }
     if (dump_ppu) { FILE *pf = fopen(dump_ppu, "wb"); if (pf) { fwrite(g_ppu.vram, 1, 2048, pf); fwrite(g_ppu.pal, 1, 32, pf); fclose(pf); } }
+    if (dump_oam) for (int i = 0; i < g_ppu.extra_n; i++) printf("extra %2d: y=%3d tile=%02X attr=%02X x=%3d\n", i, g_ppu.extra[i].y, g_ppu.extra[i].tile, g_ppu.extra[i].attr, g_ppu.extra[i].x);
     if (dump_oam) for (int i = 0; i < 64; i++) { const uint8_t *o = &g_ppu.oam[i * 4]; if (o[0] < 0xEF) printf("sprite %2d: y=%3d tile=%02X attr=%02X x=%3d owner=%d\n", i, o[0], o[1], o[2], o[3], g_ppu.done.tags.owner[i]); }
     for (const char *q = peek; q && *q;) { unsigned a; int used = 0; if (sscanf(q, "%x%n", &a, &used) < 1) break; printf("ram[%03X] = %02X\n", a, g_ram[a & 0x7FF]); q += used; if (*q == ',') q++; }
     if (rec_f) fclose(rec_f);

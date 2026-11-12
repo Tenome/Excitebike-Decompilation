@@ -17,6 +17,7 @@ extern void (*g_hal_write)(uint16_t addr, uint8_t val);   /* host hooks for the 
 extern uint8_t (*g_hal_read)(uint16_t addr);
 extern void (*g_hal_event)(int event, int arg);
 extern uint8_t g_track_ext[0x2000]; extern uint16_t g_track_ext_base[6], g_track_ext_len[6];   /* host tracks (custom or longer than the original design limit) that replace track slot 0-5 */
+extern int g_wide_width;                       /* picture width while racing (host sets it; 256 = the original game, wider keeps track, riders and objects ahead of the visible edge) */
 extern int g_design_long;                      /* 1 = the design editor may record tracks longer than 236 bytes (host option; 0 keeps the original limit) */
 int DesignAssemble(uint8_t *out, int cap); void DesignExtImport(const uint8_t *stream, int n); void DesignExtReset(void); void DesignFlush(void);
 int PieceCustomSet(int id, const uint8_t *cols, int len); void PieceCustomClear(void);   /* host pieces 36-47 */
@@ -33,6 +34,7 @@ typedef struct {
 } Rules;
 extern Rules g_rules;
 typedef struct { int x; uint8_t y, tile, attr; } WideSprite;
+int WideObjectSprites(WideSprite *out, int max, int width);   /* the obstacle and banner while they are beyond the original right edge (wide pictures) */
 int WideRiderSprites(WideSprite *out, int max, int width);   /* host helper: riders beyond the right edge, for widescreen */
 extern int g_extra_count; extern int g_extra_collide;                     /* number of extra CPU riders (host feature, 0 = original) */
 void ExtraRidersFrame(void);                 /* run the extra riders for one frame (after Nmi) */

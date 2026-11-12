@@ -840,15 +840,29 @@ void UpdateRiderControls(void) {              /* $CD1F */
 }
 
 /* ---- batch 8: spawning CPU riders and the lost-rider respawn ---- */
+/* ---- widescreen: keep the world and its objects ahead of the visible edge (host feature; g_wide_width = 256 keeps the original behaviour exactly) ----
+ * The game streams the track about 52 columns ahead of the screen and brings riders and objects in from just beyond the 256-pixel edge. On a wider picture they would
+ * pop into existence mid-screen, so with g_wide_width > 256: (1) the track streamer is run ahead a few extra columns at the start of a race, (2) CPU riders enter from beyond the
+ * wide edge, (3) the obstacle and the banner that scroll in from the right are drawn from beyond the wide edge too. The track ring holds 64 columns = 512 pixels, the widest picture. */
+int g_wide_width = 256;
+static int wide_spawn_x(void) { int x = g_wide_width + 8; return x < 320 ? 320 : (x > 504 ? 504 : x); }          /* where an ahead rider appears (world x; original 320) */
+static int wide_spawn_xlo(void) { return (wide_spawn_x() - 256) & ~7; }
+static int wide_lead_cols(void) {                                                                                  /* extra track columns to stream so the spawn point is covered */
+    if (g_wide_width <= 256) return 0;
+    int need = (wide_spawn_x() + 24 - 416 + 7) / 8; return need < 0 ? 0 : (need > 12 ? 12 : need);
+}
+static int g_lead_done, g_obs_hi;                                                                                  /* columns streamed ahead so far this race; obstacle beyond the original edge */
 Regs SpawnRider(Regs r) {                     /* $DAE3: X = slot, Y = start lane + 1; A=0 (Z set) when the spot is blocked */
     uint8_t x = r.x, y = r.y, a;
     ClearRider((Regs){ 0, x, 0, 0 });
     y--;
     RiderY(x) = ROMB(0xD8D8 + y);
     y = RiderXHi(x);
+    int ahead_extra = 0;
     RiderXLo(x) = ROMB(0xD8DF + y);
+    if (y == 2 && g_wide_width > 256) { RiderXLo(x) = (uint8_t)wide_spawn_xlo(); ahead_extra = (wide_spawn_xlo() - 0x40) / 8; }          /* wide picture: enter from beyond its edge */
     RiderPitch(x) = 6;
-    RiderTrackPos(x) = (uint8_t)((RiderTrackPos(0) + ROMB(0xD8E2 + y)) & 0x3F);
+    RiderTrackPos(x) = (uint8_t)((RiderTrackPos(0) + ROMB(0xD8E2 + y) + ahead_extra) & 0x3F);
     RiderMoveFraction(x) = RiderMoveFraction(0);
     if (y != 0) {
         a = TrackPieceAtRow((Regs){ 0, x, 5, 0 }).a;
@@ -2466,11 +2480,17 @@ void UpdateTrackObstacle(void) {              /* $E0E6: the scrolling obstacle s
     if (ObstacleActive == 0) {
         if (ObstacleCooldown != 0) return;
         ObstacleTile = ROMB(0xD8F3 + (RandomState(0) & 3));
-        ObstacleX = 0xF8; ObstacleActive = 0xF8;
+        ObstacleX = 0xF8; g_obs_hi = 0; ObstacleActive = 0xF8;
+        if (g_wide_width > 256) { int p = g_wide_width + 8; if (p > 504) p = 504; ObstacleX = (uint8_t)p; g_obs_hi = p > 255; }      /* wide picture: enter from beyond its edge */
     }
     RAM(0x01) = 0x50;
-    ObstacleX = (uint8_t)(ObstacleX - RiderMoveX(0));
-    if (RiderMoveX(0) != 0 && (FrameCounter & 0x0F) == 0) ObstacleX--;
+    int drop = RiderMoveX(0) + ((RiderMoveX(0) != 0 && (FrameCounter & 0x0F) == 0) ? 1 : 0);
+    if (g_obs_hi) {                                                  /* beyond the original screen edge: moves as below, drawn by WideObjectSprites */
+        int p = 256 + ObstacleX - drop;
+        ObstacleX = (uint8_t)p;
+        if (p >= 256) { for (int o = 0; o < 0x20; o += 4) RAM(0x0200 + 0xC0 + o) = 0xF8; return; }
+        g_obs_hi = 0;
+    } else ObstacleX = (uint8_t)(ObstacleX - drop);
     RAM(0x00) = ObstacleX;
     if (ObstacleX >= 0xFC) { ObstacleCooldown = RandomState(0) & 0xA0; ObstacleActive = 0; return; }
     RAM(0x02) = ObstacleTile; RAM(0x03) = 0x22; RAM(0x04) = 0xC0; RAM(0x0B) = 0x20;
@@ -2557,7 +2577,7 @@ void StartRaceSetup(void) {                   /* $C875: initial rider positions,
     uint8_t a, x;
     RaceActive++; GameStateActive++;
     a = MenuHintTimer; if (a == 0) a = 5; MenuHintTimer = a;
-    RAM(0xE8) = 0x34; RAM(0xE9) = 0x14;
+    RAM(0xE8) = 0x34; RAM(0xE9) = 0x14; g_lead_done = 0; g_obs_hi = 0;
     LandingBaseY = 0xA0;
     RAM(0x03B4) = 0x80; RAM(0x03B0) = 0x80; RAM(0x03BD) = 0xFF;
     RiderGateWait(0) = 1; RAM(0x03BE) = 2;
@@ -2936,7 +2956,10 @@ void StateRaceFrame(void) {                   /* $C99A: one frame of racing, in 
     UpdateExhaustSprites();
     UpdateRiderGroundDistance();
     DrawJumpShadows();
+    int boost = g_lead_done < wide_lead_cols() && RAM(0xEB) != RiderTrackPos(0) && RaceEndState == 0;            /* wide picture: stream a column ahead while the rider stands still */
+    if (boost) RAM(0xEB) = RiderTrackPos(0);
     TrackRenderUpdate();
+    if (boost && RAM(0xEB) != RiderTrackPos(0)) g_lead_done++;
     if (!g_pal) { DetectRiderOverlap(); UpdateEngineSound(); }      /* the PAL release runs these two after the sprite-0 wait */
     UpdateTempGauge();
     DrawRiders();
@@ -2971,6 +2994,27 @@ int WideRiderSprites(WideSprite *out, int max, int width) {
         memcpy(g_ram, keep, sizeof keep);
     }
     g_no_sprite_event = 0;
+    return n;
+}
+int WideObjectSprites(WideSprite *out, int max, int width) {      /* the obstacle and the banner while they are beyond the original right edge */
+    static uint8_t keep[0x800];
+    int n = 0, w2 = width - 256;
+    for (int which = 0; which < 2; which++) {
+        int lo, tile, size, attr;
+        if (which == 0) { if (!g_obs_hi || ObstacleActive == 0) continue; lo = ObstacleX; tile = ObstacleTile; size = 0x22; attr = 0x20; }
+        else { if (SceneObjectKind != 1 || RAM(0x03BE) != 2 || RaceEndState > 1 || OverheatTimer != 0) continue; lo = RAM(0x03BD); tile = ROMB(0xD8E5 + RAM(0x03BB)); size = 0x32; attr = 0; }
+        if (lo >= w2) continue;
+        memcpy(keep, g_ram, sizeof keep);
+        for (int i = 0; i < 256; i++) g_ram[0x0200 + i] = 0xF8;
+        RAM(0x00) = (uint8_t)lo; RAM(0x01) = 0x50; RAM(0x02) = (uint8_t)tile; RAM(0x03) = (uint8_t)size; RAM(0x04) = 0x80; RAM(0x0B) = (uint8_t)attr;
+        DrawMetasprite((Regs){ (uint8_t)(which == 0 ? 0x20 : 0), 0, 0, 0 });
+        for (int i = 0; i < 64 && n < max; i++) {
+            const uint8_t *o = &g_ram[0x0200 + i * 4];
+            if (o[0] >= 0xEF) continue;
+            out[n].x = 256 + o[3]; out[n].y = o[0]; out[n].tile = o[1]; out[n].attr = o[2]; n++;
+        }
+        memcpy(g_ram, keep, sizeof keep);
+    }
     return n;
 }
 

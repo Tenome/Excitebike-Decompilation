@@ -110,3 +110,10 @@ A `mods/audio` folder next to the program is loaded automatically. The Windows b
 `python tools/build_exe.py --sdl-dir <SDL2 devel folder>` reads your own ROM files (`orig/excitebike_us.nes` and/or `orig/excitebike_eu.nes`) and builds `dist/Excitebike/`: a game program with the ROM data compiled in, the editors launcher, and an editors data file made from the ROM.
 It runs from any folder with no `.nes` beside it; `--region eu` (or `region=eu` in `excitebike.cfg`) selects the PAL version when both ROMs were embedded. The result contains game data: it is for your own use. Never upload or share it
 (`dist/` and `build/` are git-ignored, and the repository and its CI only ever build the version that reads a ROM file).
+
+## Widescreen: nothing pops in
+
+The game streams the track about 52 columns ahead of the left edge and brings CPU riders and objects in from just beyond the 256-pixel edge. On a wider picture those would appear out of nowhere in the middle of the screen.
+With a wide picture (`--width`, the menu's WIDTH item, or the 416 default) the port therefore (1) streams a few extra track columns at the start of a race so the track ahead is real all the way to the picture's edge, (2) lets CPU riders enter from beyond the wide edge,
+and (3) draws the obstacle and the banner that scroll in from the right from beyond the wide edge too. The track ring holds 64 columns, which is exactly 512 pixels, so 512 is the widest picture; wider monitors get side bars.
+At width 256 none of this runs and the game is exactly the original (the differential tests check that).
