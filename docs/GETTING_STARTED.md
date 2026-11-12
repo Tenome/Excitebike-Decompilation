@@ -3,7 +3,7 @@
 You need your own Excitebike ROM (NTSC "Japan, USA" or PAL "Europe"). It is never included here.
 
 1. **Build the port.** Install SDL2 development files and clang or gcc, then see `port/README.md` (Windows: the `clang` line; Linux/macOS: `make`). Or use a packaged folder (`tools/package.py`).
-2. **Run it.** `excitebike excitebike.nes`. Arrows, Z = accelerate, X = turbo, Enter = Start, Shift = Select, **Tab = options menu**, F5/F9 quick save/load, F6 reload mods, F11 fullscreen.
+2. **Run it.** Put your ROM next to `excitebike.exe` as `excitebike.nes` and double-click it: it opens the title menu in widescreen. (`excitebike-editors.exe` opens the editors; the options menu is **Tab** in the game.) Arrows, Z = accelerate, X = turbo, Enter = Start, Shift = Select, **Tab = options menu**, F5/F9 quick save/load, F6 reload mods, F11 fullscreen.
 3. **Open the editors.** `python tools/editor/serve.py excitebike.nes` opens the track, tile and music editors in your browser.
    * Tracks: build a level, save `designs.ebd` (or a `.ebpack.json` pack), run `excitebike excitebike.nes --track 1=mylevel.ebd`, press F6 after each save.
    * Tiles and colours: save `tiles.bmp` / `colors.pal`, run with `--chr-bmp tiles.bmp --palette colors.pal`.

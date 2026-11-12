@@ -97,3 +97,10 @@ new looks come from the tile editor (a pack can carry tiles too).
 
 For frame rates above 60 the port interpolates between game frames. The game reports each rider and shadow it draws (`HAL_EV_SPRITES`), so the in-between pictures move a rider by how far the game moved its origin, whatever OAM slot
 or animation frame it uses in each frame (riders swap slots as they pass each other). Everything else still moves by OAM slot. `tests/test_interp.py` checks it.
+
+## Starting the game like a normal program
+
+`excitebike.exe` needs no arguments. Double-click it (or start it from anywhere): it works from its own folder, finds your ROM there (`excitebike.nes`, or any `.nes` with "excitebike" in its name, or `orig/excitebike_us.nes`),
+opens a window with the game's title menu and races in **widescreen** (416 pixels wide; `--width 256` or `width=256` in `excitebike.cfg` gives the original picture). If no ROM is found it says so in a message box.
+A `mods/audio` folder next to the program is loaded automatically. The Windows build has no console window; build it with `-Wl,/subsystem:windows -Wl,/entry:mainCRTStartup` (MSVC-style linker) or `-mwindows` (MinGW).
+`excitebike-editors.exe` (built from `port/editors.c`, Windows) opens the browser editors by running `tools/editor/serve.py` with Python 3; `python tools/package.py --exe ... --editors-exe ...` puts both programs in `dist/excitebike/`.

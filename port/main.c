@@ -138,7 +138,7 @@ static void reload_graphics(void) {
 
 /* Custom tracks: `--track N=file.ebd` replaces built-in track N (1-5) or the designed track (6) with a track made by the editor (tools/editor) or by the game's own design mode.
  * Tracks may be longer than the original design limit; F6 reloads the files while the game runs (a track is read when its race starts). */
-static int width_opt = PPU_W, fps_mult = 1;                 /* picture width while racing; output frames per game frame */
+static int width_opt = 416, fps_mult = 1;                 /* picture width while racing; output frames per game frame */
 static const char *g_track_file[6];
 static int b64_value(int c);
 /* Level pack extras: tile differences, palette colours and a song that travel inside a .ebpack.json (see tools/levelpack.py); applied by reload_graphics(). */
@@ -259,9 +259,38 @@ static long mods_stamp(void) {
 }
 #include "menu.inc"
 
+/* Starting by double-click: no arguments. The program then works from its own folder (settings, saves, mods), looks for the ROM there and starts in the game's title screen. */
+#ifdef _WIN32
+#include <windows.h>
+#include <direct.h>
+#define CHDIR _chdir
+#else
+#include <dirent.h>
+#include <unistd.h>
+#define CHDIR chdir
+#endif
+static int has_nes_ext(const char *n) { size_t l = strlen(n); return l > 4 && (n[l - 4] == '.') && (n[l - 3] | 32) == 'n' && (n[l - 2] | 32) == 'e' && (n[l - 1] | 32) == 's'; }
+static int name_has_excitebike(const char *n) { char low[260]; size_t i = 0; for (; n[i] && i < 259; i++) low[i] = (char)(n[i] >= 'A' && n[i] <= 'Z' ? n[i] + 32 : n[i]); low[i] = 0; return strstr(low, "excitebike") != NULL; }
+static int file_exists(const char *p) { FILE *f = fopen(p, "rb"); if (f) { fclose(f); return 1; } return 0; }
+static int find_rom(char *out, size_t cap) {          /* the usual names first, then any .nes file with "excitebike" in its name in the current folder */
+    static const char *names[] = { "excitebike.nes", "Excitebike.nes", "orig/excitebike_us.nes", "orig/excitebike_eu.nes" };
+    for (size_t i = 0; i < sizeof names / sizeof names[0]; i++) if (file_exists(names[i])) { snprintf(out, cap, "%s", names[i]); return 1; }
+#ifdef _WIN32
+    WIN32_FIND_DATAA fd; HANDLE h = FindFirstFileA("*.nes", &fd);
+    if (h != INVALID_HANDLE_VALUE) { do { if (name_has_excitebike(fd.cFileName)) { snprintf(out, cap, "%s", fd.cFileName); FindClose(h); return 1; } } while (FindNextFileA(h, &fd)); FindClose(h); }
+#else
+    DIR *d = opendir("."); struct dirent *e;
+    if (d) { while ((e = readdir(d))) if (has_nes_ext(e->d_name) && name_has_excitebike(e->d_name)) { snprintf(out, cap, "%s", e->d_name); closedir(d); return 1; } closedir(d); }
+#endif
+    (void)has_nes_ext;
+    return 0;
+}
+
 int main(int argc, char **argv) {
     const char *audio_mod = NULL;
+    if (argc == 1) { char *base = SDL_GetBasePath(); if (base) { if (CHDIR(base) != 0) { /* stay where we are */ } SDL_free(base); } }       /* double-clicked: work from the program's folder */
     load_config("excitebike.cfg");
+    static char found_rom[512]; int rom_given = 0;
     const char *rom_path = "orig/excitebike_us.nes", *shot = NULL, *press = NULL, *wav = NULL, *record = NULL, *play = NULL, *chr_bmp = NULL, *chr_raw = NULL, *pal_file = NULL;
     FILE *rec_f = NULL, *play_f = NULL;
     int dump_oam = 0, shot_menu = 0; const char *peek = NULL, *dump_ppu = NULL;
@@ -295,10 +324,16 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--shot-menu")) shot_menu = 1;                         /* debug: also save the options menu over the last picture */
         else if (!strcmp(argv[i], "--dump-oam")) dump_oam = 1;
         else if (!strcmp(argv[i], "--unlimited-sprites")) g_ppu.unlimited_sprites = 1;
-        else rom_path = argv[i];
+        else { rom_path = argv[i]; rom_given = 1; }
     }
+    if (!rom_given && find_rom(found_rom, sizeof found_rom)) rom_path = found_rom;
+    if (!audio_mod) audio_mod = "mods/audio";      /* a mods/audio folder next to the program is used by default */
     FILE *f = fopen(rom_path, "rb");
-    if (!f) { fprintf(stderr, "cannot open ROM %s\n", rom_path); return 1; }
+    if (!f) {
+        fprintf(stderr, "cannot open ROM %s\n", rom_path);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Excitebike", "Excitebike ROM not found.\n\nCopy your own Excitebike .nes file into this program's folder and name it excitebike.nes (or start the program with the ROM's path).", NULL);
+        return 1;
+    }
     fseek(f, 0, SEEK_END); long n = ftell(f); fseek(f, 0, SEEK_SET);
     uint8_t *rom = malloc((size_t)n); if (fread(rom, 1, (size_t)n, f) != (size_t)n) { fprintf(stderr, "short read\n"); return 1; }
     fclose(f);
