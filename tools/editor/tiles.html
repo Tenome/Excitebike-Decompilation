@@ -134,8 +134,8 @@ function toBmp() {                                         // 128x256 8-bit inde
   out.set(pal, 54); out.set(data, off); return out;
 }
 $('savebmp').onclick = () => save('tiles.bmp', toBmp());
-async function put(name, bytes) { const r = await fetch('/api/put?name=' + name, { method: 'POST', headers: { 'X-Eb-Editor': '1' }, body: bytes }); return r.json(); }
-$('toport').onclick = async () => { try { const a = await put('tiles.bmp', toBmp()), b = await put('colors.pal', Uint8Array.from(master.flat())); $('info').textContent = (a.ok && b.ok) ? 'Sent: the port reloads it within a second (start it with serve.py\'s Play button).' : (a.message || b.message); }
+async function sendFile(name, bytes) { const r = await fetch('/api/put?name=' + name, { method: 'POST', headers: { 'X-Eb-Editor': '1' }, body: bytes }); return r.json(); }
+$('toport').onclick = async () => { try { const a = await sendFile('tiles.bmp', toBmp()), b = await sendFile('colors.pal', Uint8Array.from(master.flat())); $('info').textContent = (a.ok && b.ok) ? 'Sent: the port reloads it within a second (start it with serve.py\'s Play button).' : (a.message || b.message); }
   catch (x) { $('info').textContent = 'Send to port needs the editors started with python tools/editor/serve.py.'; } };
 $('open').onclick = () => $('file').click();
 $('file').onchange = async () => { const f = $('file').files[0]; if (!f) return; const b = new Uint8Array(await f.arrayBuffer()); push();

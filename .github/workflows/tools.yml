@@ -11,3 +11,4 @@ jobs:
       - run: python tests/test_serve.py
       - run: python tests/test_longdesign.py
       - run: python tests/test_interp.py
+      - run: python tests/test_editors.py
